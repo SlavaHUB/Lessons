@@ -1,7 +1,8 @@
 // ==========================================
 // НАСТРОЙКИ СЕРВЕРА
 // ==========================================
-const API_URL = 'https://lessons-nqy0.onrender.com/api/schedule';
+
+const API_URL = 'https://lessons-mqy0.onrender.com/api/schedule';
 
 let scheduleData = [];
 let currentWeekMonday = getMonday(new Date());
