@@ -4,11 +4,8 @@ const fetch = require('node-fetch');
 require('dotenv').config();
 
 const app = express();
-
 // Настройка CORS
 app.use(cors());
-
-
 app.use(express.json());
 
 function addMinutesToTime(timeStr, minsToAdd) {

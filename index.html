@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +8,9 @@
   <link rel="stylesheet" href="style.css?v=2.1">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
-<body>
 
+<body>
+  
   <div class="toolbar">
     <div class="nav-controls">
       <button id="btn-prev" class="btn-secondary">←</button>
@@ -16,12 +18,12 @@
       <button id="btn-next" class="btn-secondary">→</button>
       <span id="week-range-display" class="week-range">Загрузка...</span>
     </div>
-    
+
     <button id="btn-burger" class="btn-secondary btn-burger">☰ Меню</button>
-    
+
     <div class="action-controls" id="action-controls">
       <button id="btn-export" class="btn-secondary">📸 Скриншот</button>
-      <button id="btn-find-slots" class="btn-secondary">🔍 Найти окошко</button>
+      <button id="btn-find-slots" class="btn-secondary">🔍 Подобрать урок</button>
       <button id="btn-stats" class="btn-secondary">📊 Статистика</button>
     </div>
   </div>
@@ -40,7 +42,7 @@
   <div class="modal-overlay" id="modal">
     <div class="modal-content">
       <h3 id="modal-title" style="margin-bottom: 15px;">Детали урока</h3>
-      
+
       <div class="form-row">
         <div class="form-group" style="flex: 1;">
           <label>Дата</label>
@@ -70,7 +72,8 @@
 
       <div class="form-group" style="margin-top: 10px;">
         <label>ID в системе CRM</label>
-        <input type="text" id="info-id" disabled style="background: transparent; border: none; padding: 0; color: #94a3b8; font-family: monospace;">
+        <input type="text" id="info-id" disabled
+          style="background: transparent; border: none; padding: 0; color: #94a3b8; font-family: monospace;">
       </div>
 
       <div class="modal-actions">
@@ -92,12 +95,12 @@
   <div class="modal-overlay" id="slots-modal">
     <div class="modal-content" style="max-width: 400px;">
       <h3>🔍 Поиск свободных окошек</h3>
-      
+
       <div class="form-group">
         <label>Длительность урока (в минутах)</label>
         <input type="number" id="input-slot-duration" value="45" min="15" step="5">
       </div>
-      
+
       <div class="form-group">
         <label>Дни недели (текущая неделя)</label>
         <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 5px;" id="slot-days-container">
@@ -116,11 +119,13 @@
         <button id="btn-slots-search" class="btn-primary">Искать</button>
       </div>
 
-      <div id="slots-results" style="margin-top: 20px; max-height: 250px; overflow-y: auto; font-size: 0.9rem; line-height: 1.4;">
+      <div id="slots-results"
+        style="margin-top: 20px; max-height: 250px; overflow-y: auto; font-size: 0.9rem; line-height: 1.4;">
       </div>
     </div>
   </div>
 
   <script src="script.js?v=2.1"></script>
 </body>
+
 </html>
