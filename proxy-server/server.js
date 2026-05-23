@@ -7,7 +7,7 @@ const app = express();
 
 // Настройка CORS
 app.use(cors());
-app.options('*', cors()); 
+
 
 app.use(express.json());
 
