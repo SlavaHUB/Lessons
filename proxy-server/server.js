@@ -5,14 +5,7 @@ require('dotenv').config();
 
 const app = express();
 
-const express = require('express');
-const cors = require('cors');
-const fetch = require('node-fetch');
-require('dotenv').config();
-
-const app = express();
-
-// Этого достаточно для всех случаев (разрешает всё)
+// Настройка CORS
 app.use(cors());
 app.options('*', cors()); 
 
