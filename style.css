@@ -91,9 +91,9 @@ button {
 .event-title { font-weight: 800; margin-bottom: 3px; text-transform: uppercase; font-size: 0.75rem; line-height: 1.2; letter-spacing: 0.01em; }
 
 .theme-blue { background: #2db8f5; color: #ffffff; border-left: 4px solid #1397d1; }
-.theme-green { background: #b5fdaa; color: #ffffff; border-left: 4px solid #14ab91; }
-.theme-purple { background: #a855f7; color: #ffffff; border-left: 4px solid #8b5cf6; }
-.theme-grey { background: #9ca3af; color: #ffffff; border-left: 4px solid #6b7280; }
+.theme-green { background: #083600; color: #ffffff; border-left: 4px solid #14ab91; }
+.theme-purple { background: #2f0655; color: #ffffff; border-left: 4px solid #8b5cf6; }
+.theme-grey { background: #021536; color: #ffffff; border-left: 4px solid #6b7280; }
 .theme-red { background: #f87171; color: #ffffff; border-left: 4px solid #dc2626; }
 
 /* МОДАЛЬНЫЕ ОКНА */
