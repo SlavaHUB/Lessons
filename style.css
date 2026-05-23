@@ -17,11 +17,26 @@
   --day-off-bg2: rgba(226, 232, 240, 0.4);
 
   /* Светлые темы уроков (Пастельные) */
-  --theme-blue-bg: #eff6ff; --theme-blue-text: #1e3a8a; --theme-blue-border: #3b82f6; --theme-blue-stroke: #bfdbfe;
-  --theme-green-bg: #f0fdf4; --theme-green-text: #14532d; --theme-green-border: #22c55e; --theme-green-stroke: #bbf7d0;
-  --theme-purple-bg: #faf5ff; --theme-purple-text: #581c87; --theme-purple-border: #a855f7; --theme-purple-stroke: #e9d5ff;
-  --theme-grey-bg: #f8fafc; --theme-grey-text: #0f172a; --theme-grey-border: #64748b; --theme-grey-stroke: #e2e8f0;
-  --theme-red-bg: #fef2f2; --theme-red-text: #7f1d1d; --theme-red-border: #ef4444; --theme-red-stroke: #fecaca;
+  --theme-blue-bg: #eff6ff;
+  --theme-blue-text: #1e3a8a;
+  --theme-blue-border: #3b82f6;
+  --theme-blue-stroke: #bfdbfe;
+  --theme-green-bg: #f0fdf4;
+  --theme-green-text: #14532d;
+  --theme-green-border: #22c55e;
+  --theme-green-stroke: #bbf7d0;
+  --theme-purple-bg: #faf5ff;
+  --theme-purple-text: #581c87;
+  --theme-purple-border: #a855f7;
+  --theme-purple-stroke: #e9d5ff;
+  --theme-grey-bg: #f8fafc;
+  --theme-grey-text: #0f172a;
+  --theme-grey-border: #64748b;
+  --theme-grey-stroke: #e2e8f0;
+  --theme-red-bg: #fef2f2;
+  --theme-red-text: #7f1d1d;
+  --theme-red-border: #ef4444;
+  --theme-red-stroke: #fecaca;
 }
 
 [data-theme="dark"] {
@@ -42,11 +57,26 @@
   --day-off-bg2: rgba(30, 41, 59, 0.4);
 
   /* Темные темы уроков (Приглушенные) */
-  --theme-blue-bg: #1e3a8a; --theme-blue-text: #dbeafe; --theme-blue-border: #3b82f6; --theme-blue-stroke: #2563eb;
-  --theme-green-bg: #14532d; --theme-green-text: #dcfce7; --theme-green-border: #22c55e; --theme-green-stroke: #16a34a;
-  --theme-purple-bg: #581c87; --theme-purple-text: #f3e8ff; --theme-purple-border: #a855f7; --theme-purple-stroke: #9333ea;
-  --theme-grey-bg: #334155; --theme-grey-text: #f1f5f9; --theme-grey-border: #94a3b8; --theme-grey-stroke: #475569;
-  --theme-red-bg: #7f1d1d; --theme-red-text: #fee2e2; --theme-red-border: #ef4444; --theme-red-stroke: #dc2626;
+  --theme-blue-bg: #1e3a8a;
+  --theme-blue-text: #dbeafe;
+  --theme-blue-border: #3b82f6;
+  --theme-blue-stroke: #2563eb;
+  --theme-green-bg: #14532d;
+  --theme-green-text: #dcfce7;
+  --theme-green-border: #22c55e;
+  --theme-green-stroke: #16a34a;
+  --theme-purple-bg: #581c87;
+  --theme-purple-text: #f3e8ff;
+  --theme-purple-border: #a855f7;
+  --theme-purple-stroke: #9333ea;
+  --theme-grey-bg: #334155;
+  --theme-grey-text: #f1f5f9;
+  --theme-grey-border: #94a3b8;
+  --theme-grey-stroke: #475569;
+  --theme-red-bg: #7f1d1d;
+  --theme-red-text: #fee2e2;
+  --theme-red-border: #ef4444;
+  --theme-red-stroke: #dc2626;
 }
 
 *,
@@ -133,6 +163,25 @@ button {
 
 .btn-secondary:hover {
   background: var(--btn-secondary-hover);
+}
+
+.cookie-alert {
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 0.95rem;
+  border: 1px solid #f87171;
+  display: none;
+  /* Скрыто по умолчанию */
+}
+
+[data-theme="dark"] .cookie-alert {
+  background: #450a0a;
+  color: #fecaca;
+  border-color: #991b1b;
 }
 
 /* СЕТКА КАЛЕНДАРЯ */
@@ -304,19 +353,38 @@ button {
 }
 
 .theme-blue {
-  background: var(--theme-blue-bg); color: var(--theme-blue-text); border-left: 4px solid var(--theme-blue-border); border-color: var(--theme-blue-stroke);
+  background: var(--theme-blue-bg);
+  color: var(--theme-blue-text);
+  border-left: 4px solid var(--theme-blue-border);
+  border-color: var(--theme-blue-stroke);
 }
+
 .theme-green {
-  background: var(--theme-green-bg); color: var(--theme-green-text); border-left: 4px solid var(--theme-green-border); border-color: var(--theme-green-stroke);
+  background: var(--theme-green-bg);
+  color: var(--theme-green-text);
+  border-left: 4px solid var(--theme-green-border);
+  border-color: var(--theme-green-stroke);
 }
+
 .theme-purple {
-  background: var(--theme-purple-bg); color: var(--theme-purple-text); border-left: 4px solid var(--theme-purple-border); border-color: var(--theme-purple-stroke);
+  background: var(--theme-purple-bg);
+  color: var(--theme-purple-text);
+  border-left: 4px solid var(--theme-purple-border);
+  border-color: var(--theme-purple-stroke);
 }
+
 .theme-grey {
-  background: var(--theme-grey-bg); color: var(--theme-grey-text); border-left: 4px solid var(--theme-grey-border); border-color: var(--theme-grey-stroke);
+  background: var(--theme-grey-bg);
+  color: var(--theme-grey-text);
+  border-left: 4px solid var(--theme-grey-border);
+  border-color: var(--theme-grey-stroke);
 }
+
 .theme-red {
-  background: var(--theme-red-bg); color: var(--theme-red-text); border-left: 4px solid var(--theme-red-border); border-color: var(--theme-red-stroke);
+  background: var(--theme-red-bg);
+  color: var(--theme-red-text);
+  border-left: 4px solid var(--theme-red-border);
+  border-color: var(--theme-red-stroke);
 }
 
 /* МОДАЛЬНЫЕ ОКНА */

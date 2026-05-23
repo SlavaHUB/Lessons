@@ -84,7 +84,7 @@ function updateThemeButton(theme) {
 }
 
 // ==========================================
-// СЕТЕВАЯ ЛОГИКА
+// СЕТЕВАЯ ЛОГИКА И COOKIE GUARD
 // ==========================================
 async function fetchLessons() {
   try {
@@ -93,7 +93,31 @@ async function fetchLessons() {
 
     const response = await fetch(`${API_URL}?start=${startStr}&end=${endStr}`);
     if (response.ok) {
-      scheduleData = await response.json();
+      const rawData = await response.json();
+      
+      // Cookie Guard: Отделяем ошибки авторизации от реальных уроков
+      const validEvents = [];
+      const expiredSchools = new Set();
+
+      rawData.forEach(item => {
+        if (item.isError) {
+          expiredSchools.add(item.school);
+        } else {
+          validEvents.push(item);
+        }
+      });
+
+      scheduleData = validEvents;
+      
+      // Управление красным баннером
+      const alertBox = document.getElementById('cookie-alert');
+      if (expiredSchools.size > 0) {
+        document.getElementById('expired-schools').textContent = Array.from(expiredSchools).join(', ');
+        alertBox.style.display = 'block';
+      } else {
+        alertBox.style.display = 'none';
+      }
+
       initCalendar();
     }
   } catch (error) {
@@ -280,7 +304,7 @@ function findFreeSlots() {
 
     resultsContainer.innerHTML = `
       <div style="font-weight: 600; margin-bottom: 10px; color: var(--text-main); font-size: 0.85rem;">Шаблон ответа менеджеру:</div>
-      <textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-family: inherit; font-size: 0.85rem; resize: none; background: var(--border-color); color: var(--text-main); line-height: 1.5; outline: none;">${smsText}</textarea>
+      <textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-family: inherit; font-size: 0.85rem; resize: none; background: var(--bg-modal); color: var(--text-main); line-height: 1.5; outline: none;">${smsText}</textarea>
       <button id="btn-copy-sms" class="btn-primary" style="width: 100%; margin-top: 10px; background: #10b981;">📋 Скопировать текст</button>
     `;
 

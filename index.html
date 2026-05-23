@@ -5,12 +5,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Интерактивное расписание</title>
-  <link rel="stylesheet" href="style.css?v=2.3">
+  <link rel="stylesheet" href="style.css?v=2.4">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 
 <body>
-  
+
   <div class="toolbar">
     <div class="nav-controls">
       <button id="btn-prev" class="btn-secondary">←</button>
@@ -26,6 +26,10 @@
       <button id="btn-export" class="btn-secondary">📸 Скриншот</button>
       <button id="btn-find-slots" class="btn-secondary">🔍 Подобрать урок</button>
     </div>
+  </div>
+
+  <div id="cookie-alert" class="cookie-alert">
+    🚨 <strong>Внимание!</strong> Слетели куки для: <span id="expired-schools"></span>. Обновите их в .env на Render!
   </div>
 
   <div class="calendar-wrapper">
@@ -72,7 +76,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=2.3"></script>
+  <script src="script.js?v=2.4"></script>
 </body>
 
 </html>
