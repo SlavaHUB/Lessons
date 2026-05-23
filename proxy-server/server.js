@@ -4,11 +4,17 @@ const fetch = require('node-fetch');
 require('dotenv').config();
 
 const app = express();
+
+const express = require('express');
+const cors = require('cors');
+const fetch = require('node-fetch');
+require('dotenv').config();
+
 const app = express();
 
-// Разрешаем ВСЕМ и ЛЮБЫЕ методы
+// Этого достаточно для всех случаев (разрешает всё)
 app.use(cors());
-app.options('*', cors()); // Разрешаем предварительные запросы браузера
+app.options('*', cors()); 
 
 app.use(express.json());
 
