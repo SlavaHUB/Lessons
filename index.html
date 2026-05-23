@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Интерактивное расписание</title>
-  <link rel="stylesheet" href="style.css?v=1.6">
+  <link rel="stylesheet" href="style.css?v=2.0">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
@@ -22,9 +22,7 @@
     <div class="action-controls" id="action-controls">
       <button id="btn-export" class="btn-secondary">📸 Скриншот</button>
       <button id="btn-find-slots" class="btn-secondary">🔍 Найти окошко</button>
-      <button id="btn-copy-week" class="btn-secondary">📋 Скопировать прошлую неделю</button>
       <button id="btn-stats" class="btn-secondary">📊 Статистика</button>
-      <button id="btn-add" class="btn-primary">+ Добавить урок</button>
     </div>
   </div>
 
@@ -41,94 +39,42 @@
 
   <div class="modal-overlay" id="modal">
     <div class="modal-content">
-      <h3 id="modal-title">Новый урок</h3>
+      <h3 id="modal-title" style="margin-bottom: 15px;">Детали урока</h3>
       
       <div class="form-row">
         <div class="form-group" style="flex: 1;">
-          <label>Дата урока</label>
-          <input type="date" id="input-date">
+          <label>Дата</label>
+          <input type="date" id="info-date" disabled>
         </div>
         <div class="form-group" style="flex: 1;">
           <label>Школа</label>
-          <select id="input-school">
-            <option value="RTS">RTS</option>
-            <option value="ITCompot">ITCompot</option>
-            <option value="Zerocoder">Zerocoder</option>
-            <option value="Matrius">Matrius</option>
-          </select>
+          <input type="text" id="info-school" disabled>
         </div>
       </div>
 
       <div class="form-group">
-        <label>Урок / Задача</label>
-        <input type="text" id="input-title" placeholder="Что за урок">
+        <label>Урок / Группа</label>
+        <input type="text" id="info-title" disabled>
       </div>
 
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group" style="flex: 1;">
           <label>Начало</label>
-          <input type="time" id="input-start" value="09:00">
+          <input type="time" id="info-start" disabled>
         </div>
-        <div class="form-group">
+        <div class="form-group" style="flex: 1;">
           <label>Конец</label>
-          <input type="time" id="input-end" value="10:00">
+          <input type="time" id="info-end" disabled>
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="form-group" style="flex: 1;">
-          <label>Статус</label>
-          <select id="input-status">
-            <option value="Проведен">Проведен</option>
-            <option value="Отменен">Отменен</option>
-          </select>
-        </div>
-        <div class="form-group" style="flex: 1;">
-          <label>Стоимость</label>
-          <input type="number" id="input-price" placeholder="0" min="0">
-        </div>
-        <div class="form-group" style="flex: 1;">
-          <label>Компенсация</label>
-          <input type="number" id="input-comp" placeholder="0" min="0">
-        </div>
-      </div>
-
-      <div class="form-row" id="repeat-block" style="background: #f8fafc; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
-        <div class="form-group" style="flex: 1; flex-direction: row; align-items: center; gap: 10px; margin-bottom: 0;">
-          <input type="checkbox" id="input-repeat" style="width: auto; transform: scale(1.3); cursor: pointer;">
-          <label style="margin: 0; cursor: pointer; color: #3b82f6;" for="input-repeat">Повторять каждую неделю</label>
-        </div>
-        <div class="form-group" style="flex: 1; margin-bottom: 0; display: none;" id="repeat-count-group">
-          <label>Сколько недель (включая эту)?</label>
-          <input type="number" id="input-repeat-count" value="4" min="2" max="12" style="padding: 4px 8px;">
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>Описание (необязательно)</label>
-        <input type="text" id="input-desc" placeholder="Например: Токаренко М. Е.">
+      <div class="form-group" style="margin-top: 10px;">
+        <label>ID в системе CRM</label>
+        <input type="text" id="info-id" disabled style="background: transparent; border: none; padding: 0; color: #94a3b8; font-family: monospace;">
       </div>
 
       <div class="modal-actions">
-        <button id="btn-cancel" class="btn-secondary">Отмена</button>
-        <button id="btn-save" class="btn-primary">Сохранить</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-overlay" id="password-modal">
-    <div class="modal-content" style="max-width: 320px;">
-      <h3 id="password-title">Требуется доступ</h3>
-      <div class="form-group">
-        <label>Пароль администратора</label>
-        <input type="password" id="input-password" placeholder="Введите пароль...">
-      </div>
-      <div id="password-error" style="color: #ef4444; font-size: 0.8rem; font-weight: 600; margin-bottom: 15px; display: none;">
-        Неверный пароль!
-      </div>
-      <div class="modal-actions">
-        <button id="btn-pass-cancel" class="btn-secondary">Отмена</button>
-        <button id="btn-pass-submit" class="btn-primary">Войти</button>
+        <button id="btn-close-info" class="btn-primary">Закрыть</button>
       </div>
     </div>
   </div>
@@ -171,10 +117,10 @@
       </div>
 
       <div id="slots-results" style="margin-top: 20px; max-height: 250px; overflow-y: auto; font-size: 0.9rem; line-height: 1.4;">
-        </div>
+      </div>
     </div>
   </div>
 
-  <script src="script.js?v=1.2"></script>
+  <script src="script.js?v=2.0"></script>
 </body>
 </html>
