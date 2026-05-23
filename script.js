@@ -50,7 +50,6 @@ function getTheme(school, dayName) {
 }
 
 function checkCollision(date, start, end, excludeId = null) {
-  // Игнорируем накладки с отмененными уроками
   return scheduleData.some(event => {
     if (event.status === 'Отменен') return false;
     if (excludeId && event.id === excludeId) return false;
@@ -60,13 +59,11 @@ function checkCollision(date, start, end, excludeId = null) {
   });
 }
 
-// Конвертация времени для поиска окошек (например '09:30' -> 570 минут)
 function timeToMins(timeStr) {
   const [h, m] = timeStr.split(':').map(Number);
   return h * 60 + m;
 }
 
-// Конвертация минут обратно в строку (например 570 -> '09:30')
 function minsToTime(mins) {
   const h = Math.floor(mins / 60).toString().padStart(2, '0');
   const m = (mins % 60).toString().padStart(2, '0');
@@ -74,7 +71,7 @@ function minsToTime(mins) {
 }
 
 // ==========================================
-// ПРОВЕРКА ПАРОЛЯ (С ЗАПОМИНАНИЕМ В БРАУЗЕРЕ)
+// ПРОВЕРКА ПАРОЛЯ
 // ==========================================
 function requestPassword(actionTitle) {
   return new Promise((resolve) => {
@@ -146,23 +143,6 @@ async function fetchLessons() {
     }
   } catch (error) {
     console.error('Ошибка загрузки данных:', error);
-  }
-}
-
-async function addLessonToAPI(newEvent) {
-  try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newEvent)
-    });
-    if (response.ok) {
-      const savedEvent = await response.json();
-      scheduleData.push(savedEvent);
-      initCalendar();
-    }
-  } catch (error) {
-    alert('Не удалось сохранить урок.');
   }
 }
 
@@ -282,9 +262,11 @@ function initCalendar() {
           document.getElementById('input-end').value = event.endTime;
           document.getElementById('input-desc').value = event.desc || '';
           document.getElementById('input-price').value = event.price || '';
-
           document.getElementById('input-status').value = event.status || 'Проведен';
           document.getElementById('input-comp').value = event.compensation || '';
+
+          // Прячем блок повторений при редактировании
+          document.getElementById('repeat-block').style.display = 'none';
 
           modal.classList.add('active');
         }
@@ -297,9 +279,6 @@ function initCalendar() {
   });
 }
 
-// ==========================================
-// УМНАЯ СТАТИСТИКА
-// ==========================================
 function showStats() {
   const statsModal = document.getElementById('stats-modal');
   const statsContainer = document.getElementById('stats-container');
@@ -331,9 +310,7 @@ function showStats() {
   `;
   statsModal.classList.add('active');
 }
-// ==========================================
-// ЛОГИКА ПОИСКА СВОБОДНЫХ ОКОШЕК (БЕЗ ДАТ, ТОЛЬКО ДНИ НЕДЕЛИ)
-// ==========================================
+
 function findFreeSlots() {
   const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
   const checkboxes = document.querySelectorAll('#slot-days-container input:checked');
@@ -358,9 +335,6 @@ function findFreeSlots() {
     const dateStr = formatDateToString(dateObj);
     const dayName = daysOfWeek[index];
 
-    // ИЗМЕНЕНИЕ: Убрали генерацию конкретной даты (число/месяц)
-
-    // Жестко задаем статус для Вторника (1) и Среды (2)
     if (index === 1 || index === 2) {
       smsLines.push(`▪️ ${dayName}: выходной`);
       allDaysFull = false;
@@ -404,7 +378,6 @@ function findFreeSlots() {
       }
     }
 
-    // ИЗМЕНЕНИЕ: Убрали переменную с датой из финальных строк SMS
     if (dayEvents.length === 0) {
       smsLines.push(`▪️ ${dayName}: любое время с 08:00 до ${minsToTime(dayEndMins - duration)}`);
       allDaysFull = false;
@@ -452,11 +425,17 @@ const btnSave = document.getElementById('btn-save');
 const btnStats = document.getElementById('btn-stats');
 const btnStatsClose = document.getElementById('btn-stats-close');
 const btnCopyWeek = document.getElementById('btn-copy-week');
-
 const btnFindSlots = document.getElementById('btn-find-slots');
 const slotsModal = document.getElementById('slots-modal');
 const btnSlotsCancel = document.getElementById('btn-slots-cancel');
 const btnSlotsSearch = document.getElementById('btn-slots-search');
+const btnBurger = document.getElementById('btn-burger');
+const actionControls = document.getElementById('action-controls');
+
+// БУРГЕР МЕНЮ
+btnBurger.addEventListener('click', () => {
+  actionControls.classList.toggle('open');
+});
 
 // НАВИГАЦИЯ
 document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); initCalendar(); });
@@ -469,17 +448,73 @@ btnStatsClose.addEventListener('click', () => { document.getElementById('stats-m
 
 // ПОИСК ОКОШЕК
 btnFindSlots.addEventListener('click', () => {
-  document.getElementById('slots-results').innerHTML = ''; // Очищаем старые результаты
+  document.getElementById('slots-results').innerHTML = '';
   slotsModal.classList.add('active');
+  actionControls.classList.remove('open'); // Закрываем меню на мобилке
 });
-btnSlotsCancel.addEventListener('click', () => {
-  slotsModal.classList.remove('active');
-});
+btnSlotsCancel.addEventListener('click', () => { slotsModal.classList.remove('active'); });
 btnSlotsSearch.addEventListener('click', findFreeSlots);
+
+// ЭКСПОРТ В PNG (СКРИНШОТ ПРЯМО В БУФЕР ОБМЕНА)
+document.getElementById('btn-export').addEventListener('click', async () => {
+  actionControls.classList.remove('open'); // Закрываем меню на мобилке
+
+  const btnExport = document.getElementById('btn-export');
+  const originalText = btnExport.innerHTML;
+  btnExport.innerHTML = '⏳ Копирую...';
+
+  const calendar = document.querySelector('.calendar-wrapper');
+
+  try {
+    const canvas = await html2canvas(calendar, { scale: 2 });
+
+    // Превращаем canvas в файл (Blob)
+    canvas.toBlob(async (blob) => {
+      try {
+        // Пытаемся записать картинку в системный буфер обмена
+        const item = new ClipboardItem({ 'image/png': blob });
+        await navigator.clipboard.write([item]);
+
+        // Визуальный успех
+        btnExport.innerHTML = '✅ В буфере!';
+        btnExport.style.background = '#059669'; // Зеленый цвет
+        btnExport.style.color = 'white';
+
+      } catch (err) {
+        // Если браузер запретил доступ к буферу, скачиваем по старинке
+        console.warn('Буфер недоступен, качаем файл:', err);
+        const link = document.createElement('a');
+        link.download = `Расписание_${formatDateToString(currentWeekMonday)}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+
+        btnExport.innerHTML = '✅ Скачано!';
+      }
+
+      // Возвращаем кнопку в исходное состояние через 2 секунды
+      setTimeout(() => {
+        btnExport.innerHTML = originalText;
+        btnExport.style.background = '';
+        btnExport.style.color = '';
+      }, 2000);
+
+    }, 'image/png');
+
+  } catch (error) {
+    alert('Не удалось создать скриншот!');
+    btnExport.innerHTML = originalText;
+  }
+});
+
+// ЛОГИКА ГАЛОЧКИ ПОВТОРЕНИЯ УРОКА
+document.getElementById('input-repeat').addEventListener('change', function () {
+  document.getElementById('repeat-count-group').style.display = this.checked ? 'flex' : 'none';
+});
 
 // КОПИРОВАНИЕ ПРОШЛОЙ НЕДЕЛИ 
 if (btnCopyWeek) {
   btnCopyWeek.addEventListener('click', async () => {
+    actionControls.classList.remove('open'); // Закрываем меню
     const hasAccess = await requestPassword('Скопировать прошлую неделю');
     if (!hasAccess) return;
 
@@ -536,6 +571,7 @@ if (btnCopyWeek) {
 
 // КЛИК НА "+ ДОБАВИТЬ УРОК"
 btnAdd.addEventListener('click', async () => {
+  actionControls.classList.remove('open'); // Закрываем меню
   const hasAccess = await requestPassword('Добавить урок');
   if (hasAccess) {
     editingLessonId = null;
@@ -549,6 +585,11 @@ btnAdd.addEventListener('click', async () => {
     document.getElementById('input-end').value = '10:00';
     document.getElementById('input-date').value = formatDateToString(currentWeekMonday);
 
+    // Сбрасываем и показываем блок повторений
+    document.getElementById('input-repeat').checked = false;
+    document.getElementById('repeat-count-group').style.display = 'none';
+    document.getElementById('repeat-block').style.display = 'flex';
+
     modal.classList.add('active');
     setTimeout(() => document.getElementById('input-title').focus(), 100);
   }
@@ -556,8 +597,8 @@ btnAdd.addEventListener('click', async () => {
 
 btnCancel.addEventListener('click', () => { modal.classList.remove('active'); editingLessonId = null; });
 
-// КНОПКА СОХРАНИТЬ
-btnSave.addEventListener('click', () => {
+// КНОПКА СОХРАНИТЬ (С ПОДДЕРЖКОЙ ГЕНЕРАЦИИ НЕСКОЛЬКИХ УРОКОВ)
+btnSave.addEventListener('click', async () => {
   const dateValue = document.getElementById('input-date').value;
   const school = document.getElementById('input-school').value;
   const title = document.getElementById('input-title').value || 'Без названия';
@@ -565,31 +606,54 @@ btnSave.addEventListener('click', () => {
   const endTime = document.getElementById('input-end').value;
   const desc = document.getElementById('input-desc').value;
   const price = document.getElementById('input-price').value || 0;
-
   const status = document.getElementById('input-status').value;
   const compensation = document.getElementById('input-comp').value || 0;
+
+  const isRepeat = document.getElementById('input-repeat').checked;
+  // Повторять можно только при создании нового урока
+  const repeatCount = (isRepeat && editingLessonId === null) ? parseInt(document.getElementById('input-repeat-count').value) : 1;
 
   if (!dateValue) { alert('Пожалуйста, выберите дату урока!'); return; }
   if (startTime >= endTime) { alert('Время окончания должно быть позже времени начала!'); return; }
 
-  if (checkCollision(dateValue, startTime, endTime, editingLessonId)) {
-    alert('❌ Накладка по времени! В этот день и время у вас уже запланирован другой урок. Пожалуйста, измените интервал.');
-    return;
+  // Правильный парсинг даты, чтобы избежать смещений часовых поясов
+  const [yyyy, mm, dd] = dateValue.split('-');
+  const baseDateObj = new Date(yyyy, mm - 1, dd);
+
+  let datesToSave = [];
+
+  // Предварительная проверка на накладки для ВСЕХ недель
+  for (let i = 0; i < repeatCount; i++) {
+    const curDateObj = addDays(baseDateObj, i * 7);
+    const curDateStr = formatDateToString(curDateObj);
+    datesToSave.push(curDateStr);
+
+    if (checkCollision(curDateStr, startTime, endTime, editingLessonId)) {
+      alert(`❌ Накладка по времени! В день ${curDateStr} уже запланирован другой урок. Отмена сохранения.`);
+      return;
+    }
   }
 
   btnSave.disabled = true;
   btnSave.textContent = 'Сохранение...';
 
-  const payload = { date: dateValue, school, title, startTime, endTime, desc, price, status, compensation };
-
   if (editingLessonId !== null) {
-    updateLessonInAPI(editingLessonId, payload).then(() => {
-      btnSave.disabled = false; btnSave.textContent = 'Сохранить'; btnCancel.click();
-    });
+    // Обновляем один урок
+    const payload = { date: dateValue, school, title, startTime, endTime, desc, price, status, compensation };
+    await updateLessonInAPI(editingLessonId, payload);
+    btnSave.disabled = false; btnSave.textContent = 'Сохранить'; btnCancel.click();
   } else {
-    addLessonToAPI(payload).then(() => {
-      btnSave.disabled = false; btnSave.textContent = 'Сохранить'; btnCancel.click();
-    });
+    // Сохраняем один или несколько уроков
+    for (const dStr of datesToSave) {
+      const payload = { date: dStr, school, title, startTime, endTime, desc, price, status, compensation };
+      await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    }
+    await fetchLessons(); // Перезагружаем всю таблицу после цикла
+    btnSave.disabled = false; btnSave.textContent = 'Сохранить'; btnCancel.click();
   }
 });
 

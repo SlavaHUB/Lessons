@@ -55,6 +55,10 @@ body {
   gap: 10px;
 }
 
+.btn-burger {
+  display: none; /* Скрыта на ПК */
+}
+
 button {
   cursor: pointer;
   font-family: inherit;
@@ -97,6 +101,7 @@ button {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   overflow-y: auto;
   overflow-x: hidden;
+  background: white; /* Важно для экспорта картинки */
 }
 
 .calendar-header {
@@ -181,15 +186,16 @@ button {
   position: absolute;
   left: 2px;
   right: 6px;
-  border-radius: 4px;
+  border-radius: 6px; /* Сделали углы чуть более мягкими и современными */
   padding: 6px 8px;
   overflow: hidden;
-  font-size: 0.75rem;
-  line-height: 1.25;
   cursor: pointer;
   z-index: 10;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.2s;
+
+  /* ИЗМЕНЕНИЕ: Центрируем текст по ширине и держим вверху */
+  text-align: center; 
 }
 
 .event-card:hover {
@@ -199,19 +205,23 @@ button {
 
 .event-time {
   font-weight: 700;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
   font-size: 0.7rem;
+  letter-spacing: 0.03em; /* Чуть раздвинули буквы времени для читаемости */
+  opacity: 0.9;
 }
 
 .event-title {
   font-weight: 800;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
   text-transform: uppercase;
   font-size: 0.75rem;
+  line-height: 1.2;       /* Хороший интервал, если название школы длинное */
+  letter-spacing: 0.01em; /* Улучшает восприятие жирного текста капсом */
 }
 
 .event-desc {
-  font-weight: 500;
+  font-weight: 600;       /* Сделали описание чуть жирнее (было 500), чтобы лучше читалось */
   opacity: 0.95;
   font-size: 0.7rem;
 }
@@ -242,45 +252,18 @@ button {
   opacity: 1;
 }
 
-/* ИЗМЕНЕНИЕ: Стиль для отмененных уроков (Штриховка и прозрачность) */
 .event-card.status-canceled {
   opacity: 0.55;
   background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);
   background-size: 20px 20px;
   text-decoration: line-through;
-  /* Зачеркиваем текст */
 }
 
-/* ЦВЕТОВЫЕ ТЕМЫ */
-.theme-blue {
-  background: #2db8f5;
-  color: #ffffff;
-  border-left: 4px solid #1397d1;
-}
-
-.theme-green {
-  background: #22d3b5;
-  color: #ffffff;
-  border-left: 4px solid #14ab91;
-}
-
-.theme-purple {
-  background: #a855f7;
-  color: #ffffff;
-  border-left: 4px solid #8b5cf6;
-}
-
-.theme-grey {
-  background: #9ca3af;
-  color: #ffffff;
-  border-left: 4px solid #6b7280;
-}
-
-.theme-red {
-  background: #f87171;
-  color: #ffffff;
-  border-left: 4px solid #dc2626;
-}
+.theme-blue { background: #2db8f5; color: #ffffff; border-left: 4px solid #1397d1; }
+.theme-green { background: #4dcc1b; color: #ffffff; border-left: 4px solid #14ab91; }
+.theme-purple { background: #a855f7; color: #ffffff; border-left: 4px solid #8b5cf6; }
+.theme-grey { background: #9ca3af; color: #ffffff; border-left: 4px solid #6b7280; }
+.theme-red { background: #f87171; color: #ffffff; border-left: 4px solid #dc2626; }
 
 /* МОДАЛЬНЫЕ ОКНА */
 .modal-overlay {
@@ -347,7 +330,6 @@ label {
 input,
 select {
   width: 100%;
-  /* Вот эта строчка спасет поле от побега */
   padding: 8px 12px;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
@@ -369,56 +351,60 @@ select:focus {
   margin-top: 20px;
 }
 
-/* СТАТИСТИКА */
-.stats-list {
-  margin-bottom: 20px;
-}
-
+.stats-list { margin-bottom: 20px; }
 .stat-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: var(--text-main);
+  display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; font-weight: 500; color: var(--text-main);
 }
+.stat-row:last-child { border-bottom: none; }
+.stat-school { font-weight: 600; }
+.stat-total { font-weight: 800; font-size: 1.2rem; margin-top: 15px; text-align: right; color: #111827; }
 
-.stat-row:last-child {
-  border-bottom: none;
-}
 
-.stat-school {
-  font-weight: 600;
-}
-
-.stat-total {
-  font-weight: 800;
-  font-size: 1.2rem;
-  margin-top: 15px;
-  text-align: right;
-  color: #111827;
-}
-
-/* АДАПТАЦИЯ ДЛЯ МОБИЛЬНЫХ ТЕЛЕФОНОВ */
+/* ==========================================
+   АДАПТАЦИЯ ДЛЯ МОБИЛЬНЫХ ТЕЛЕФОНОВ 
+   ========================================== */
 @media (max-width: 768px) {
-  body {
-    padding: 10px;
-  }
+  body { padding: 10px; }
 
   .toolbar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 15px;
+    position: relative;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
   }
 
   .nav-controls {
-    justify-content: center;
+    flex: 1;
     flex-wrap: wrap;
+    justify-content: center;
   }
 
+  /* Показываем бургер-кнопку */
+  .btn-burger {
+    display: block;
+    background: #1e293b;
+    color: white;
+  }
+
+  /* Прячем кнопки в выпадающее меню */
   .action-controls {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    z-index: 200;
+    background: white;
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
     flex-direction: column;
+    gap: 10px;
+  }
+
+  .action-controls.open {
+    display: flex;
   }
 
   .action-controls button {
@@ -436,23 +422,8 @@ select:focus {
     min-width: 800px;
   }
 
-  .form-row {
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .form-group {
-    margin-bottom: 12px;
-  }
-
-  .modal-content {
-    padding: 16px;
-    max-height: 90vh;
-    overflow-y: auto;
-  }
-
-  .delete-btn {
-    opacity: 1;
-    background: rgba(0, 0, 0, 0.4);
-  }
+  .form-row { flex-direction: column; gap: 0; }
+  .form-group { margin-bottom: 12px; }
+  .modal-content { padding: 16px; max-height: 90vh; overflow-y: auto; }
+  .delete-btn { opacity: 1; background: rgba(0, 0, 0, 0.4); }
 }
