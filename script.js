@@ -455,51 +455,61 @@ btnFindSlots.addEventListener('click', () => {
 btnSlotsCancel.addEventListener('click', () => { slotsModal.classList.remove('active'); });
 btnSlotsSearch.addEventListener('click', findFreeSlots);
 
-// ЭКСПОРТ В PNG (СКРИНШОТ ПРЯМО В БУФЕР ОБМЕНА)
+// ЭКСПОРТ В PNG (СКРИНШОТ С ПОДДЕРЖКОЙ МОБИЛЬНОГО "ПОДЕЛИТЬСЯ")
 document.getElementById('btn-export').addEventListener('click', async () => {
-  actionControls.classList.remove('open'); // Закрываем меню на мобилке
-
+  actionControls.classList.remove('open'); 
+  
   const btnExport = document.getElementById('btn-export');
   const originalText = btnExport.innerHTML;
-  btnExport.innerHTML = '⏳ Копирую...';
-
+  btnExport.innerHTML = '⏳ Создаю...';
+  
   const calendar = document.querySelector('.calendar-wrapper');
-
+  
   try {
     const canvas = await html2canvas(calendar, { scale: 2 });
-
-    // Превращаем canvas в файл (Blob)
+    
     canvas.toBlob(async (blob) => {
-      try {
-        // Пытаемся записать картинку в системный буфер обмена
-        const item = new ClipboardItem({ 'image/png': blob });
-        await navigator.clipboard.write([item]);
-
-        // Визуальный успех
-        btnExport.innerHTML = '✅ В буфере!';
-        btnExport.style.background = '#059669'; // Зеленый цвет
-        btnExport.style.color = 'white';
-
-      } catch (err) {
-        // Если браузер запретил доступ к буферу, скачиваем по старинке
-        console.warn('Буфер недоступен, качаем файл:', err);
-        const link = document.createElement('a');
-        link.download = `Расписание_${formatDateToString(currentWeekMonday)}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-
-        btnExport.innerHTML = '✅ Скачано!';
+      const file = new File([blob], `Расписание_${formatDateToString(currentWeekMonday)}.png`, { type: 'image/png' });
+      
+      // 1. Проверяем, поддерживает ли телефон меню "Поделиться" (Telegram, WhatsApp и т.д.)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'Моё расписание',
+          });
+          btnExport.innerHTML = '✅ Отправлено!';
+        } catch (err) {
+          btnExport.innerHTML = originalText; // Если пользователь закрыл меню Share
+        }
+      } 
+      // 2. Если это ПК (нет меню Share) — кидаем в буфер обмена
+      else {
+        try {
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          btnExport.innerHTML = '✅ В буфере!';
+          btnExport.style.background = '#059669'; 
+          btnExport.style.color = 'white';
+        } 
+        // 3. Страховка: если совсем ничего не сработало — просто качаем файл
+        catch (err) {
+          const link = document.createElement('a');
+          link.download = file.name;
+          link.href = URL.createObjectURL(blob);
+          link.click();
+          btnExport.innerHTML = '✅ Скачано!';
+        }
       }
-
-      // Возвращаем кнопку в исходное состояние через 2 секунды
+      
       setTimeout(() => {
         btnExport.innerHTML = originalText;
-        btnExport.style.background = '';
+        btnExport.style.background = ''; 
         btnExport.style.color = '';
       }, 2000);
-
+      
     }, 'image/png');
-
+    
   } catch (error) {
     alert('Не удалось создать скриншот!');
     btnExport.innerHTML = originalText;
