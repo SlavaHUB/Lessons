@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Интерактивное расписание</title>
-  <link rel="stylesheet" href="style.css?v=1.1">
+  <link rel="stylesheet" href="style.css?v=1.2">
 </head>
 <body>
 
@@ -17,6 +17,7 @@
     </div>
     
     <div class="action-controls">
+      <button id="btn-find-slots" class="btn-secondary">🔍 Найти окошко</button>
       <button id="btn-copy-week" class="btn-secondary">📋 Скопировать прошлую неделю</button>
       <button id="btn-stats" class="btn-secondary">📊 Статистика</button>
       <button id="btn-add" class="btn-primary">+ Добавить урок</button>
@@ -71,14 +72,26 @@
       </div>
 
       <div class="form-row">
-        <div class="form-group" style="flex: 2;">
-          <label>Описание (необязательно)</label>
-          <input type="text" id="input-desc" placeholder="Например: Токаренко М. Е.">
+        <div class="form-group" style="flex: 1;">
+          <label>Статус</label>
+          <select id="input-status">
+            <option value="Проведен">Проведен</option>
+            <option value="Отменен">Отменен</option>
+          </select>
         </div>
         <div class="form-group" style="flex: 1;">
-          <label>Сумма</label>
+          <label>Стоимость</label>
           <input type="number" id="input-price" placeholder="0" min="0">
         </div>
+        <div class="form-group" style="flex: 1;">
+          <label>Компенсация</label>
+          <input type="number" id="input-comp" placeholder="0" min="0">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Описание (необязательно)</label>
+        <input type="text" id="input-desc" placeholder="Например: Токаренко М. Е.">
       </div>
 
       <div class="modal-actions">
@@ -93,7 +106,7 @@
       <h3 id="password-title">Требуется доступ</h3>
       <div class="form-group">
         <label>Пароль администратора</label>
-        <input type="text" id="input-password" placeholder="Введите пароль...">
+        <input type="password" id="input-password" placeholder="Введите пароль...">
       </div>
       <div id="password-error" style="color: #ef4444; font-size: 0.8rem; font-weight: 600; margin-bottom: 15px; display: none;">
         Неверный пароль!
@@ -112,6 +125,38 @@
       <div class="modal-actions">
         <button id="btn-stats-close" class="btn-primary">Закрыть</button>
       </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="slots-modal">
+    <div class="modal-content" style="max-width: 400px;">
+      <h3>🔍 Поиск свободных окошек</h3>
+      
+      <div class="form-group">
+        <label>Длительность урока (в минутах)</label>
+        <input type="number" id="input-slot-duration" value="45" min="15" step="5">
+      </div>
+      
+      <div class="form-group">
+        <label>Дни недели (текущая неделя)</label>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 5px;" id="slot-days-container">
+          <label><input type="checkbox" value="0"> Пн</label>
+          <label><input type="checkbox" value="1"> Вт</label>
+          <label><input type="checkbox" value="2"> Ср</label>
+          <label><input type="checkbox" value="3"> Чт</label>
+          <label><input type="checkbox" value="4"> Пт</label>
+          <label><input type="checkbox" value="5"> Сб</label>
+          <label><input type="checkbox" value="6"> Вс</label>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-slots-cancel" class="btn-secondary">Закрыть</button>
+        <button id="btn-slots-search" class="btn-primary">Искать</button>
+      </div>
+
+      <div id="slots-results" style="margin-top: 20px; max-height: 250px; overflow-y: auto; font-size: 0.9rem; line-height: 1.4;">
+        </div>
     </div>
   </div>
 

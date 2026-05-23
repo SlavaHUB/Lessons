@@ -1,16 +1,16 @@
 // ==========================================
 // НАСТРОЙКИ СЕРВЕРА И БЕЗОПАСНОСТИ
 // ==========================================
-const API_URL = 'https://6a113ca53e35d0f37ee3157f.mockapi.io/lessons'; 
+const API_URL = 'https://6a113ca53e35d0f37ee3157f.mockapi.io/lessons';
 const ADMIN_HASH = 'c2Ftc3VuZzE5NzY='; // Пароль: samsung1976
 
 let scheduleData = [];
-let editingLessonId = null; 
+let editingLessonId = null;
 let currentWeekMonday = getMonday(new Date());
 
-const HOUR_HEIGHT = 60; 
-const START_HOUR = 8;   
-const END_HOUR = 23;    
+const HOUR_HEIGHT = 60;
+const START_HOUR = 8;
+const END_HOUR = 23;
 const daysOfWeek = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const monthsRu = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 
@@ -22,7 +22,7 @@ function getMonday(d) {
   const day = date.getDay();
   const diff = date.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(date.setDate(diff));
-  monday.setHours(0,0,0,0);
+  monday.setHours(0, 0, 0, 0);
   return monday;
 }
 
@@ -49,11 +49,39 @@ function getTheme(school, dayName) {
   }
 }
 
+function checkCollision(date, start, end, excludeId = null) {
+  // Игнорируем накладки с отмененными уроками
+  return scheduleData.some(event => {
+    if (event.status === 'Отменен') return false;
+    if (excludeId && event.id === excludeId) return false;
+    if (event.date !== date) return false;
+
+    return (start < event.endTime && end > event.startTime);
+  });
+}
+
+// Конвертация времени для поиска окошек (например '09:30' -> 570 минут)
+function timeToMins(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+}
+
+// Конвертация минут обратно в строку (например 570 -> '09:30')
+function minsToTime(mins) {
+  const h = Math.floor(mins / 60).toString().padStart(2, '0');
+  const m = (mins % 60).toString().padStart(2, '0');
+  return `${h}:${m}`;
+}
+
 // ==========================================
-// ПРОВЕРКА ПАРОЛЯ
+// ПРОВЕРКА ПАРОЛЯ (С ЗАПОМИНАНИЕМ В БРАУЗЕРЕ)
 // ==========================================
 function requestPassword(actionTitle) {
   return new Promise((resolve) => {
+    if (localStorage.getItem('adminAccess') === 'granted') {
+      return resolve(true);
+    }
+
     const passModal = document.getElementById('password-modal');
     const passInput = document.getElementById('input-password');
     const passError = document.getElementById('password-error');
@@ -63,7 +91,7 @@ function requestPassword(actionTitle) {
     document.getElementById('password-title').textContent = actionTitle;
     passInput.value = '';
     passError.style.display = 'none';
-    
+
     passModal.classList.add('active');
     setTimeout(() => passInput.focus(), 100);
 
@@ -78,8 +106,9 @@ function requestPassword(actionTitle) {
       const pass = passInput.value;
       try {
         if (btoa(pass) === ADMIN_HASH) {
+          localStorage.setItem('adminAccess', 'granted');
           cleanup();
-          resolve(true); 
+          resolve(true);
         } else {
           passError.textContent = 'Неверный пароль!';
           passError.style.display = 'block';
@@ -113,7 +142,7 @@ async function fetchLessons() {
     const response = await fetch(API_URL);
     if (response.ok) {
       scheduleData = await response.json();
-      initCalendar(); 
+      initCalendar();
     }
   } catch (error) {
     console.error('Ошибка загрузки данных:', error);
@@ -129,7 +158,7 @@ async function addLessonToAPI(newEvent) {
     });
     if (response.ok) {
       const savedEvent = await response.json();
-      scheduleData.push(savedEvent); 
+      scheduleData.push(savedEvent);
       initCalendar();
     }
   } catch (error) {
@@ -198,7 +227,6 @@ function initCalendar() {
   for (let i = 0; i < 7; i++) {
     const dateForDay = addDays(currentWeekMonday, i);
     currentWeekDates.push(dateForDay);
-    
     const formattedDayDate = `${dateForDay.getDate()}.${dateForDay.getMonth() + 1}`;
     header.innerHTML += `<div class="day-header">${daysOfWeek[i]} <span>${formattedDayDate}</span></div>`;
   }
@@ -222,16 +250,20 @@ function initCalendar() {
 
       const eventDiv = document.createElement('div');
       const theme = getTheme(event.school, dayName);
-      eventDiv.className = `event-card ${theme}`;
+
+      const statusClass = event.status === 'Отменен' ? 'status-canceled' : '';
+      eventDiv.className = `event-card ${theme} ${statusClass}`;
+
       eventDiv.style.top = `${topPx}px`;
       eventDiv.style.height = `${heightPx}px`;
 
       const schoolBadge = event.school ? `[${event.school}] ` : '';
+      const cancelLabel = event.status === 'Отменен' ? ' (ОТМЕНЕН)' : '';
 
       eventDiv.innerHTML = `
         <button class="delete-btn" onclick="deleteEvent('${event.id}', event)">&times;</button>
         <div class="event-time">${event.startTime} - ${event.endTime}</div>
-        <div class="event-title">${schoolBadge}${event.title}</div>
+        <div class="event-title">${schoolBadge}${event.title}${cancelLabel}</div>
         ${event.desc ? `<div class="event-desc">${event.desc}</div>` : ''}
       `;
 
@@ -240,9 +272,9 @@ function initCalendar() {
 
         const hasAccess = await requestPassword('Редактировать урок');
         if (hasAccess) {
-          editingLessonId = event.id; 
+          editingLessonId = event.id;
           document.getElementById('modal-title').textContent = 'Редактировать урок';
-          
+
           document.getElementById('input-date').value = event.date;
           document.getElementById('input-school').value = event.school || 'RTS';
           document.getElementById('input-title').value = event.title;
@@ -250,7 +282,10 @@ function initCalendar() {
           document.getElementById('input-end').value = event.endTime;
           document.getElementById('input-desc').value = event.desc || '';
           document.getElementById('input-price').value = event.price || '';
-          
+
+          document.getElementById('input-status').value = event.status || 'Проведен';
+          document.getElementById('input-comp').value = event.compensation || '';
+
           modal.classList.add('active');
         }
       });
@@ -263,12 +298,12 @@ function initCalendar() {
 }
 
 // ==========================================
-// СТАТИСТИКА
+// УМНАЯ СТАТИСТИКА
 // ==========================================
 function showStats() {
   const statsModal = document.getElementById('stats-modal');
   const statsContainer = document.getElementById('stats-container');
-  
+
   const totals = { 'RTS': 0, 'ITCompot': 0, 'Zerocoder': 0, 'Matrius': 0 };
   let grandTotal = 0;
 
@@ -278,10 +313,11 @@ function showStats() {
   scheduleData.forEach(event => {
     if (event.date >= startStr && event.date <= endStr) {
       const school = event.school;
-      const price = Number(event.price) || 0;
+      let finalPrice = event.status === 'Отменен' ? (Number(event.compensation) || 0) : (Number(event.price) || 0);
+
       if (totals[school] !== undefined) {
-        totals[school] += price;
-        grandTotal += price;
+        totals[school] += finalPrice;
+        grandTotal += finalPrice;
       }
     }
   });
@@ -297,7 +333,113 @@ function showStats() {
 }
 
 // ==========================================
-// УПРАВЛЕНИЕ ИНТЕРФЕЙСОМ И КОПИРОВАНИЕМ НЕДЕЛЬ
+// ЛОГИКА ПОИСКА СВОБОДНЫХ ОКОШЕК (С ГЕНЕРАЦИЕЙ SMS И ОГРАНИЧЕНИЕМ ДО 22:00)
+// ==========================================
+function findFreeSlots() {
+  const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
+  const checkboxes = document.querySelectorAll('#slot-days-container input:checked');
+  const selectedIndexes = Array.from(checkboxes).map(cb => parseInt(cb.value));
+  const resultsContainer = document.getElementById('slots-results');
+
+  if (selectedIndexes.length === 0) {
+    resultsContainer.innerHTML = '<div style="color: #ef4444; font-weight: bold;">Выберите хотя бы один день!</div>';
+    return;
+  }
+
+  resultsContainer.innerHTML = '';
+  const GAP = 10;
+  const dayStartMins = START_HOUR * 60; // 08:00
+
+  // ИЗМЕНЕНИЕ: Рабочий день теперь строго до 22:00
+  const dayEndMins = 22 * 60;
+
+  let smsLines = [];
+  let allDaysFull = true;
+
+  selectedIndexes.forEach(index => {
+    const dateObj = addDays(currentWeekMonday, index);
+    const dateStr = formatDateToString(dateObj);
+    const dayName = daysOfWeek[index];
+
+    const formattedDate = `${dateObj.getDate().toString().padStart(2, '0')}.${(dateObj.getMonth() + 1).toString().padStart(2, '0')}`;
+
+    const dayEvents = scheduleData
+      .filter(e => e.date === dateStr && e.status !== 'Отменен')
+      .sort((a, b) => timeToMins(a.startTime) - timeToMins(b.startTime));
+
+    let currentMins = dayStartMins;
+    const availableBlocks = [];
+
+    dayEvents.forEach(event => {
+      const evStart = timeToMins(event.startTime);
+      const evEnd = timeToMins(event.endTime);
+
+      const freeStart = currentMins;
+      const freeEnd = evStart - GAP;
+
+      if (freeEnd - freeStart >= duration) {
+        const latestStart = freeEnd - duration;
+        if (latestStart === freeStart) {
+          availableBlocks.push(`в ${minsToTime(freeStart)}`);
+        } else {
+          availableBlocks.push(`с ${minsToTime(freeStart)} до ${minsToTime(latestStart)}`);
+        }
+      }
+      currentMins = evEnd + GAP;
+    });
+
+    const freeStart = currentMins;
+    const freeEnd = dayEndMins;
+
+    if (freeEnd - freeStart >= duration && freeStart <= dayEndMins - duration) {
+      const latestStart = freeEnd - duration;
+      if (latestStart === freeStart) {
+        availableBlocks.push(`в ${minsToTime(freeStart)}`);
+      } else {
+        availableBlocks.push(`с ${minsToTime(freeStart)} до ${minsToTime(latestStart)}`);
+      }
+    }
+
+    if (dayEvents.length === 0) {
+      smsLines.push(`▪️ ${dayName} (${formattedDate}): любое время с 08:00 до ${minsToTime(dayEndMins - duration)}`);
+      allDaysFull = false;
+    } else if (availableBlocks.length > 0) {
+      smsLines.push(`▪️ ${dayName} (${formattedDate}): ${availableBlocks.join(' или ')}`);
+      allDaysFull = false;
+    }
+  });
+
+  if (allDaysFull) {
+    resultsContainer.innerHTML = '<div style="color: #ef4444; font-weight: 500;">❌ В выбранные дни нет окошек для такого урока до 22:00.</div>';
+  } else {
+    // ИЗМЕНЕНИЕ: Обновили финальную фразу в SMS
+    const smsText = `Здравствуйте! Готов взять урок (${duration} мин).\n\nМои свободные окошки для старта:\n${smsLines.join('\n')}\n\nКакое время выберем?`;
+
+    resultsContainer.innerHTML = `
+      <div style="font-weight: 600; margin-bottom: 10px; color: #374151; font-size: 0.85rem;">Шаблон ответа менеджеру:</div>
+      <textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.85rem; resize: none; background: #f8fafc; color: #334155; line-height: 1.5; outline: none;">${smsText}</textarea>
+      <button id="btn-copy-sms" class="btn-primary" style="width: 100%; margin-top: 10px; background: #10b981;">📋 Скопировать текст</button>
+    `;
+
+    document.getElementById('btn-copy-sms').addEventListener('click', function () {
+      const copyText = document.getElementById('sms-output');
+      copyText.select();
+      document.execCommand('copy');
+
+      const originalText = this.textContent;
+      this.textContent = '✅ Скопировано в буфер!';
+      this.style.background = '#059669';
+
+      setTimeout(() => {
+        this.textContent = originalText;
+        this.style.background = '#10b981';
+      }, 2000);
+    });
+  }
+}
+
+// ==========================================
+// УПРАВЛЕНИЕ ИНТЕРФЕЙСОМ И ОТПРАВКОЙ НА СЕРВЕР
 // ==========================================
 const modal = document.getElementById('modal');
 const btnAdd = document.getElementById('btn-add');
@@ -307,44 +449,57 @@ const btnStats = document.getElementById('btn-stats');
 const btnStatsClose = document.getElementById('btn-stats-close');
 const btnCopyWeek = document.getElementById('btn-copy-week');
 
+const btnFindSlots = document.getElementById('btn-find-slots');
+const slotsModal = document.getElementById('slots-modal');
+const btnSlotsCancel = document.getElementById('btn-slots-cancel');
+const btnSlotsSearch = document.getElementById('btn-slots-search');
+
 // НАВИГАЦИЯ
 document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); initCalendar(); });
 document.getElementById('btn-next').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, 7); initCalendar(); });
 document.getElementById('btn-today').addEventListener('click', () => { currentWeekMonday = getMonday(new Date()); initCalendar(); });
 
+// СТАТИСТИКА
 btnStats.addEventListener('click', showStats);
 btnStatsClose.addEventListener('click', () => { document.getElementById('stats-modal').classList.remove('active'); });
 
-// ЛОГИКА КОПИРОВАНИЯ ПРОШЛОЙ НЕДЕЛИ НА ТЕКУЩУЮ
+// ПОИСК ОКОШЕК
+btnFindSlots.addEventListener('click', () => {
+  document.getElementById('slots-results').innerHTML = ''; // Очищаем старые результаты
+  slotsModal.classList.add('active');
+});
+btnSlotsCancel.addEventListener('click', () => {
+  slotsModal.classList.remove('active');
+});
+btnSlotsSearch.addEventListener('click', findFreeSlots);
+
+// КОПИРОВАНИЕ ПРОШЛОЙ НЕДЕЛИ 
 if (btnCopyWeek) {
   btnCopyWeek.addEventListener('click', async () => {
     const hasAccess = await requestPassword('Скопировать прошлую неделю');
     if (!hasAccess) return;
 
-    // Считаем границы прошлой недели
     const prevWeekMonday = addDays(currentWeekMonday, -7);
     const prevWeekSunday = addDays(currentWeekMonday, -1);
     const startStr = formatDateToString(prevWeekMonday);
     const endStr = formatDateToString(prevWeekSunday);
 
-    // Фильтруем уроки прошлой недели
     const prevLessons = scheduleData.filter(e => e.date >= startStr && e.date <= endStr);
 
     if (prevLessons.length === 0) {
-      alert('На прошлой неделе уроков не найдено! Нечего копировать.');
+      alert('На прошлой неделе уроков не найдено!');
       return;
     }
 
-    if (confirm(`Найдено уроков: ${prevLessons.length}. Скопировать их как шаблон на текущую неделю?`)) {
+    if (confirm(`Найдено уроков: ${prevLessons.length}. Скопировать на текущую неделю?`)) {
       btnCopyWeek.disabled = true;
       btnCopyWeek.textContent = 'Копирование...';
 
       try {
-        // Отправляем каждый урок пачкой через цикл POST-запросов
         for (const lesson of prevLessons) {
           const oldDate = new Date(lesson.date);
-          const newDate = addDays(oldDate, 7); // Сдвигаем ровно на 7 дней вперед
-          
+          const newDate = addDays(oldDate, 7);
+
           const clonedLesson = {
             date: formatDateToString(newDate),
             school: lesson.school,
@@ -352,7 +507,9 @@ if (btnCopyWeek) {
             startTime: lesson.startTime,
             endTime: lesson.endTime,
             desc: lesson.desc,
-            price: lesson.price
+            price: lesson.price,
+            status: lesson.status || 'Проведен',
+            compensation: lesson.compensation || 0
           };
 
           await fetch(API_URL, {
@@ -361,12 +518,10 @@ if (btnCopyWeek) {
             body: JSON.stringify(clonedLesson)
           });
         }
-        
-        alert('✅ Расписание успешно продублировано! Творите правки.');
-        await fetchLessons(); // Полностью перегружаем базу и перерисовываем
+        alert('✅ Расписание продублировано!');
+        await fetchLessons();
       } catch (error) {
-        console.error(error);
-        alert('Произошла ошибка при копировании данных.');
+        alert('Произошла ошибка при копировании.');
       } finally {
         btnCopyWeek.disabled = false;
         btnCopyWeek.textContent = '📋 Скопировать прошлую неделю';
@@ -375,15 +530,17 @@ if (btnCopyWeek) {
   });
 }
 
-// ДОБАВЛЕНИЕ УРОКА
+// КЛИК НА "+ ДОБАВИТЬ УРОК"
 btnAdd.addEventListener('click', async () => {
   const hasAccess = await requestPassword('Добавить урок');
   if (hasAccess) {
-    editingLessonId = null; 
+    editingLessonId = null;
     document.getElementById('modal-title').textContent = 'Новый урок';
     document.getElementById('input-title').value = '';
     document.getElementById('input-desc').value = '';
     document.getElementById('input-price').value = '';
+    document.getElementById('input-comp').value = '';
+    document.getElementById('input-status').value = 'Проведен';
     document.getElementById('input-start').value = '09:00';
     document.getElementById('input-end').value = '10:00';
     document.getElementById('input-date').value = formatDateToString(currentWeekMonday);
@@ -395,6 +552,7 @@ btnAdd.addEventListener('click', async () => {
 
 btnCancel.addEventListener('click', () => { modal.classList.remove('active'); editingLessonId = null; });
 
+// КНОПКА СОХРАНИТЬ
 btnSave.addEventListener('click', () => {
   const dateValue = document.getElementById('input-date').value;
   const school = document.getElementById('input-school').value;
@@ -404,57 +562,37 @@ btnSave.addEventListener('click', () => {
   const desc = document.getElementById('input-desc').value;
   const price = document.getElementById('input-price').value || 0;
 
+  const status = document.getElementById('input-status').value;
+  const compensation = document.getElementById('input-comp').value || 0;
+
   if (!dateValue) { alert('Пожалуйста, выберите дату урока!'); return; }
   if (startTime >= endTime) { alert('Время окончания должно быть позже времени начала!'); return; }
+
+  if (checkCollision(dateValue, startTime, endTime, editingLessonId)) {
+    alert('❌ Накладка по времени! В этот день и время у вас уже запланирован другой урок. Пожалуйста, измените интервал.');
+    return;
+  }
 
   btnSave.disabled = true;
   btnSave.textContent = 'Сохранение...';
 
+  const payload = { date: dateValue, school, title, startTime, endTime, desc, price, status, compensation };
+
   if (editingLessonId !== null) {
-    const updatedEvent = { date: dateValue, school, title, startTime, endTime, desc, price };
-    updateLessonInAPI(editingLessonId, updatedEvent).then(() => {
-      btnSave.disabled = false; btnSave.textContent = 'Сохранить'; btnCancel.click();           
+    updateLessonInAPI(editingLessonId, payload).then(() => {
+      btnSave.disabled = false; btnSave.textContent = 'Сохранить'; btnCancel.click();
     });
   } else {
-    const newEvent = { date: dateValue, school, title, startTime, endTime, desc, price };
-    addLessonToAPI(newEvent).then(() => {
-      btnSave.disabled = false; btnSave.textContent = 'Сохранить'; btnCancel.click();           
+    addLessonToAPI(payload).then(() => {
+      btnSave.disabled = false; btnSave.textContent = 'Сохранить'; btnCancel.click();
     });
   }
 });
 
-window.deleteEvent = async function(id, e) {
-  e.stopPropagation(); 
+window.deleteEvent = async function (id, e) {
+  e.stopPropagation();
   const hasAccess = await requestPassword('Удалить урок');
   if (hasAccess) { deleteLessonFromAPI(id); }
 };
 
 document.addEventListener('DOMContentLoaded', fetchLessons);
-
-
-// setTimeout(async () => {
-//   const MAP_URL = 'https://6a113ca53e35d0f37ee3157f.mockapi.io/lessons';
-//   const dayToDateMap = {
-//     'Пн': '2026-05-18', 'Вт': '2026-05-19', 'Ср': '2026-05-20',
-//     'Чт': '2026-05-21', 'Пт': '2026-05-22', 'Сб': '2026-05-23', 'Вс': '2026-05-24'
-//   };
-
-//   try {
-//     const response = await fetch(MAP_URL);
-//     const lessons = await response.json();
-//     for (const lesson of lessons) {
-//       if (lesson.day && !lesson.date && dayToDateMap[lesson.day]) {
-//         lesson.date = dayToDateMap[lesson.day];
-//         await fetch(`${MAP_URL}/${lesson.id}`, {
-//           method: 'PUT',
-//           headers: { 'Content-Type': 'application/json' },
-//           body: JSON.stringify(lesson)
-//         });
-//         console.log(`Урок ${lesson.title} обновлен!`);
-//       }
-//     }
-//     alert('✅ База данных успешно обновлена! Перезагрузи страницу.');
-//   } catch (e) {
-//     console.error('Ошибка обновления базы', e);
-//   }
-// }, 2000);
