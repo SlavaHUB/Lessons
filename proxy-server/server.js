@@ -4,7 +4,12 @@ const fetch = require('node-fetch');
 require('dotenv').config();
 
 const app = express();
+const app = express();
+
+// Разрешаем ВСЕМ и ЛЮБЫЕ методы
 app.use(cors());
+app.options('*', cors()); // Разрешаем предварительные запросы браузера
+
 app.use(express.json());
 
 function addMinutesToTime(timeStr, minsToAdd) {
@@ -27,7 +32,7 @@ function getDatesArray(startStr, endStr) {
 app.get('/api/schedule', async (req, res) => {
     try {
         const { start, end } = req.query;
-        
+
         if (!start || !end) {
             return res.status(400).json({ error: 'Нужны параметры start и end (YYYY-MM-DD)' });
         }
@@ -56,7 +61,7 @@ app.get('/api/schedule', async (req, res) => {
                 })
             });
             const itcData = await itcRes.json();
-            
+
             if (itcData && itcData.Events) {
                 itcData.Events.forEach(ev => {
                     if (ev.title && !ev.title.includes('Занят(а)')) {
@@ -103,7 +108,7 @@ app.get('/api/schedule', async (req, res) => {
                         if (ev.is_empty_slot) return;
                         const startTime = ev.time.substring(0, 5);
                         const endTime = addMinutesToTime(startTime, ev.duration);
-                        
+
                         finalSchedule.push({
                             id: `zero_${ev.id}`,
                             date: ev.date,
@@ -131,7 +136,7 @@ app.get('/api/schedule', async (req, res) => {
                     'Cookie': process.env.MATRIUS_COOKIE
                 },
                 body: JSON.stringify({
-                    dates: datesArray, 
+                    dates: datesArray,
                     teacher_id: 51282, // ID для Matrius
                     branch_id: null, subject_ids: [], is_conducted: null, is_transfer: null, is_canceled: null, age: null, is_extra: false
                 })
@@ -144,7 +149,7 @@ app.get('/api/schedule', async (req, res) => {
                         if (ev.is_empty_slot) return;
                         const startTime = ev.time.substring(0, 5);
                         const endTime = addMinutesToTime(startTime, ev.duration);
-                        
+
                         finalSchedule.push({
                             id: `mat_${ev.id}`,
                             date: ev.date,
