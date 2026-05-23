@@ -1,5 +1,5 @@
 // ==========================================
-// НАСТРОЙКИ СЕРВЕРА
+// НАСТРОЙКИ СЕРВЕРА И ТЕМЫ
 // ==========================================
 
 const API_URL = 'https://lessons-mqy0.onrender.com/api/schedule';
@@ -12,6 +12,18 @@ const START_HOUR = 8;
 const END_HOUR = 23;
 const daysOfWeek = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const monthsRu = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+
+// Ссылки на CRM
+const LINKS = {
+  ITCompot: 'https://it-school.t8s.ru/Interactive/12445?TeacherId=12445&TrialLessonsOnly=False&StudyRequestsMode=False&ClassroomsColumnsMode=True&DefaultView=agendaWeek&ExpandableFormClosed=False&Submitted=False',
+  Zerocoder: 'https://crm.genius-school.online/#/lessons',
+  Matrius: 'https://crm.genius-school.online/#/lessons'
+};
+
+// Инициализация темы из LocalStorage
+const savedTheme = localStorage.getItem('theme') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
+updateThemeButton(savedTheme);
 
 // ==========================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -62,6 +74,13 @@ function minsToTime(mins) {
 function timeToPixels(timeStr) {
   const [hours, minutes] = timeStr.split(':').map(Number);
   return ((hours - START_HOUR) + minutes / 60) * HOUR_HEIGHT;
+}
+
+function updateThemeButton(theme) {
+  const btn = document.getElementById('btn-theme');
+  if (btn) {
+    btn.textContent = theme === 'dark' ? '☀️ Светлая' : '🌙 Тёмная';
+  }
 }
 
 // ==========================================
@@ -137,7 +156,6 @@ function initCalendar() {
       dayCol.classList.add('today');
     }
 
-    // ВЫХОДНЫЕ ДНИ: Вторник и Среда
     if (index === 1 || index === 2) {
       dayCol.classList.add('day-off');
     }
@@ -163,16 +181,10 @@ function initCalendar() {
         <div class="event-title">${schoolBadge}${event.title}</div>
       `;
 
-      // КЛИК ПО УРОКУ: Показываем модалку с деталями
+      // ПЕРЕХОД ПО КЛИКУ НА CRM
       eventDiv.addEventListener('click', () => {
-        document.getElementById('info-date').value = event.date;
-        document.getElementById('info-school').value = event.school || 'Неизвестно';
-        document.getElementById('info-title').value = event.title;
-        document.getElementById('info-start').value = event.startTime;
-        document.getElementById('info-end').value = event.endTime;
-        document.getElementById('info-id').value = event.id; // Показываем скрытый ID
-        
-        document.getElementById('modal').classList.add('active');
+        const link = LINKS[event.school];
+        if(link) window.open(link, '_blank');
       });
 
       dayCol.appendChild(eventDiv);
@@ -183,19 +195,8 @@ function initCalendar() {
 }
 
 // ==========================================
-// СТАТИСТИКА И ПОИСК ОКОШЕК
+// ПОИСК СВОБОДНЫХ ОКОШЕК
 // ==========================================
-function showStats() {
-  const statsModal = document.getElementById('stats-modal');
-  const statsContainer = document.getElementById('stats-container');
-  statsContainer.innerHTML = `
-    <div style="text-align: center; color: #64748b; margin-bottom: 15px; font-size: 0.9rem;">
-      Финансовая статистика недоступна в режиме автоматической синхронизации с CRM школ.
-    </div>
-  `;
-  statsModal.classList.add('active');
-}
-
 function findFreeSlots() {
   const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
   const checkboxes = document.querySelectorAll('#slot-days-container input:checked');
@@ -209,8 +210,8 @@ function findFreeSlots() {
 
   resultsContainer.innerHTML = '';
   const GAP = 10;
-  const dayStartMins = START_HOUR * 60; // 08:00
-  const dayEndMins = 22 * 60; // 22:00
+  const dayStartMins = START_HOUR * 60; 
+  const dayEndMins = 22 * 60; 
 
   let smsLines = [];
   let allDaysFull = true;
@@ -278,8 +279,8 @@ function findFreeSlots() {
     const smsText = `Готов взять урок (${duration} мин).\n\nМои свободные окошки для старта:\n${smsLines.join('\n')}\n\nКакое время выберем?`;
 
     resultsContainer.innerHTML = `
-      <div style="font-weight: 600; margin-bottom: 10px; color: #374151; font-size: 0.85rem;">Шаблон ответа менеджеру:</div>
-      <textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.85rem; resize: none; background: #f8fafc; color: #334155; line-height: 1.5; outline: none;">${smsText}</textarea>
+      <div style="font-weight: 600; margin-bottom: 10px; color: var(--text-main); font-size: 0.85rem;">Шаблон ответа менеджеру:</div>
+      <textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-family: inherit; font-size: 0.85rem; resize: none; background: var(--border-color); color: var(--text-main); line-height: 1.5; outline: none;">${smsText}</textarea>
       <button id="btn-copy-sms" class="btn-primary" style="width: 100%; margin-top: 10px; background: #10b981;">📋 Скопировать текст</button>
     `;
 
@@ -311,8 +312,13 @@ document.getElementById('btn-prev').addEventListener('click', () => { currentWee
 document.getElementById('btn-next').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, 7); fetchLessons(); });
 document.getElementById('btn-today').addEventListener('click', () => { currentWeekMonday = getMonday(new Date()); fetchLessons(); });
 
-document.getElementById('btn-stats').addEventListener('click', showStats);
-document.getElementById('btn-stats-close').addEventListener('click', () => { document.getElementById('stats-modal').classList.remove('active'); });
+document.getElementById('btn-theme').addEventListener('click', () => {
+  const currentTheme = document.documentElement.getAttribute('data-theme');
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+  updateThemeButton(newTheme);
+});
 
 document.getElementById('btn-find-slots').addEventListener('click', () => {
   document.getElementById('slots-results').innerHTML = '';
@@ -365,11 +371,6 @@ document.getElementById('btn-export').addEventListener('click', async () => {
     alert('Не удалось создать скриншот!');
     btnExport.innerHTML = originalText;
   }
-});
-
-// Кнопка закрытия карточки урока
-document.getElementById('btn-close-info').addEventListener('click', () => {
-  document.getElementById('modal').classList.remove('active');
 });
 
 // ЗАПУСК ПРИ ОТКРЫТИИ
