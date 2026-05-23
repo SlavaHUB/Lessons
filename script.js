@@ -2,7 +2,7 @@
 // НАСТРОЙКИ СЕРВЕРА И БЕЗОПАСНОСТИ
 // ==========================================
 const API_URL = 'https://6a113ca53e35d0f37ee3157f.mockapi.io/lessons';
-const ADMIN_HASH = 'c2Ftc3VuZzE5NzY='; // Пароль: samsung1976
+const ADMIN_HASH = 'c2Ftc3VuZzE5NzY=';
 
 let scheduleData = [];
 let editingLessonId = null;
@@ -331,9 +331,8 @@ function showStats() {
   `;
   statsModal.classList.add('active');
 }
-
 // ==========================================
-// ЛОГИКА ПОИСКА СВОБОДНЫХ ОКОШЕК (С ГЕНЕРАЦИЕЙ SMS И ОГРАНИЧЕНИЕМ ДО 22:00)
+// ЛОГИКА ПОИСКА СВОБОДНЫХ ОКОШЕК (БЕЗ ДАТ, ТОЛЬКО ДНИ НЕДЕЛИ)
 // ==========================================
 function findFreeSlots() {
   const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
@@ -349,9 +348,7 @@ function findFreeSlots() {
   resultsContainer.innerHTML = '';
   const GAP = 10;
   const dayStartMins = START_HOUR * 60; // 08:00
-
-  // ИЗМЕНЕНИЕ: Рабочий день теперь строго до 22:00
-  const dayEndMins = 22 * 60;
+  const dayEndMins = 22 * 60; // 22:00
 
   let smsLines = [];
   let allDaysFull = true;
@@ -361,7 +358,14 @@ function findFreeSlots() {
     const dateStr = formatDateToString(dateObj);
     const dayName = daysOfWeek[index];
 
-    const formattedDate = `${dateObj.getDate().toString().padStart(2, '0')}.${(dateObj.getMonth() + 1).toString().padStart(2, '0')}`;
+    // ИЗМЕНЕНИЕ: Убрали генерацию конкретной даты (число/месяц)
+
+    // Жестко задаем статус для Вторника (1) и Среды (2)
+    if (index === 1 || index === 2) {
+      smsLines.push(`▪️ ${dayName}: выходной`);
+      allDaysFull = false;
+      return;
+    }
 
     const dayEvents = scheduleData
       .filter(e => e.date === dateStr && e.status !== 'Отменен')
@@ -400,11 +404,12 @@ function findFreeSlots() {
       }
     }
 
+    // ИЗМЕНЕНИЕ: Убрали переменную с датой из финальных строк SMS
     if (dayEvents.length === 0) {
-      smsLines.push(`▪️ ${dayName} (${formattedDate}): любое время с 08:00 до ${minsToTime(dayEndMins - duration)}`);
+      smsLines.push(`▪️ ${dayName}: любое время с 08:00 до ${minsToTime(dayEndMins - duration)}`);
       allDaysFull = false;
     } else if (availableBlocks.length > 0) {
-      smsLines.push(`▪️ ${dayName} (${formattedDate}): ${availableBlocks.join(' или ')}`);
+      smsLines.push(`▪️ ${dayName}: ${availableBlocks.join(' или ')}`);
       allDaysFull = false;
     }
   });
@@ -412,8 +417,7 @@ function findFreeSlots() {
   if (allDaysFull) {
     resultsContainer.innerHTML = '<div style="color: #ef4444; font-weight: 500;">❌ В выбранные дни нет окошек для такого урока до 22:00.</div>';
   } else {
-    // ИЗМЕНЕНИЕ: Обновили финальную фразу в SMS
-    const smsText = `Здравствуйте! Готов взять урок (${duration} мин).\n\nМои свободные окошки для старта:\n${smsLines.join('\n')}\n\nКакое время выберем?`;
+    const smsText = `Готов взять урок (${duration} мин).\n\nМои свободные окошки для старта:\n${smsLines.join('\n')}\n\nКакое время выберем?`;
 
     resultsContainer.innerHTML = `
       <div style="font-weight: 600; margin-bottom: 10px; color: #374151; font-size: 0.85rem;">Шаблон ответа менеджеру:</div>
