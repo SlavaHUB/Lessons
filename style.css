@@ -313,11 +313,11 @@ button {
 
 /* КАРТОЧКИ УРОКОВ */
 .event-card {
-  position: absolute;
+  position: absolute; /* Обязательно absolute для расстановки по времени */
   left: 2px;
   right: 6px;
   border-radius: 6px;
-  padding: 3px 4px;
+  padding: 4px 4px 18px 4px; /* Добавили нижний отступ 18px, чтобы текст не залазил под цену */
   overflow: hidden;
   cursor: pointer;
   z-index: 10;
@@ -327,7 +327,7 @@ button {
   border: 1px solid transparent;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
 }
 
@@ -350,8 +350,33 @@ button {
   font-weight: 700;
   margin-bottom: 2px;
   font-size: 0.7rem;
-  line-height: 1.2;
+  line-height: 1.1;
   letter-spacing: 0.01em;
+}
+
+/* ФИКСИРОВАННЫЙ ЦЕННИК ВНИЗУ КАРТОЧКИ */
+.event-price {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  right: 2px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 1px 4px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #000;
+  pointer-events: none;
+}
+[data-theme="dark"] .event-price {
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+}
+.price-byn {
+  opacity: 0.7;
+  font-weight: 500;
 }
 
 /* БЕЙДЖ ЦЕНЫ НА КАРТОЧКЕ */

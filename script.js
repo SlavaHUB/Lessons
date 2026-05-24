@@ -189,19 +189,17 @@ function initCalendar() {
       eventDiv.style.height = `${heightPx}px`;
 
       const schoolBadge = event.school ? `[${event.school}] ` : '';
-
-      // Ключ для поиска цены в priceBook
       const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
       const price = parseFloat(priceBook[lessonKey]) || 0;
 
       const priceHtml = price > 0 ? `
         <div class="event-price">
-          <div class="price-rub">${price} ₽</div>
-          <div class="price-byn">≈ ${(price * BYN_RATE).toFixed(2)} Br</div>
+          <span class="price-rub">${price}₽</span>
+          <span class="price-byn">${(price * BYN_RATE).toFixed(2)}Br</span>
         </div>` : '';
 
       eventDiv.innerHTML = `
-        <div class="event-time">${event.startTime} - ${event.endTime}</div>
+        <div class="event-time">${event.startTime}</div>
         <div class="event-title">${schoolBadge}${event.title}</div>
         ${priceHtml}
       `;
