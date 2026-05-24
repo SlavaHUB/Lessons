@@ -7,6 +7,7 @@ const API_URL = 'https://lessons-mqy0.onrender.com/api/schedule';
 let scheduleData = [];
 let currentWeekMonday = getMonday(new Date());
 
+const BYN_RATE = 0.0387; // Укажи здесь актуальный курс RUB к BYN
 const HOUR_HEIGHT = 80;
 const START_HOUR = 8;
 const END_HOUR = 23;
@@ -295,20 +296,23 @@ function calcSalary() {
   const realTodayStr = formatDateToString(new Date());
 
   scheduleData.forEach(ev => {
-    // Вычисляем день недели для правильного ключа
-    const dateObj = new Date(ev.date);
-    const dayIndex = dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1;
-    const dayName = daysOfWeek[dayIndex];
-    
-    const lessonKey = `${dayName}_${ev.startTime}_${ev.title}`;
+    const lessonKey = `${daysOfWeek[new Date(ev.date).getDay() === 0 ? 6 : new Date(ev.date).getDay() - 1]}_${ev.startTime}_${ev.title}`;
     const price = parseFloat(priceBook[lessonKey]) || 0;
-    
+
     weekSum += price;
     if (ev.date === realTodayStr) todaySum += price;
   });
 
-  document.getElementById('stat-today').textContent = `${todaySum} ₽`;
-  document.getElementById('stat-week').textContent = `${weekSum} ₽`;
+  // Расчет в BYN (умножаем рубли на курс)
+  const todayByn = (todaySum * BYN_RATE).toFixed(2);
+  const weekByn = (weekSum * BYN_RATE).toFixed(2);
+  const bynSymbol = '\u20BD';
+
+  document.getElementById('stat-today').innerHTML =
+    `${todaySum} ₽ <span class="byn-text">(${todayByn} BYN)</span>`;
+
+  document.getElementById('stat-week').innerHTML =
+    `${weekSum} ₽ <span style="font-size: 0.8rem; color: var(--text-muted);">(${weekByn} ${bynSymbol})</span>`;
 }
 
 

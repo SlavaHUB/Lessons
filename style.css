@@ -570,6 +570,22 @@ input[type="number"]:focus {
   text-align: right;
 }
 
+/* Стили для двойного отображения валют */
+#stat-today,
+#stat-week {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+
+.byn-text {
+  font-family: 'Arial', sans-serif;
+  /* Убедись, что используешь стандартный шрифт */
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
 /* АДАПТАЦИЯ ДЛЯ МОБИЛЬНЫХ */
 @media (max-width: 768px) {
   body {
