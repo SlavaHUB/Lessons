@@ -104,7 +104,7 @@ async function fetchLessons() {
       });
 
       scheduleData = validEvents;
-      
+
       const alertBox = document.getElementById('cookie-alert');
       if (expiredSchools.size > 0) {
         document.getElementById('expired-schools').textContent = Array.from(expiredSchools).join(', ');
@@ -177,7 +177,7 @@ function initCalendar() {
     events.forEach(event => {
       const topPx = timeToPixels(event.startTime);
       const bottomPx = timeToPixels(event.endTime);
-      
+
       // Минимум 45 пикселей (для уроков в 30 мин)
       let heightPx = bottomPx - topPx;
       heightPx = Math.max(heightPx, (45 / 60) * HOUR_HEIGHT);
@@ -190,9 +190,10 @@ function initCalendar() {
       eventDiv.style.height = `${heightPx}px`;
 
       const schoolBadge = event.school ? `[${event.school}] ` : '';
-      
-      // Ищем цену для вывода на карточке
-      const price = priceBook[event.title] || 0;
+
+      // Уникальный ключ: День + Время + Название (чтобы разделить одинаковые уроки)
+      const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
+      const price = parseFloat(priceBook[lessonKey]) || 0;
       const priceBadge = price > 0 ? `<div class="event-price">${price} ₽</div>` : '';
 
       eventDiv.innerHTML = `
@@ -203,7 +204,7 @@ function initCalendar() {
 
       eventDiv.addEventListener('click', () => {
         const link = LINKS[event.school];
-        if(link) window.open(link, '_blank');
+        if (link) window.open(link, '_blank');
       });
 
       dayCol.appendChild(eventDiv);
@@ -233,7 +234,7 @@ function openStats() {
     // Уроки конкретного дня
     const dayEvents = scheduleData.filter(e => e.date === dateStr);
     if (dayEvents.length === 0) return;
-    
+
     hasEvents = true;
     const dayName = daysOfWeek[index];
     const [, month, day] = dateStr.split('-');
@@ -241,20 +242,23 @@ function openStats() {
 
     // Заголовок дня
     let dayHtml = `<div class="stat-day-header">${dayName} (${displayDate})</div>`;
-    
-    // Уникальные уроки в этот день
-    const uniqueDayTitles = [...new Set(dayEvents.map(e => e.title))].sort();
-    
-    uniqueDayTitles.forEach(title => {
-      const currentPrice = priceBook[title] || ''; // Пустое поле, если 0
+
+    // Проходим по ВСЕМ урокам за день без удаления дубликатов
+    dayEvents.forEach(ev => {
+      const lessonKey = `${dayName}_${ev.startTime}_${ev.title}`;
+      const currentPrice = priceBook[lessonKey] || '';
+
+      // Добавляем время в название для удобства в статистике
+      const displayTitle = `${ev.startTime} - ${ev.title}`;
+
       dayHtml += `
         <div class="price-row">
-          <span class="price-title" title="${title}">${title}</span>
-          <input type="number" class="price-input" data-title="${title}" value="${currentPrice}" placeholder="0" min="0" step="10">
+          <span class="price-title" title="${displayTitle}">${displayTitle}</span>
+          <input type="number" class="price-input" data-key="${lessonKey}" value="${currentPrice}" placeholder="0" min="0" step="10">
         </div>
       `;
     });
-    
+
     listContainer.innerHTML += dayHtml;
   });
 
@@ -262,23 +266,18 @@ function openStats() {
     listContainer.innerHTML = '<div style="color: var(--text-muted); font-size:0.9rem; text-align: center; margin-top: 20px;">На этой неделе нет уроков.</div>';
   }
 
-  // Слушатели для синхронного сохранения цен
+  // Слушатели для сохранения цен
   document.querySelectorAll('.price-input').forEach(input => {
     input.addEventListener('input', (e) => {
-      const title = e.target.dataset.title;
+      const key = e.target.dataset.key;
       const val = parseFloat(e.target.value) || 0;
-      
-      // Сохраняем в память
-      priceBook[title] = val;
+
+      // Сохраняем в память по уникальному ключу
+      priceBook[key] = val;
       localStorage.setItem('lessonPrices', JSON.stringify(priceBook));
-      
+
       // Обновляем общую сумму
       calcSalary();
-      
-      // Если этот же урок есть в другие дни (например, во вторник и четверг) - синхронизируем цифру
-      document.querySelectorAll(`.price-input[data-title="${title}"]`).forEach(inp => {
-        if (inp !== e.target) inp.value = val || '';
-      });
 
       // Сразу перерисовываем календарь, чтобы бейдж появился на фоне
       initCalendar();
@@ -296,7 +295,14 @@ function calcSalary() {
   const realTodayStr = formatDateToString(new Date());
 
   scheduleData.forEach(ev => {
-    const price = priceBook[ev.title] || 0;
+    // Вычисляем день недели для правильного ключа
+    const dateObj = new Date(ev.date);
+    const dayIndex = dateObj.getDay() === 0 ? 6 : dateObj.getDay() - 1;
+    const dayName = daysOfWeek[dayIndex];
+    
+    const lessonKey = `${dayName}_${ev.startTime}_${ev.title}`;
+    const price = parseFloat(priceBook[lessonKey]) || 0;
+    
     weekSum += price;
     if (ev.date === realTodayStr) todaySum += price;
   });
@@ -322,8 +328,8 @@ function findFreeSlots() {
 
   resultsContainer.innerHTML = '';
   const GAP = 10;
-  const dayStartMins = START_HOUR * 60; 
-  const dayEndMins = 22 * 60; 
+  const dayStartMins = START_HOUR * 60;
+  const dayEndMins = 22 * 60;
 
   let smsLines = [];
   let allDaysFull = true;
