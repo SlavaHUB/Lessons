@@ -7,7 +7,7 @@ const API_URL = 'https://lessons-mqy0.onrender.com/api/schedule';
 let scheduleData = [];
 let currentWeekMonday = getMonday(new Date());
 
-const HOUR_HEIGHT = 60;
+const HOUR_HEIGHT = 80;
 const START_HOUR = 8;
 const END_HOUR = 23;
 const daysOfWeek = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
