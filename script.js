@@ -20,6 +20,9 @@ const LINKS = {
   Matrius: 'https://crm.genius-school.online/#/lessons'
 };
 
+// База цен в LocalStorage
+let priceBook = JSON.parse(localStorage.getItem('lessonPrices')) || {};
+
 // Инициализация темы из LocalStorage
 const savedTheme = localStorage.getItem('theme') || 'light';
 document.documentElement.setAttribute('data-theme', savedTheme);
@@ -78,9 +81,7 @@ function timeToPixels(timeStr) {
 
 function updateThemeButton(theme) {
   const btn = document.getElementById('btn-theme');
-  if (btn) {
-    btn.textContent = theme === 'dark' ? '☀️ Светлая' : '🌙 Тёмная';
-  }
+  if (btn) btn.textContent = theme === 'dark' ? '☀️ Светлая' : '🌙 Тёмная';
 }
 
 // ==========================================
@@ -95,21 +96,16 @@ async function fetchLessons() {
     if (response.ok) {
       const rawData = await response.json();
       
-      // Cookie Guard: Отделяем ошибки авторизации от реальных уроков
       const validEvents = [];
       const expiredSchools = new Set();
 
       rawData.forEach(item => {
-        if (item.isError) {
-          expiredSchools.add(item.school);
-        } else {
-          validEvents.push(item);
-        }
+        if (item.isError) expiredSchools.add(item.school);
+        else validEvents.push(item);
       });
 
       scheduleData = validEvents;
       
-      // Управление красным баннером
       const alertBox = document.getElementById('cookie-alert');
       if (expiredSchools.size > 0) {
         document.getElementById('expired-schools').textContent = Array.from(expiredSchools).join(', ');
@@ -120,9 +116,7 @@ async function fetchLessons() {
 
       initCalendar();
     }
-  } catch (error) {
-    console.error('Ошибка загрузки данных:', error);
-  }
+  } catch (error) { console.error('Ошибка загрузки данных:', error); }
 }
 
 // ==========================================
@@ -176,20 +170,18 @@ function initCalendar() {
 
     const columnDateStr = formatDateToString(currentWeekDates[index]);
 
-    if (columnDateStr === realTodayStr) {
-      dayCol.classList.add('today');
-    }
-
-    if (index === 1 || index === 2) {
-      dayCol.classList.add('day-off');
-    }
+    if (columnDateStr === realTodayStr) dayCol.classList.add('today');
+    if (index === 1 || index === 2) dayCol.classList.add('day-off');
 
     const events = scheduleData.filter(e => e.date === columnDateStr);
 
     events.forEach(event => {
       const topPx = timeToPixels(event.startTime);
       const bottomPx = timeToPixels(event.endTime);
-      const heightPx = bottomPx - topPx;
+      
+      // ИСПРАВЛЕНИЕ ВЫСОТЫ: Минимум 45 пикселей (для уроков в 30 мин)
+      let heightPx = bottomPx - topPx;
+      heightPx = Math.max(heightPx, (45 / 60) * HOUR_HEIGHT);
 
       const eventDiv = document.createElement('div');
       const theme = getTheme(event.school, dayName);
@@ -199,13 +191,11 @@ function initCalendar() {
       eventDiv.style.height = `${heightPx}px`;
 
       const schoolBadge = event.school ? `[${event.school}] ` : '';
-
       eventDiv.innerHTML = `
         <div class="event-time">${event.startTime} - ${event.endTime}</div>
         <div class="event-title">${schoolBadge}${event.title}</div>
       `;
 
-      // ПЕРЕХОД ПО КЛИКУ НА CRM
       eventDiv.addEventListener('click', () => {
         const link = LINKS[event.school];
         if(link) window.open(link, '_blank');
@@ -213,10 +203,64 @@ function initCalendar() {
 
       dayCol.appendChild(eventDiv);
     });
-
     daysGrid.appendChild(dayCol);
   });
 }
+
+// ==========================================
+// СТАТИСТИКА И ЗАРПЛАТА
+// ==========================================
+function openStats() {
+  const modal = document.getElementById('stats-modal');
+  const listContainer = document.getElementById('price-settings-list');
+
+  // Уникальные названия уроков за загруженную неделю
+  const uniqueTitles = [...new Set(scheduleData.map(e => e.title))].sort();
+
+  listContainer.innerHTML = '';
+  if(uniqueTitles.length === 0) {
+    listContainer.innerHTML = '<div style="color: var(--text-muted); font-size:0.9rem;">На этой неделе нет уроков.</div>';
+  } else {
+    uniqueTitles.forEach(title => {
+      const currentPrice = priceBook[title] || 0;
+      listContainer.innerHTML += `
+        <div class="price-row">
+          <span class="price-title" title="${title}">${title}</span>
+          <input type="number" class="price-input" data-title="${title}" value="${currentPrice}" min="0" step="10">
+        </div>
+      `;
+    });
+  }
+
+  // Слушатели для сохранения цен
+  document.querySelectorAll('.price-input').forEach(input => {
+    input.addEventListener('input', (e) => {
+      priceBook[e.target.dataset.title] = parseFloat(e.target.value) || 0;
+      localStorage.setItem('lessonPrices', JSON.stringify(priceBook));
+      calcSalary();
+    });
+  });
+
+  calcSalary();
+  modal.classList.add('active');
+  document.getElementById('action-controls').classList.remove('open');
+}
+
+function calcSalary() {
+  let todaySum = 0;
+  let weekSum = 0;
+  const realTodayStr = formatDateToString(new Date());
+
+  scheduleData.forEach(ev => {
+    const price = priceBook[ev.title] || 0;
+    weekSum += price;
+    if (ev.date === realTodayStr) todaySum += price;
+  });
+
+  document.getElementById('stat-today').textContent = `${todaySum} ₽`;
+  document.getElementById('stat-week').textContent = `${weekSum} ₽`;
+}
+
 
 // ==========================================
 // ПОИСК СВОБОДНЫХ ОКОШЕК
@@ -267,11 +311,8 @@ function findFreeSlots() {
 
       if (freeEnd - freeStart >= duration) {
         const latestStart = freeEnd - duration;
-        if (latestStart === freeStart) {
-          availableBlocks.push(`в ${minsToTime(freeStart)}`);
-        } else {
-          availableBlocks.push(`с ${minsToTime(freeStart)} до ${minsToTime(latestStart)}`);
-        }
+        if (latestStart === freeStart) availableBlocks.push(`в ${minsToTime(freeStart)}`);
+        else availableBlocks.push(`с ${minsToTime(freeStart)} до ${minsToTime(latestStart)}`);
       }
       currentMins = evEnd + GAP;
     });
@@ -281,11 +322,8 @@ function findFreeSlots() {
 
     if (freeEnd - freeStart >= duration && freeStart <= dayEndMins - duration) {
       const latestStart = freeEnd - duration;
-      if (latestStart === freeStart) {
-        availableBlocks.push(`в ${minsToTime(freeStart)}`);
-      } else {
-        availableBlocks.push(`с ${minsToTime(freeStart)} до ${minsToTime(latestStart)}`);
-      }
+      if (latestStart === freeStart) availableBlocks.push(`в ${minsToTime(freeStart)}`);
+      else availableBlocks.push(`с ${minsToTime(freeStart)} до ${minsToTime(latestStart)}`);
     }
 
     if (dayEvents.length === 0) {
@@ -301,7 +339,6 @@ function findFreeSlots() {
     resultsContainer.innerHTML = '<div style="color: #ef4444; font-weight: 500;">❌ В выбранные дни нет окошек для такого урока до 22:00.</div>';
   } else {
     const smsText = `Готов взять урок (${duration} мин).\n\nМои свободные окошки для старта:\n${smsLines.join('\n')}\n\nКакое время выберем?`;
-
     resultsContainer.innerHTML = `
       <div style="font-weight: 600; margin-bottom: 10px; color: var(--text-main); font-size: 0.85rem;">Шаблон ответа менеджеру:</div>
       <textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-family: inherit; font-size: 0.85rem; resize: none; background: var(--bg-modal); color: var(--text-main); line-height: 1.5; outline: none;">${smsText}</textarea>
@@ -312,11 +349,9 @@ function findFreeSlots() {
       const copyText = document.getElementById('sms-output');
       copyText.select();
       document.execCommand('copy');
-
       const originalText = this.textContent;
       this.textContent = '✅ Скопировано в буфер!';
       this.style.background = '#059669';
-
       setTimeout(() => {
         this.textContent = originalText;
         this.style.background = '#10b981';
@@ -328,13 +363,13 @@ function findFreeSlots() {
 // ==========================================
 // СЛУШАТЕЛИ СОБЫТИЙ UI
 // ==========================================
-document.getElementById('btn-burger').addEventListener('click', () => {
-  document.getElementById('action-controls').classList.toggle('open');
-});
-
+document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
 document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); fetchLessons(); });
 document.getElementById('btn-next').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, 7); fetchLessons(); });
 document.getElementById('btn-today').addEventListener('click', () => { currentWeekMonday = getMonday(new Date()); fetchLessons(); });
+
+document.getElementById('btn-stats').addEventListener('click', openStats);
+document.getElementById('btn-stats-close').addEventListener('click', () => { document.getElementById('stats-modal').classList.remove('active'); });
 
 document.getElementById('btn-theme').addEventListener('click', () => {
   const currentTheme = document.documentElement.getAttribute('data-theme');
@@ -357,14 +392,12 @@ document.getElementById('btn-export').addEventListener('click', async () => {
   const btnExport = document.getElementById('btn-export');
   const originalText = btnExport.innerHTML;
   btnExport.innerHTML = '⏳ Создаю...';
-
   const calendar = document.querySelector('.calendar-wrapper');
 
   try {
     const canvas = await html2canvas(calendar, { scale: 2 });
     canvas.toBlob(async (blob) => {
       const file = new File([blob], `Расписание_${formatDateToString(currentWeekMonday)}.png`, { type: 'image/png' });
-
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ files: [file], title: 'Моё расписание' });

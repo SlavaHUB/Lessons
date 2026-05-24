@@ -175,7 +175,6 @@ button {
   font-size: 0.95rem;
   border: 1px solid #f87171;
   display: none;
-  /* Скрыто по умолчанию */
 }
 
 [data-theme="dark"] .cookie-alert {
@@ -206,7 +205,6 @@ button {
   z-index: 100;
 }
 
-/* ПОДСВЕТКА ТЕКУЩЕГО ДНЯ */
 .day-header.today {
   background: #eff6ff;
   color: #2563eb;
@@ -222,7 +220,6 @@ button {
   background-color: rgba(59, 130, 246, 0.04);
 }
 
-/* ВЫХОДНЫЕ ДНИ */
 .day-off {
   background-image: repeating-linear-gradient(-45deg, var(--day-off-bg1), var(--day-off-bg1) 10px, var(--day-off-bg2) 10px, var(--day-off-bg2) 20px);
   display: flex;
@@ -387,7 +384,7 @@ button {
   border-color: var(--theme-red-stroke);
 }
 
-/* МОДАЛЬНЫЕ ОКНА */
+/* МОДАЛЬНЫЕ ОКНА И СТАТИСТИКА */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -439,7 +436,7 @@ label {
   margin-bottom: 5px;
 }
 
-input,
+input[type="number"],
 select {
   width: 100%;
   padding: 8px 12px;
@@ -452,7 +449,7 @@ select {
   outline: none;
 }
 
-input:focus {
+input[type="number"]:focus {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
@@ -462,6 +459,83 @@ input:focus {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
+}
+
+/* СТИЛИ ДЛЯ ЧЕКБОКСОВ ДНЕЙ НЕДЕЛИ (КНОПКИ-ЧИПЫ) */
+.days-selector {
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.day-chip {
+  flex: 1;
+  text-align: center;
+  margin-bottom: 0;
+}
+
+.day-chip input[type="checkbox"] {
+  display: none;
+  /* Прячем стандартный квадратик */
+}
+
+.day-chip span {
+  display: block;
+  padding: 8px 0;
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  border: 1px solid transparent;
+}
+
+.day-chip:hover span {
+  background: var(--btn-secondary-hover);
+}
+
+/* Активное состояние чекбокса */
+.day-chip input:checked+span {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+
+[data-theme="dark"] .day-chip input:checked+span {
+  background: #3b82f6;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+/* Строки для настройки цен */
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+  gap: 10px;
+}
+
+.price-row:last-child {
+  border-bottom: none;
+}
+
+.price-title {
+  font-size: 0.8rem;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.price-input {
+  width: 90px !important;
+  padding: 4px 8px;
+  text-align: right;
 }
 
 /* АДАПТАЦИЯ ДЛЯ МОБИЛЬНЫХ */

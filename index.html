@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Интерактивное расписание</title>
-  <link rel="stylesheet" href="style.css?v=2.5">
+  <link rel="stylesheet" href="style.css?v=2.7">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 
@@ -24,7 +24,8 @@
 
     <div class="action-controls" id="action-controls">
       <button id="btn-export" class="btn-secondary">📸 Скриншот</button>
-      <button id="btn-find-slots" class="btn-secondary">🔍 Подобрать урок</button>
+      <button id="btn-find-slots" class="btn-secondary">🔍 Окошки</button>
+      <button id="btn-stats" class="btn-secondary">📊 Статистика</button>
     </div>
   </div>
 
@@ -43,6 +44,27 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="stats-modal">
+    <div class="modal-content" style="max-width: 450px;">
+      <h3 style="margin-bottom: 15px;">📊 Доход и цены</h3>
+      
+      <div style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 5px;">
+        <span>За сегодня:</span><strong id="stat-today" style="color: #2563eb;">0 ₽</strong>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color);">
+        <span>За неделю:</span><strong id="stat-week" style="color: #2563eb;">0 ₽</strong>
+      </div>
+
+      <h4 style="font-size: 0.9rem; margin-bottom: 10px; color: var(--text-muted);">Стоимость уроков (сохраняется автоматически):</h4>
+      <div id="price-settings-list" style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
+        </div>
+
+      <div class="modal-actions">
+        <button id="btn-stats-close" class="btn-primary">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="slots-modal">
     <div class="modal-content" style="max-width: 400px;">
       <h3>🔍 Поиск свободных окошек</h3>
@@ -54,14 +76,14 @@
 
       <div class="form-group">
         <label>Дни недели (текущая неделя)</label>
-        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 5px;" id="slot-days-container">
-          <label><input type="checkbox" value="0"> Пн</label>
-          <label><input type="checkbox" value="1"> Вт</label>
-          <label><input type="checkbox" value="2"> Ср</label>
-          <label><input type="checkbox" value="3"> Чт</label>
-          <label><input type="checkbox" value="4"> Пт</label>
-          <label><input type="checkbox" value="5"> Сб</label>
-          <label><input type="checkbox" value="6"> Вс</label>
+        <div class="days-selector" id="slot-days-container">
+          <label class="day-chip"><input type="checkbox" value="0"><span>Пн</span></label>
+          <label class="day-chip"><input type="checkbox" value="1"><span>Вт</span></label>
+          <label class="day-chip"><input type="checkbox" value="2"><span>Ср</span></label>
+          <label class="day-chip"><input type="checkbox" value="3"><span>Чт</span></label>
+          <label class="day-chip"><input type="checkbox" value="4"><span>Пт</span></label>
+          <label class="day-chip"><input type="checkbox" value="5"><span>Сб</span></label>
+          <label class="day-chip"><input type="checkbox" value="6"><span>Вс</span></label>
         </div>
       </div>
 
@@ -70,13 +92,12 @@
         <button id="btn-slots-search" class="btn-primary">Искать</button>
       </div>
 
-      <div id="slots-results"
-        style="margin-top: 20px; max-height: 250px; overflow-y: auto; font-size: 0.9rem; line-height: 1.4;">
+      <div id="slots-results" style="margin-top: 20px; max-height: 250px; overflow-y: auto; font-size: 0.9rem; line-height: 1.4;">
       </div>
     </div>
   </div>
 
-  <script src="script.js?v=2.5"></script>
+  <script src="script.js?v=2.7"></script>
 </body>
 
 </html>
