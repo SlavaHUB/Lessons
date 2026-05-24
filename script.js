@@ -23,6 +23,24 @@ const LINKS = {
 
 // База цен в LocalStorage
 let priceBook = JSON.parse(localStorage.getItem('lessonPrices')) || {};
+// Миграция старых данных в новую структуру
+let oldPriceBook = JSON.parse(localStorage.getItem('lessonPrices')) || {};
+let newPriceBook = JSON.parse(localStorage.getItem('lessonPrices_v2')) || {};
+
+// Если новая база пуста, а старая есть - переносим
+if (Object.keys(newPriceBook).length === 0 && Object.keys(oldPriceBook).length > 0) {
+  scheduleData.forEach(ev => {
+    const oldKey = ev.title; 
+    const newKey = `${daysOfWeek[new Date(ev.date).getDay() === 0 ? 6 : new Date(ev.date).getDay() - 1]}_${ev.startTime}_${ev.title}`;
+    if (oldPriceBook[oldKey]) {
+      newPriceBook[newKey] = oldPriceBook[oldKey];
+    }
+  });
+  priceBook = newPriceBook;
+  localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
+} else {
+  priceBook = newPriceBook;
+}
 
 // Инициализация темы из LocalStorage
 const savedTheme = localStorage.getItem('theme') || 'light';
@@ -192,16 +210,19 @@ function initCalendar() {
       const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
       const price = parseFloat(priceBook[lessonKey]) || 0;
 
+      // НОВЫЙ ШАБЛОН ДЛЯ РАЗДЕЛЕНИЯ НАЛЕВО/НАПРАВО
       const priceHtml = price > 0 ? `
-        <div class="event-price">
-          <span class="price-rub">${price}₽</span>
-          <span class="price-byn">${(price * BYN_RATE).toFixed(2)}Br</span>
+        <div class="event-price-tag">
+          <span class="price-rub">${price} ₽</span>
+          <span class="price-byn">≈ ${(price * BYN_RATE).toFixed(2)} Br</span>
         </div>` : '';
 
       eventDiv.innerHTML = `
-        <div class="event-time">${event.startTime}</div>
-        <div class="event-title">${schoolBadge}${event.title}</div>
-        ${priceHtml}
+        <div class="event-time">${event.startTime} - ${event.endTime}</div>
+        <div class="event-body">
+            <div class="event-title">${schoolBadge}${event.title}</div>
+            ${priceHtml}
+        </div>
       `;
 
       eventDiv.addEventListener('click', () => {
@@ -225,15 +246,12 @@ function openStats() {
   listContainer.innerHTML = '';
   let hasEvents = false;
 
-  // Формируем список дат для текущей загруженной недели
   const currentWeekDates = [];
   for (let i = 0; i < 7; i++) {
     currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
   }
 
-  // Генерируем блоки по дням
   currentWeekDates.forEach((dateStr, index) => {
-    // Уроки конкретного дня
     const dayEvents = scheduleData.filter(e => e.date === dateStr);
     if (dayEvents.length === 0) return;
 
@@ -242,15 +260,12 @@ function openStats() {
     const [, month, day] = dateStr.split('-');
     const displayDate = `${day}.${month}`;
 
-    // Заголовок дня
     let dayHtml = `<div class="stat-day-header">${dayName} (${displayDate})</div>`;
 
-    // Проходим по ВСЕМ урокам за день без удаления дубликатов
     dayEvents.forEach(ev => {
       const lessonKey = `${dayName}_${ev.startTime}_${ev.title}`;
       const currentPrice = priceBook[lessonKey] || '';
 
-      // Добавляем время в название для удобства в статистике
       const displayTitle = `${ev.startTime} - ${ev.title}`;
 
       dayHtml += `
@@ -268,20 +283,15 @@ function openStats() {
     listContainer.innerHTML = '<div style="color: var(--text-muted); font-size:0.9rem; text-align: center; margin-top: 20px;">На этой неделе нет уроков.</div>';
   }
 
-  // Слушатели для сохранения цен
   document.querySelectorAll('.price-input').forEach(input => {
     input.addEventListener('input', (e) => {
       const key = e.target.dataset.key;
       const val = parseFloat(e.target.value) || 0;
 
-      // Сохраняем в память по уникальному ключу
       priceBook[key] = val;
-      localStorage.setItem('lessonPrices', JSON.stringify(priceBook));
+      localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook)); // Сохраняем в новую базу
 
-      // Обновляем общую сумму
       calcSalary();
-
-      // Сразу перерисовываем календарь, чтобы бейдж появился на фоне
       initCalendar();
     });
   });
@@ -304,13 +314,12 @@ function calcSalary() {
     if (ev.date === realTodayStr) todaySum += price;
   });
 
-  // Расчет в BYN (умножаем рубли на курс)
   const todayByn = (todaySum * BYN_RATE).toFixed(2);
   const weekByn = (weekSum * BYN_RATE).toFixed(2);
-  const bynSymbol = '\u20BD';
+  const bynSymbol = 'Br';
 
   document.getElementById('stat-today').innerHTML =
-    `${todaySum} ₽ <span class="byn-text">(${todayByn} BYN)</span>`;
+    `${todaySum} ₽ <span class="byn-text">(${todayByn} ${bynSymbol})</span>`;
 
   document.getElementById('stat-week').innerHTML =
     `${weekSum} ₽ <span style="font-size: 0.8rem; color: var(--text-muted);">(${weekByn} ${bynSymbol})</span>`;

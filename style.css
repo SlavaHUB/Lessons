@@ -16,7 +16,7 @@
   --day-off-bg1: rgba(241, 245, 249, 0.4);
   --day-off-bg2: rgba(226, 232, 240, 0.4);
 
-  /* Светлые темы уроков (Пастельные) */
+  /* Светлые темы уроков */
   --theme-blue-bg: #eff6ff;
   --theme-blue-text: #1e3a8a;
   --theme-blue-border: #3b82f6;
@@ -56,7 +56,7 @@
   --day-off-bg1: rgba(15, 23, 42, 0.4);
   --day-off-bg2: rgba(30, 41, 59, 0.4);
 
-  /* Темные темы уроков (Приглушенные) */
+  /* Темные темы уроков */
   --theme-blue-bg: #1e3a8a;
   --theme-blue-text: #dbeafe;
   --theme-blue-border: #3b82f6;
@@ -311,24 +311,28 @@ button {
   border-right: none;
 }
 
-/* КАРТОЧКИ УРОКОВ */
+
+/* =======================================
+   НОВЫЙ ДИЗАЙН КАРТОЧЕК УРОКОВ (FLEXBOX)
+   ======================================= */
 .event-card {
-  position: absolute; /* Обязательно absolute для расстановки по времени */
+  position: absolute;
   left: 2px;
   right: 6px;
   border-radius: 6px;
-  padding: 4px 4px 18px 4px; /* Добавили нижний отступ 18px, чтобы текст не залазил под цену */
+  padding: 4px 6px;
   overflow: hidden;
   cursor: pointer;
   z-index: 10;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   transition: all 0.2s;
-  text-align: center;
-  border: 1px solid transparent;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
   align-items: center;
+  /* Центрируем всё по вертикали */
+  gap: 6px;
+  /* Отступ между временем и контентом */
+  border: 1px solid transparent;
 }
 
 .event-card:hover {
@@ -339,61 +343,63 @@ button {
 
 .event-time {
   font-weight: 700;
-  margin-bottom: 2px;
   font-size: 0.65rem;
-  letter-spacing: 0.03em;
   opacity: 0.8;
-  word-break: break-all;
+  margin-bottom: 2px;
+  width: 100%;
+  /* Чтобы время занимало всю ширину сверху */
+}
+
+/* Контейнер: Название слева, Цена справа */
+.event-body {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  /* Центрируем заголовок и цену внутри этой "строки" */
+  width: 100%;
+  gap: 4px;
+  flex: 1;
+  /* Занимает всё оставшееся место */
+  overflow: hidden;
 }
 
 .event-title {
   font-weight: 700;
-  margin-bottom: 2px;
   font-size: 0.7rem;
   line-height: 1.1;
-  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
 }
 
-/* ФИКСИРОВАННЫЙ ЦЕННИК ВНИЗУ КАРТОЧКИ */
-.event-price {
-  position: absolute;
-  bottom: 2px;
-  left: 2px;
-  right: 2px;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 1px 4px;
-  border-radius: 4px;
+/* Блок цены: фиксированная плашка справа */
+.event-price-tag {
   display: flex;
-  justify-content: space-between;
-  font-size: 0.65rem;
-  font-weight: 800;
-  color: #000;
-  pointer-events: none;
-}
-[data-theme="dark"] .event-price {
-  background: rgba(0, 0, 0, 0.4);
-  color: #fff;
-}
-.price-byn {
-  opacity: 0.7;
-  font-weight: 500;
-}
-
-/* БЕЙДЖ ЦЕНЫ НА КАРТОЧКЕ */
-.event-price {
-  display: inline-block;
-  background: rgba(16, 185, 129, 0.15);
-  color: #059669;
-  padding: 1px 6px;
+  flex-direction: column;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.08);
+  padding: 2px 4px;
   border-radius: 4px;
-  margin-top: 4px;
-  font-size: 0.7rem;
-  font-weight: 800;
+  flex-shrink: 0;
+  text-align: right;
 }
 
-[data-theme="dark"] .event-price {
-  background: rgba(52, 211, 153, 0.15);
-  color: #34d399;
+[data-theme="dark"] .event-price-tag {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.price-rub {
+  font-weight: 800;
+  font-size: 0.75rem;
+}
+
+.price-byn {
+  font-size: 0.65rem;
+  opacity: 0.9;
+  font-weight: 600;
+  margin-top: 1px;
 }
 
 .theme-blue {
@@ -607,29 +613,8 @@ input[type="number"]:focus {
 
 .byn-text {
   font-family: 'Arial', sans-serif;
-  /* Убедись, что используешь стандартный шрифт */
   font-size: 0.8rem;
   color: var(--text-muted);
-}
-
-.event-price {
-  margin-top: auto;
-  padding: 2px 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-}
-
-.price-rub {
-  font-weight: 800;
-  font-size: 0.7rem;
-}
-
-.price-byn {
-  font-size: 0.6rem;
-  opacity: 0.7;
-  font-weight: 500;
 }
 
 /* АДАПТАЦИЯ ДЛЯ МОБИЛЬНЫХ */
@@ -698,28 +683,39 @@ input[type="number"]:focus {
     overflow-y: auto;
   }
 
+  /* Мобильные карточки */
   .event-card {
-    padding: 4px 2px !important;
+    padding: 4px 4px !important;
     border-radius: 4px !important;
   }
 
   .event-time {
     font-size: 9px !important;
     margin-bottom: 2px !important;
-    letter-spacing: -0.03em !important;
-    padding-right: 12px !important;
   }
 
   .event-title {
     font-size: 9px !important;
     line-height: 1.1 !important;
-    word-break: break-word !important;
-    padding: 0 2px !important;
   }
 
-  .event-price {
-    font-size: 8px !important;
-    padding: 1px 4px !important;
-    margin-top: 2px !important;
+  .event-body {
+    gap: 2px !important;
   }
+
+  .event-price-tag {
+    padding: 2px 4px !important;
+  }
+
+  /* Чуть увеличили боковой отступ для красоты */
+  .price-rub {
+    font-size: 10px !important;
+  }
+
+  /* Было 9px */
+  .price-byn {
+    font-size: 9px !important;
+  }
+
+  /* Было 8px */
 }
