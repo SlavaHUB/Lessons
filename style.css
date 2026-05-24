@@ -685,36 +685,46 @@ input[type="number"]:focus {
 
   /* Мобильные карточки */
   .event-card {
-    padding: 4px 4px !important;
+    padding: 3px 2px !important;
     border-radius: 4px !important;
   }
 
   .event-time {
-    font-size: 9px !important;
+    font-size: 8px !important;
     margin-bottom: 2px !important;
   }
 
-  .event-title {
-    font-size: 9px !important;
-    line-height: 1.1 !important;
-  }
-
   .event-body {
+    flex-direction: column !important;
+    align-items: flex-start !important;
     gap: 2px !important;
   }
 
+  /* Разрешаем перенос текста названия на новые строки */
+  .event-title {
+    font-size: 8px !important;
+    line-height: 1.1 !important;
+    white-space: normal !important;
+    /* Отменяем запрет на перенос */
+    word-break: break-word !important;
+  }
+
+  /* Делаем ценник компактным и прижимаем влево */
   .event-price-tag {
-    padding: 2px 4px !important;
+    padding: 1px !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+    background: transparent !important;
+    /* Убираем серую подложку для экономии места */
   }
 
-  /* Чуть увеличили боковой отступ для красоты */
   .price-rub {
-    font-size: 10px !important;
+    font-size: 8px !important;
   }
 
-  /* Было 9px */
   .price-byn {
-    font-size: 9px !important;
+    font-size: 7px !important;
+    margin-top: 0 !important;
   }
 
   /* Было 8px */
