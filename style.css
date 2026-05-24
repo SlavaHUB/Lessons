@@ -317,7 +317,7 @@ button {
   left: 2px;
   right: 6px;
   border-radius: 6px;
-  padding: 4px 6px;
+  padding: 3px 4px;
   overflow: hidden;
   cursor: pointer;
   z-index: 10;
@@ -340,9 +340,10 @@ button {
 .event-time {
   font-weight: 700;
   margin-bottom: 2px;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   letter-spacing: 0.03em;
   opacity: 0.8;
+  word-break: break-all;
 }
 
 .event-title {
@@ -588,24 +589,21 @@ input[type="number"]:focus {
 
 .event-price {
   margin-top: auto;
-  /* Прижимает цену к низу */
-  padding-top: 4px;
+  padding: 2px 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
+  gap: 0;
 }
 
 .price-rub {
   font-weight: 800;
-  font-size: 0.75rem;
-  color: inherit;
+  font-size: 0.7rem;
 }
 
 .price-byn {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   opacity: 0.7;
-  /* Делаем чуть прозрачным, чтобы не отвлекало */
   font-weight: 500;
 }
 
