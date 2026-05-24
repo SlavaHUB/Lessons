@@ -119,6 +119,9 @@ async function fetchLessons() {
   } catch (error) { console.error('Ошибка загрузки данных:', error); }
 }
 
+Вот полностью исправленная и готовая функция initCalendar.Я объединил логику отрисовки карточек с расчетом цены по ключу из priceBook и выводом обеих валют.
+  JavaScript
+
 // ==========================================
 // ОТРИСОВКА КАЛЕНДАРЯ
 // ==========================================
@@ -152,7 +155,6 @@ function initCalendar() {
     const dateForDay = addDays(currentWeekMonday, i);
     currentWeekDates.push(dateForDay);
     const formattedDayDate = `${dateForDay.getDate()}.${dateForDay.getMonth() + 1}`;
-
     const isToday = formatDateToString(dateForDay) === realTodayStr;
     const todayClass = isToday ? ' today' : '';
 
@@ -179,7 +181,6 @@ function initCalendar() {
       const topPx = timeToPixels(event.startTime);
       const bottomPx = timeToPixels(event.endTime);
 
-      // Минимум 45 пикселей (для уроков в 30 мин)
       let heightPx = bottomPx - topPx;
       heightPx = Math.max(heightPx, (45 / 60) * HOUR_HEIGHT);
 
@@ -192,15 +193,20 @@ function initCalendar() {
 
       const schoolBadge = event.school ? `[${event.school}] ` : '';
 
-      // Уникальный ключ: День + Время + Название (чтобы разделить одинаковые уроки)
+      // Ключ для поиска цены в priceBook
       const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
       const price = parseFloat(priceBook[lessonKey]) || 0;
-      const priceBadge = price > 0 ? `<div class="event-price">${price} ₽</div>` : '';
+
+      const priceHtml = price > 0 ? `
+        <div class="event-price">
+          <div class="price-rub">${price} ₽</div>
+          <div class="price-byn">≈ ${(price * BYN_RATE).toFixed(2)} Br</div>
+        </div>` : '';
 
       eventDiv.innerHTML = `
         <div class="event-time">${event.startTime} - ${event.endTime}</div>
         <div class="event-title">${schoolBadge}${event.title}</div>
-        ${priceBadge}
+        ${priceHtml}
       `;
 
       eventDiv.addEventListener('click', () => {
