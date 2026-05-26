@@ -23,14 +23,12 @@ const LINKS = {
 
 // База цен в LocalStorage
 let priceBook = JSON.parse(localStorage.getItem('lessonPrices')) || {};
-// Миграция старых данных в новую структуру
 let oldPriceBook = JSON.parse(localStorage.getItem('lessonPrices')) || {};
 let newPriceBook = JSON.parse(localStorage.getItem('lessonPrices_v2')) || {};
 
-// Если новая база пуста, а старая есть - переносим
 if (Object.keys(newPriceBook).length === 0 && Object.keys(oldPriceBook).length > 0) {
   scheduleData.forEach(ev => {
-    const oldKey = ev.title;
+    const oldKey = ev.title; 
     const newKey = `${daysOfWeek[new Date(ev.date).getDay() === 0 ? 6 : new Date(ev.date).getDay() - 1]}_${ev.startTime}_${ev.title}`;
     if (oldPriceBook[oldKey]) {
       newPriceBook[newKey] = oldPriceBook[oldKey];
@@ -42,7 +40,6 @@ if (Object.keys(newPriceBook).length === 0 && Object.keys(oldPriceBook).length >
   priceBook = newPriceBook;
 }
 
-// Инициализация темы из LocalStorage
 const savedTheme = localStorage.getItem('theme') || 'light';
 document.documentElement.setAttribute('data-theme', savedTheme);
 updateThemeButton(savedTheme);
@@ -206,7 +203,6 @@ function initCalendar() {
       eventDiv.style.top = `${topPx}px`;
       eventDiv.style.height = `${heightPx}px`;
 
-      const schoolBadge = event.school ? `[${event.school}] ` : '';
       const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
       const price = parseFloat(priceBook[lessonKey]) || 0;
 
@@ -216,6 +212,7 @@ function initCalendar() {
           <span class="price-byn">≈ ${(price * BYN_RATE).toFixed(2)} Br</span>
         </div>` : '';
 
+      // На мобилках названия школ скрываются через отсутствие schoolBadge
       eventDiv.innerHTML = `
         <div class="event-time">${event.startTime} - ${event.endTime}</div>
         <div class="event-body">
@@ -288,7 +285,7 @@ function openStats() {
       const val = parseFloat(e.target.value) || 0;
 
       priceBook[key] = val;
-      localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook)); // Сохраняем в новую базу
+      localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
 
       calcSalary();
       initCalendar();
@@ -323,7 +320,6 @@ function calcSalary() {
   document.getElementById('stat-week').innerHTML =
     `${weekSum} ₽ <span style="font-size: 0.8rem; color: var(--text-muted);">(${weekByn} ${bynSymbol})</span>`;
 }
-
 
 // ==========================================
 // ПОИСК СВОБОДНЫХ ОКОШЕК
@@ -490,6 +486,51 @@ document.getElementById('btn-export').addEventListener('click', async () => {
   } catch (error) {
     alert('Не удалось создать скриншот!');
     btnExport.innerHTML = originalText;
+  }
+});
+
+// ==========================================
+// СИНХРОНИЗАЦИЯ ЦЕН (ИМПОРТ/ЭКСПОРТ)
+// ==========================================
+document.getElementById('btn-export-prices').addEventListener('click', function() {
+  const data = localStorage.getItem('lessonPrices_v2') || '{}';
+  const input = document.getElementById('sync-data-input');
+  input.value = data;
+  input.select();
+  document.execCommand('copy');
+  
+  const originalText = this.textContent;
+  this.textContent = '✅ Скопировано!';
+  setTimeout(() => this.textContent = originalText, 2000);
+});
+
+document.getElementById('btn-import-prices').addEventListener('click', function() {
+  const inputData = document.getElementById('sync-data-input').value.trim();
+  
+  if (!inputData) {
+    alert('Поле пустое! Вставь код с ценами.');
+    return;
+  }
+  
+  try {
+    const parsedData = JSON.parse(inputData);
+    
+    priceBook = parsedData;
+    localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
+    
+    calcSalary();
+    initCalendar();
+    
+    document.getElementById('sync-data-input').value = '';
+    const originalText = this.textContent;
+    this.textContent = '✅ Успешно!';
+    setTimeout(() => {
+      this.textContent = originalText;
+      document.getElementById('stats-modal').classList.remove('active');
+    }, 1500);
+    
+  } catch (e) {
+    alert('Ошибка! Похоже, код скопирован не полностью или с ошибкой.');
   }
 });
 
