@@ -315,6 +315,7 @@ button {
 /* =======================================
    НОВЫЙ ДИЗАЙН КАРТОЧЕК УРОКОВ (FLEXBOX)
    ======================================= */
+/* КАРТОЧКИ УРОКОВ */
 .event-card {
   position: absolute;
   left: 2px;
@@ -328,10 +329,12 @@ button {
   transition: all 0.2s;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  /* Центрируем всё по вертикали */
-  gap: 6px;
-  /* Отступ между временем и контентом */
+  /* Время строго сверху */
+  justify-content: flex-start;
+  align-items: flex-start;
+  /* Выравнивание контента по левому краю */
+  gap: 2px;
+  /* Минимальный аккуратный отступ */
   border: 1px solid transparent;
 }
 
@@ -345,22 +348,21 @@ button {
   font-weight: 700;
   font-size: 0.65rem;
   opacity: 0.8;
-  margin-bottom: 2px;
   width: 100%;
-  /* Чтобы время занимало всю ширину сверху */
+  /* Время на всю ширину сверху */
 }
 
-/* Контейнер: Название слева, Цена справа */
+/* Контейнер: Название слева, Цена справа (ДЛЯ ПК) */
 .event-body {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  /* Центрируем заголовок и цену внутри этой "строки" */
+  /* Центрируем название и цену по вертикали */
   width: 100%;
-  gap: 4px;
+  gap: 6px;
   flex: 1;
-  /* Занимает всё оставшееся место */
+  /* Занимает всё оставшееся место в карточке */
   overflow: hidden;
 }
 
@@ -369,8 +371,10 @@ button {
   font-size: 0.7rem;
   line-height: 1.1;
   white-space: nowrap;
+  /* На ПК держим в одну строку */
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Красивое многоточие на ПК */
   flex: 1;
 }
 
@@ -383,6 +387,7 @@ button {
   padding: 2px 4px;
   border-radius: 4px;
   flex-shrink: 0;
+  /* Цена никогда не сожмется */
   text-align: right;
 }
 
@@ -683,49 +688,50 @@ input[type="number"]:focus {
     overflow-y: auto;
   }
 
-  /* Мобильные карточки */
+  /* Идеальные мобильные карточки */
   .event-card {
-    padding: 3px 2px !important;
+    padding: 3px !important;
     border-radius: 4px !important;
   }
 
   .event-time {
-    font-size: 8px !important;
+    font-size: 8.5px !important;
     margin-bottom: 2px !important;
   }
 
   .event-body {
     flex-direction: column !important;
+    /* На мобилке строим название и цену друг под другом */
     align-items: flex-start !important;
-    gap: 2px !important;
+    gap: 3px !important;
+    overflow: visible !important;
   }
 
-  /* Разрешаем перенос текста названия на новые строки */
   .event-title {
-    font-size: 8px !important;
+    font-size: 8.5px !important;
     line-height: 1.1 !important;
     white-space: normal !important;
-    /* Отменяем запрет на перенос */
+    /* Разрешаем перенос строк на мобилке! */
     word-break: break-word !important;
+    /* Переносим слова, чтобы всё влезло */
   }
 
-  /* Делаем ценник компактным и прижимаем влево */
   .event-price-tag {
-    padding: 1px !important;
+    padding: 2px !important;
     align-items: flex-start !important;
     text-align: left !important;
-    background: transparent !important;
-    /* Убираем серую подложку для экономии места */
+    background: rgba(0, 0, 0, 0.1) !important;
+    border-radius: 3px !important;
+    margin-top: auto !important;
+    /* Уводит цену в самый низ карточки */
   }
 
   .price-rub {
-    font-size: 8px !important;
+    font-size: 9px !important;
   }
 
   .price-byn {
-    font-size: 7px !important;
+    font-size: 8px !important;
     margin-top: 0 !important;
   }
-
-  /* Было 8px */
 }

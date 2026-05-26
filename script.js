@@ -30,7 +30,7 @@ let newPriceBook = JSON.parse(localStorage.getItem('lessonPrices_v2')) || {};
 // Если новая база пуста, а старая есть - переносим
 if (Object.keys(newPriceBook).length === 0 && Object.keys(oldPriceBook).length > 0) {
   scheduleData.forEach(ev => {
-    const oldKey = ev.title; 
+    const oldKey = ev.title;
     const newKey = `${daysOfWeek[new Date(ev.date).getDay() === 0 ? 6 : new Date(ev.date).getDay() - 1]}_${ev.startTime}_${ev.title}`;
     if (oldPriceBook[oldKey]) {
       newPriceBook[newKey] = oldPriceBook[oldKey];
@@ -210,7 +210,6 @@ function initCalendar() {
       const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
       const price = parseFloat(priceBook[lessonKey]) || 0;
 
-      // НОВЫЙ ШАБЛОН ДЛЯ РАЗДЕЛЕНИЯ НАЛЕВО/НАПРАВО
       const priceHtml = price > 0 ? `
         <div class="event-price-tag">
           <span class="price-rub">${price} ₽</span>
@@ -220,7 +219,7 @@ function initCalendar() {
       eventDiv.innerHTML = `
         <div class="event-time">${event.startTime} - ${event.endTime}</div>
         <div class="event-body">
-            <div class="event-title">${schoolBadge}${event.title}</div>
+            <div class="event-title">${event.title}</div>
             ${priceHtml}
         </div>
       `;
