@@ -28,7 +28,7 @@ let newPriceBook = JSON.parse(localStorage.getItem('lessonPrices_v2')) || {};
 
 if (Object.keys(newPriceBook).length === 0 && Object.keys(oldPriceBook).length > 0) {
   scheduleData.forEach(ev => {
-    const oldKey = ev.title; 
+    const oldKey = ev.title;
     const newKey = `${daysOfWeek[new Date(ev.date).getDay() === 0 ? 6 : new Date(ev.date).getDay() - 1]}_${ev.startTime}_${ev.title}`;
     if (oldPriceBook[oldKey]) {
       newPriceBook[newKey] = oldPriceBook[oldKey];
@@ -324,6 +324,9 @@ function calcSalary() {
 // ==========================================
 // ПОИСК СВОБОДНЫХ ОКОШЕК
 // ==========================================
+// ==========================================
+// ПОИСК СВОБОДНЫХ ОКОШЕК (УМНОЕ УПЛОТНЕНИЕ)
+// ==========================================
 function findFreeSlots() {
   const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
   const checkboxes = document.querySelectorAll('#slot-days-container input:checked');
@@ -336,9 +339,9 @@ function findFreeSlots() {
   }
 
   resultsContainer.innerHTML = '';
-  const GAP = 10;
-  const dayStartMins = START_HOUR * 60;
-  const dayEndMins = 22 * 60;
+  const GAP = 10; // Твой обязательный перерыв
+  const dayStartMins = START_HOUR * 60; // 08:00
+  const dayEndMins = 22 * 60;           // 22:00
 
   let smsLines = [];
   let allDaysFull = true;
@@ -348,48 +351,78 @@ function findFreeSlots() {
     const dateStr = formatDateToString(dateObj);
     const dayName = daysOfWeek[index];
 
+    // Выходные
     if (index === 1 || index === 2) {
       smsLines.push(`▪️ ${dayName}: выходной`);
       allDaysFull = false;
       return;
     }
 
+    // Получаем и сортируем уроки за день
     const dayEvents = scheduleData
       .filter(e => e.date === dateStr)
       .sort((a, b) => timeToMins(a.startTime) - timeToMins(b.startTime));
 
-    let currentMins = dayStartMins;
-    const availableBlocks = [];
+    // Если день полностью пустой
+    if (dayEvents.length === 0) {
+      smsLines.push(`▪️ ${dayName}: любое время с 08:00 до ${minsToTime(dayEndMins - duration)}`);
+      allDaysFull = false;
+      return;
+    }
 
-    dayEvents.forEach(event => {
+    let currentMins = dayStartMins;
+    const recommendations = [];
+
+    dayEvents.forEach((event, i) => {
       const evStart = timeToMins(event.startTime);
       const evEnd = timeToMins(event.endTime);
 
       const freeStart = currentMins;
       const freeEnd = evStart - GAP;
 
+      // Если в окно влезает урок
       if (freeEnd - freeStart >= duration) {
-        const latestStart = freeEnd - duration;
-        if (latestStart === freeStart) availableBlocks.push(`в ${minsToTime(freeStart)}`);
-        else availableBlocks.push(`с ${minsToTime(freeStart)} до ${minsToTime(latestStart)}`);
+        if (i === 0) {
+          // 1. Окно УТРОМ (перед самым первым уроком)
+          // Идеально: прижаться к началу первого урока
+          const idealStart = freeEnd - duration;
+          if (idealStart === freeStart) {
+            recommendations.push(`в ${minsToTime(idealStart)}`);
+          } else {
+            recommendations.push(`в ${minsToTime(idealStart)} (или раньше, начиная с ${minsToTime(freeStart)})`);
+          }
+        } else {
+          // 2. Окно МЕЖДУ ДВУМЯ уроками
+          const idealStart1 = freeStart;          // Прижаться к предыдущему уроку
+          const idealStart2 = freeEnd - duration; // Прижаться к следующему уроку
+
+          if (idealStart1 === idealStart2) {
+            // Окно идеально ровно под 1 урок
+            recommendations.push(`в ${minsToTime(idealStart1)}`);
+          } else {
+            // Окно большое, даем два идеальных варианта по краям
+            recommendations.push(`в ${minsToTime(idealStart1)} или в ${minsToTime(idealStart2)}`);
+          }
+        }
       }
       currentMins = evEnd + GAP;
     });
 
+    // 3. Проверяем последнее окно (ВЕЧЕРОМ, после последнего урока)
     const freeStart = currentMins;
     const freeEnd = dayEndMins;
 
     if (freeEnd - freeStart >= duration && freeStart <= dayEndMins - duration) {
-      const latestStart = freeEnd - duration;
-      if (latestStart === freeStart) availableBlocks.push(`в ${minsToTime(freeStart)}`);
-      else availableBlocks.push(`с ${minsToTime(freeStart)} до ${minsToTime(latestStart)}`);
+      const idealStart = freeStart; // Идеально: прижаться сразу после последнего урока
+      if (freeEnd - duration === idealStart) {
+        recommendations.push(`в ${minsToTime(idealStart)}`);
+      } else {
+        recommendations.push(`в ${minsToTime(idealStart)} (или позже)`);
+      }
     }
 
-    if (dayEvents.length === 0) {
-      smsLines.push(`▪️ ${dayName}: любое время с 08:00 до ${minsToTime(dayEndMins - duration)}`);
-      allDaysFull = false;
-    } else if (availableBlocks.length > 0) {
-      smsLines.push(`▪️ ${dayName}: ${availableBlocks.join(' или ')}`);
+    if (recommendations.length > 0) {
+      smsLines.push(`▪️ ${dayName}: ${recommendations.join(', ')}`);
       allDaysFull = false;
     }
   });
@@ -397,10 +430,12 @@ function findFreeSlots() {
   if (allDaysFull) {
     resultsContainer.innerHTML = '<div style="color: #ef4444; font-weight: 500;">❌ В выбранные дни нет окошек для такого урока до 22:00.</div>';
   } else {
-    const smsText = `Готов взять урок (${duration} мин).\n\nМои свободные окошки для старта:\n${smsLines.join('\n')}\n\nКакое время выберем?`;
+    // Формируем красивый ответ менеджеру
+    const smsText = `Готов взять ученика (${duration} мин).\n\nМои идеальные окошки (чтобы уроки стояли плотно):\n${smsLines.join('\n')}\n\n*При необходимости могу сдвинуть любое время на +-30 минут. Какое бронируем?`;
+
     resultsContainer.innerHTML = `
       <div style="font-weight: 600; margin-bottom: 10px; color: var(--text-main); font-size: 0.85rem;">Шаблон ответа менеджеру:</div>
-      <textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-family: inherit; font-size: 0.85rem; resize: none; background: var(--bg-modal); color: var(--text-main); line-height: 1.5; outline: none;">${smsText}</textarea>
+      <textarea id="sms-output" readonly style="width: 100%; height: 180px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-family: inherit; font-size: 0.85rem; resize: none; background: var(--bg-modal); color: var(--text-main); line-height: 1.5; outline: none;">${smsText}</textarea>
       <button id="btn-copy-sms" class="btn-primary" style="width: 100%; margin-top: 10px; background: #10b981;">📋 Скопировать текст</button>
     `;
 
@@ -492,35 +527,35 @@ document.getElementById('btn-export').addEventListener('click', async () => {
 // ==========================================
 // СИНХРОНИЗАЦИЯ ЦЕН (ИМПОРТ/ЭКСПОРТ)
 // ==========================================
-document.getElementById('btn-export-prices').addEventListener('click', function() {
+document.getElementById('btn-export-prices').addEventListener('click', function () {
   const data = localStorage.getItem('lessonPrices_v2') || '{}';
   const input = document.getElementById('sync-data-input');
   input.value = data;
   input.select();
   document.execCommand('copy');
-  
+
   const originalText = this.textContent;
   this.textContent = '✅ Скопировано!';
   setTimeout(() => this.textContent = originalText, 2000);
 });
 
-document.getElementById('btn-import-prices').addEventListener('click', function() {
+document.getElementById('btn-import-prices').addEventListener('click', function () {
   const inputData = document.getElementById('sync-data-input').value.trim();
-  
+
   if (!inputData) {
     alert('Поле пустое! Вставь код с ценами.');
     return;
   }
-  
+
   try {
     const parsedData = JSON.parse(inputData);
-    
+
     priceBook = parsedData;
     localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
-    
+
     calcSalary();
     initCalendar();
-    
+
     document.getElementById('sync-data-input').value = '';
     const originalText = this.textContent;
     this.textContent = '✅ Успешно!';
@@ -528,7 +563,7 @@ document.getElementById('btn-import-prices').addEventListener('click', function(
       this.textContent = originalText;
       document.getElementById('stats-modal').classList.remove('active');
     }, 1500);
-    
+
   } catch (e) {
     alert('Ошибка! Похоже, код скопирован не полностью или с ошибкой.');
   }

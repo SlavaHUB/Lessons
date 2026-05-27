@@ -689,38 +689,61 @@ input[type="number"]:focus {
   }
 
   /* Идеальные мобильные карточки */
-  .event-card { padding: 4px 3px !important; border-radius: 4px !important; }
-  .event-time { font-size: 9px !important; margin-bottom: 3px !important; }
-  
-  .event-body { 
-    flex-direction: column !important; /* Строго друг под другом */
-    align-items: flex-start !important; 
+  .event-card {
+    padding: 4px 3px !important;
+    border-radius: 4px !important;
+  }
+
+  .event-time {
+    font-size: 9px !important;
+    margin-bottom: 3px !important;
+  }
+
+  .event-body {
+    flex-direction: column !important;
+    /* Строго друг под другом */
+    align-items: flex-start !important;
     justify-content: flex-start !important;
-    gap: 3px !important; 
+    gap: 3px !important;
     overflow: visible !important;
   }
-  
-  .event-title { 
-    font-size: 9px !important; 
-    line-height: 1.2 !important; 
-    white-space: normal !important;      /* Разрешаем перенос строк! */
-    overflow: visible !important;        /* Отключаем скрытие текста */
-    text-overflow: clip !important;      /* Убиваем многоточие (...) */
-    word-break: break-word !important;   /* Переносим длинные слова */
+
+  .event-title {
+    font-size: 9px !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+    /* Разрешаем перенос строк! */
+    overflow: visible !important;
+    /* Отключаем скрытие текста */
+    text-overflow: clip !important;
+    /* Убиваем многоточие (...) */
+    word-break: break-word !important;
+    /* Переносим длинные слова */
     width: 100% !important;
-    flex: none !important;               /* Запрещаем сжатие */
+    flex: none !important;
+    /* Запрещаем сжатие */
   }
-  
-  .event-price-tag { 
-    padding: 2px 4px !important; 
-    align-self: flex-start !important;   /* Прижимаем цену к левому краю */
+
+  .event-price-tag {
+    padding: 2px 4px !important;
+    align-self: flex-start !important;
+    /* Прижимаем цену к левому краю */
     text-align: left !important;
-    background: rgba(0, 0, 0, 0.15) !important; /* Сделал фон чуть заметнее */
+    background: rgba(0, 0, 0, 0.15) !important;
+    /* Сделал фон чуть заметнее */
     border-radius: 4px !important;
-    margin-top: auto !important;         /* Толкает цену в самый низ карточки */
-    width: fit-content !important;       /* Цена занимает только ширину своих цифр */
+    margin-top: auto !important;
+    /* Толкает цену в самый низ карточки */
+    width: fit-content !important;
+    /* Цена занимает только ширину своих цифр */
   }
-  
-  .price-rub { font-size: 9px !important; }
-  .price-byn { font-size: 8px !important; margin-top: 1px !important; }
+
+  .price-rub {
+    font-size: 9px !important;
+  }
+
+  .price-byn {
+    font-size: 8px !important;
+    margin-top: 1px !important;
+  }
 }
