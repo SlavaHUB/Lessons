@@ -322,6 +322,9 @@ function calcSalary() {
 // ==========================================
 // ПОИСК СВОБОДНЫХ ОКОШЕК (УМНОЕ УПЛОТНЕНИЕ + ГРАНИЦЫ)
 // ==========================================
+// ==========================================
+// ПОИСК СВОБОДНЫХ ОКОШЕК (УМНОЕ УПЛОТНЕНИЕ + ГРАНИЦЫ)
+// ==========================================
 function findFreeSlots() {
   const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
   const checkboxes = document.querySelectorAll('#slot-days-container input:checked');
@@ -361,7 +364,7 @@ function findFreeSlots() {
     let currentMins = START_HOUR * 60;
     const recommendations = [];
 
-    dayEvents.forEach(event => {
+    dayEvents.forEach((event, i) => {
       const evStart = timeToMins(event.startTime);
       const evEnd = timeToMins(event.endTime);
 
@@ -376,9 +379,14 @@ function findFreeSlots() {
         let ideal2 = freeEnd - duration;
         let recs = new Set();
 
-        if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1);
+        // ИСПРАВЛЕНИЕ: Если это окно перед ПЕРВЫМ уроком в дне (i === 0), 
+        // мы НЕ предлагаем самое начало дня, а только прижимаем к уроку (ideal2).
+        if (i > 0) {
+          if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1);
+        }
         if (ideal2 >= globalSearchStartMins && (ideal2 + duration) <= globalSearchEndMins) recs.add(ideal2);
 
+        // Если плотные слоты вылезли за рамки менеджера, даем крайние точки внутри рамок
         if (recs.size === 0) {
           recs.add(effStart);
           if (effEnd - duration !== effStart) recs.add(effEnd - duration);
@@ -389,6 +397,7 @@ function findFreeSlots() {
       currentMins = evEnd + GAP;
     });
 
+    // Окно после ПОСЛЕДНЕГО урока
     const freeStart = currentMins;
     const freeEnd = END_HOUR * 60;
     const effStart = Math.max(freeStart, globalSearchStartMins);
@@ -467,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('slots-modal').classList.add('active');
     document.getElementById('action-controls').classList.remove('open');
   });
-  
+
   document.getElementById('btn-slots-cancel').addEventListener('click', () => { document.getElementById('slots-modal').classList.remove('active'); });
   document.getElementById('btn-slots-search').addEventListener('click', findFreeSlots);
 
