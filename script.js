@@ -574,13 +574,17 @@ document.getElementById('btn-import-prices').addEventListener('click', function 
 // ==========================================
 // АНАЛИЗАТОР ТЕКСТА МЕНЕДЖЕРА (АВТОЗАПОЛНЕНИЕ)
 // ==========================================
-document.getElementById('manager-text-input').addEventListener('input', function (e) {
+// ==========================================
+// ПОИСК СВОБОДНЫХ ОКОШЕК (УМНОЕ УПЛОТНЕНИЕ + ГРАНИЦЫ)
+// ==========================================
+
+// Анализатор текста менеджера
+document.getElementById('manager-text-input').addEventListener('input', function(e) {
   const text = e.target.value.toLowerCase();
   if (!text.trim()) return;
 
-  // 1. Парсинг дней недели
   const dayChecks = document.querySelectorAll('#slot-days-container input');
-  dayChecks.forEach(cb => cb.checked = false); // сброс
+  dayChecks.forEach(cb => cb.checked = false);
 
   let foundDays = false;
   const patterns = [
@@ -605,7 +609,6 @@ document.getElementById('manager-text-input').addEventListener('input', function
     });
   }
 
-  // Обработка "кроме"
   if (text.includes('кроме')) {
     const parts = text.split('кроме');
     if (parts.length > 1) {
@@ -617,41 +620,181 @@ document.getElementById('manager-text-input').addEventListener('input', function
 
   if (!foundDays) dayChecks.forEach(cb => cb.checked = true);
 
-  // 2. Парсинг времени (эвристика)
   let st = "08:00";
   let et = "22:00";
 
-  const matchFrom = text.match(/(?:с|от)\s*(\d{1,2})(?:[:.](\d{2}))?/);
-  if (matchFrom) {
-    let h = parseInt(matchFrom[1]);
-    let m = matchFrom[2] || "00";
-    if (h < 8 && h > 0) h += 12; // "с 2" превращаем в 14:00
-    st = `${h.toString().padStart(2, '0')}:${m}`;
-  }
-
-  const matchTo = text.match(/(?:до|по)\s*(\d{1,2})(?:[:.](\d{2}))?/);
-  if (matchTo) {
-    let h = parseInt(matchTo[1]);
-    let m = matchTo[2] || "00";
-    if (h <= 8 && h > 0) h += 12; // "до 5" превращаем в 17:00
-    et = `${h.toString().padStart(2, '0')}:${m}`;
-  }
-
-  const matchAt = text.match(/(?:в|на)\s*(\d{1,2})(?:[:.](\d{2}))?/);
-  if (matchAt && !matchFrom && !matchTo) {
-    let h = parseInt(matchAt[1]);
-    let m = matchAt[2] || "00";
-    if (h < 8 && h > 0) h += 12;
-    // Если время точное (в 15:00), даем разбег час до и час после
-    let startH = Math.max(8, h - 1);
-    let endH = Math.min(22, h + 2);
-    st = `${startH.toString().padStart(2, '0')}:${m}`;
-    et = `${endH.toString().padStart(2, '0')}:${m}`;
+  // Улучшенный поиск времени: ловит диапазоны типа 18:00-20:00 или 18-20
+  const matchRange = text.match(/(\d{1,2})(?:[:.](\d{2}))?\s*(?:-|–|—)\s*(\d{1,2})(?:[:.](\d{2}))?/);
+  if (matchRange) {
+    let h1 = parseInt(matchRange[1]);
+    let m1 = matchRange[2] || "00";
+    let h2 = parseInt(matchRange[3]);
+    let m2 = matchRange[4] || "00";
+    if (h1 < 8 && h1 > 0) h1 += 12;
+    if (h2 <= 8 && h2 > 0) h2 += 12;
+    st = `${h1.toString().padStart(2, '0')}:${m1}`;
+    et = `${h2.toString().padStart(2, '0')}:${m2}`;
+  } else {
+    const matchFrom = text.match(/(?:с|от)\s*(\d{1,2})(?:[:.](\d{2}))?/);
+    if (matchFrom) {
+      let h = parseInt(matchFrom[1]);
+      let m = matchFrom[2] || "00";
+      if (h < 8 && h > 0) h += 12;
+      st = `${h.toString().padStart(2, '0')}:${m}`;
+    }
+    const matchTo = text.match(/(?:до|по)\s*(\d{1,2})(?:[:.](\d{2}))?/);
+    if (matchTo) {
+      let h = parseInt(matchTo[1]);
+      let m = matchTo[2] || "00";
+      if (h <= 8 && h > 0) h += 12;
+      et = `${h.toString().padStart(2, '0')}:${m}`;
+    }
+    const matchAt = text.match(/(?:в|на)\s*(\d{1,2})(?:[:.](\d{2}))?/);
+    if (matchAt && !matchFrom && !matchTo) {
+       let h = parseInt(matchAt[1]);
+       let m = matchAt[2] || "00";
+       if (h < 8 && h > 0) h += 12;
+       let startH = Math.max(8, h - 1);
+       let endH = Math.min(22, h + 2);
+       st = `${startH.toString().padStart(2, '0')}:${m}`;
+       et = `${endH.toString().padStart(2, '0')}:${m}`;
+    }
   }
 
   document.getElementById('search-time-start').value = st;
   document.getElementById('search-time-end').value = et;
 });
+
+// Логика кнопки Очистить
+document.getElementById('btn-clear-sms').addEventListener('click', () => {
+  document.getElementById('manager-text-input').value = '';
+  document.getElementById('search-time-start').value = '08:00';
+  document.getElementById('search-time-end').value = '22:00';
+  document.querySelectorAll('#slot-days-container input').forEach(cb => cb.checked = false);
+  document.getElementById('slots-results').innerHTML = '';
+});
+
+// Алгоритм подбора
+function findFreeSlots() {
+  const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
+  const checkboxes = document.querySelectorAll('#slot-days-container input:checked');
+  const selectedIndexes = Array.from(checkboxes).map(cb => parseInt(cb.value));
+  const resultsContainer = document.getElementById('slots-results');
+
+  // Базовые рамки от менеджера
+  const baseSearchStartMins = timeToMins(document.getElementById('search-time-start').value || "08:00");
+  const baseSearchEndMins = timeToMins(document.getElementById('search-time-end').value || "22:00");
+
+  // ДОПУСК 30 МИНУТ: Расширяем рамки, так как мы можем двигать время менеджера
+  const globalSearchStartMins = Math.max(START_HOUR * 60, baseSearchStartMins - 30);
+  const globalSearchEndMins = Math.min(END_HOUR * 60, baseSearchEndMins + 30);
+
+  if (selectedIndexes.length === 0) {
+    resultsContainer.innerHTML = '<div style="color: #ef4444; font-weight: bold;">Выберите хотя бы один день!</div>';
+    return;
+  }
+
+  resultsContainer.innerHTML = '';
+  const GAP = 10;
+  let smsLines = [];
+  let allDaysFull = true;
+
+  selectedIndexes.forEach(index => {
+    const dateObj = addDays(currentWeekMonday, index);
+    const dateStr = formatDateToString(dateObj);
+    const dayName = daysOfWeek[index];
+
+    if (index === 1 || index === 2) {
+      smsLines.push(`▪️ ${dayName}: выходной`);
+      return;
+    }
+
+    const dayEvents = scheduleData
+      .filter(e => e.date === dateStr)
+      .sort((a, b) => timeToMins(a.startTime) - timeToMins(b.startTime));
+
+    let currentMins = START_HOUR * 60;
+    const recommendations = [];
+
+    dayEvents.forEach(event => {
+      const evStart = timeToMins(event.startTime);
+      const evEnd = timeToMins(event.endTime);
+
+      const freeStart = currentMins;
+      const freeEnd = evStart - GAP;
+
+      // Ограничиваем окно рамками (уже с допуском в 30 минут)
+      const effStart = Math.max(freeStart, globalSearchStartMins);
+      const effEnd = Math.min(freeEnd, globalSearchEndMins);
+
+      if (effEnd - effStart >= duration) {
+        let ideal1 = freeStart; 
+        let ideal2 = freeEnd - duration; 
+        let recs = new Set();
+
+        if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1);
+        if (ideal2 >= globalSearchStartMins && (ideal2 + duration) <= globalSearchEndMins) recs.add(ideal2);
+
+        if (recs.size === 0) {
+          recs.add(effStart);
+          if (effEnd - duration !== effStart) recs.add(effEnd - duration);
+        }
+
+        recs.forEach(start => recommendations.push(start));
+      }
+      currentMins = evEnd + GAP;
+    });
+
+    const freeStart = currentMins;
+    const freeEnd = END_HOUR * 60;
+    const effStart = Math.max(freeStart, globalSearchStartMins);
+    const effEnd = Math.min(freeEnd, globalSearchEndMins);
+
+    if (effEnd - effStart >= duration) {
+      let ideal = freeStart;
+      if (ideal >= globalSearchStartMins && (ideal + duration) <= globalSearchEndMins) {
+        recommendations.push(ideal);
+      } else {
+        recommendations.push(effStart);
+      }
+    }
+
+    if (recommendations.length > 0) {
+      let uniqueRecs = [...new Set(recommendations)].sort((a,b) => a-b);
+      let timeStrings = uniqueRecs.map(mins => `в ${minsToTime(mins)}`);
+      smsLines.push(`▪️ ${dayName}: ${timeStrings.join(' или ')}`);
+      allDaysFull = false;
+    } else {
+      smsLines.push(`▪️ ${dayName}: нет окошек`);
+    }
+  });
+
+  let smsText = '';
+  if (allDaysFull) {
+    smsText = `К сожалению, в предложенное время предложить ничего не могу.`;
+  } else {
+    smsText = `Готов взять ученика (${duration} мин).\n\nМои окошки в рамках вашего запроса:\n${smsLines.join('\n')}\n\n*С учетом того, что предложенное вами время я могу двигать на 30 мин. Какое бронируем?`;
+  }
+
+  resultsContainer.innerHTML = `
+    <div style="font-weight: 600; margin-bottom: 10px; color: var(--text-main); font-size: 0.85rem;">Шаблон ответа менеджеру:</div>
+    <textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-family: inherit; font-size: 0.85rem; resize: none; background: var(--bg-modal); color: var(--text-main); line-height: 1.5; outline: none;">${smsText}</textarea>
+    <button id="btn-copy-sms" class="btn-primary" style="width: 100%; margin-top: 10px; background: #10b981;">📋 Скопировать текст</button>
+  `;
+
+  document.getElementById('btn-copy-sms').addEventListener('click', function () {
+    const copyText = document.getElementById('sms-output');
+    copyText.select();
+    document.execCommand('copy');
+    const originalText = this.textContent;
+    this.textContent = '✅ Скопировано в буфер!';
+    this.style.background = '#059669';
+    setTimeout(() => {
+      this.textContent = originalText;
+      this.style.background = '#10b981';
+    }, 2000);
+  });
+}
 
 // ЗАПУСК ПРИ ОТКРЫТИИ
 document.addEventListener('DOMContentLoaded', fetchLessons);

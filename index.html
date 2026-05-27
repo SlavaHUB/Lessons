@@ -82,8 +82,13 @@
       <h3>🔍 Поиск свободных окошек</h3>
 
       <div class="form-group" style="margin-bottom: 15px;">
-        <label>Текст от менеджера (автоматически заполнит фильтры)</label>
-        <textarea id="manager-text-input" placeholder="Вставь смс сюда (например: вторник с 18:00...)"
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+          <label style="margin-bottom: 0;">Текст от менеджера (автозаполнение)</label>
+          <button id="btn-clear-sms"
+            style="background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; padding: 0;">❌
+            Очистить</button>
+        </div>
+        <textarea id="manager-text-input" placeholder="Вставь смс сюда (например: вторник с 18:00-20:00...)"
           style="width: 100%; height: 60px; font-size: 0.8rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); resize: none;"></textarea>
       </div>
 
@@ -101,28 +106,6 @@
           <label>До:</label>
           <input type="time" id="search-time-end" value="22:00">
         </div>
-      </div>
-
-      <div class="form-group">
-        <label>Дни недели (текущая неделя)</label>
-        <div class="days-selector" id="slot-days-container">
-          <label class="day-chip"><input type="checkbox" value="0"><span>Пн</span></label>
-          <label class="day-chip"><input type="checkbox" value="1"><span>Вт</span></label>
-          <label class="day-chip"><input type="checkbox" value="2"><span>Ср</span></label>
-          <label class="day-chip"><input type="checkbox" value="3"><span>Чт</span></label>
-          <label class="day-chip"><input type="checkbox" value="4"><span>Пт</span></label>
-          <label class="day-chip"><input type="checkbox" value="5"><span>Сб</span></label>
-          <label class="day-chip"><input type="checkbox" value="6"><span>Вс</span></label>
-        </div>
-      </div>
-
-      <div class="modal-actions">
-        <button id="btn-slots-cancel" class="btn-secondary">Закрыть</button>
-        <button id="btn-slots-search" class="btn-primary">Искать</button>
-      </div>
-
-      <div id="slots-results"
-        style="margin-top: 20px; max-height: 250px; overflow-y: auto; font-size: 0.9rem; line-height: 1.4;">
       </div>
     </div>
   </div>
