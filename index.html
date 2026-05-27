@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Интерактивное расписание</title>
-  <link rel="stylesheet" href="style.css?v=4.6">
+  <link rel="stylesheet" href="style.css?v=4.7">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 
@@ -51,8 +51,7 @@
       <div style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 5px;">
         <span>За сегодня:</span><strong id="stat-today" style="color: #2563eb;">0 ₽</strong>
       </div>
-      <div
-        style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color);">
+      <div style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color);">
         <span>За неделю:</span><strong id="stat-week" style="color: #2563eb;">0 ₽</strong>
       </div>
 
@@ -61,13 +60,11 @@
 
       <div style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
         <label style="display: block; margin-bottom: 8px;">🔄 Синхронизация между устройствами</label>
-        <textarea id="sync-data-input" placeholder="Вставь сюда код с ценами..."
-          style="width: 100%; height: 60px; font-size: 0.7rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); margin-bottom: 10px; resize: none;"></textarea>
+        <textarea id="sync-data-input" placeholder="Вставь сюда код с ценами..." style="width: 100%; height: 60px; font-size: 0.7rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); margin-bottom: 10px; resize: none;"></textarea>
 
         <div style="display: flex; gap: 10px;">
           <button id="btn-export-prices" class="btn-secondary" style="flex: 1;">📋 Скопировать мои</button>
-          <button id="btn-import-prices" class="btn-primary" style="flex: 1; background: #10b981;">📥 Загрузить из
-            поля</button>
+          <button id="btn-import-prices" class="btn-primary" style="flex: 1; background: #10b981;">📥 Загрузить из поля</button>
         </div>
       </div>
 
@@ -84,12 +81,9 @@
       <div class="form-group" style="margin-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
           <label style="margin-bottom: 0;">Текст от менеджера (автозаполнение)</label>
-          <button id="btn-clear-sms"
-            style="background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; padding: 0;">❌
-            Очистить</button>
+          <button id="btn-clear-sms" style="background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; padding: 0;">❌ Очистить</button>
         </div>
-        <textarea id="manager-text-input" placeholder="Вставь смс сюда (например: вторник с 18:00-20:00...)"
-          style="width: 100%; height: 60px; font-size: 0.8rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); resize: none;"></textarea>
+        <textarea id="manager-text-input" placeholder="Вставь смс сюда (например: вторник с 18:00-20:00...)" style="width: 100%; height: 60px; font-size: 0.8rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); resize: none;"></textarea>
       </div>
 
       <div class="form-group">
@@ -107,10 +101,31 @@
           <input type="time" id="search-time-end" value="22:00">
         </div>
       </div>
+
+      <div class="form-group">
+        <label>Дни недели (текущая неделя)</label>
+        <div class="days-selector" id="slot-days-container">
+          <label class="day-chip"><input type="checkbox" value="0"><span>Пн</span></label>
+          <label class="day-chip"><input type="checkbox" value="1"><span>Вт</span></label>
+          <label class="day-chip"><input type="checkbox" value="2"><span>Ср</span></label>
+          <label class="day-chip"><input type="checkbox" value="3"><span>Чт</span></label>
+          <label class="day-chip"><input type="checkbox" value="4"><span>Пт</span></label>
+          <label class="day-chip"><input type="checkbox" value="5"><span>Сб</span></label>
+          <label class="day-chip"><input type="checkbox" value="6"><span>Вс</span></label>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-slots-cancel" class="btn-secondary">Закрыть</button>
+        <button id="btn-slots-search" class="btn-primary">Искать</button>
+      </div>
+
+      <div id="slots-results" style="margin-top: 20px; max-height: 250px; overflow-y: auto; font-size: 0.9rem; line-height: 1.4;">
+      </div>
     </div>
   </div>
 
-  <script src="script.js?v=4.6"></script>
+  <script src="script.js?v=4.7"></script>
 </body>
 
 </html>

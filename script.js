@@ -7,7 +7,7 @@ const API_URL = 'https://lessons-mqy0.onrender.com/api/schedule';
 let scheduleData = [];
 let currentWeekMonday = getMonday(new Date());
 
-const BYN_RATE = 0.0387; // Укажи здесь актуальный курс RUB к BYN
+const BYN_RATE = 0.0387; // Курс RUB к BYN
 const HOUR_HEIGHT = 80;
 const START_HOUR = 8;
 const END_HOUR = 23;
@@ -212,7 +212,6 @@ function initCalendar() {
           <span class="price-byn">≈ ${(price * BYN_RATE).toFixed(2)} Br</span>
         </div>` : '';
 
-      // На мобилках названия школ скрываются через отсутствие schoolBadge
       eventDiv.innerHTML = `
         <div class="event-time">${event.startTime} - ${event.endTime}</div>
         <div class="event-body">
@@ -261,7 +260,6 @@ function openStats() {
     dayEvents.forEach(ev => {
       const lessonKey = `${dayName}_${ev.startTime}_${ev.title}`;
       const currentPrice = priceBook[lessonKey] || '';
-
       const displayTitle = `${ev.startTime} - ${ev.title}`;
 
       dayHtml += `
@@ -322,12 +320,6 @@ function calcSalary() {
 }
 
 // ==========================================
-// ПОИСК СВОБОДНЫХ ОКОШЕК
-// ==========================================
-// ==========================================
-// ПОИСК СВОБОДНЫХ ОКОШЕК (УМНОЕ УПЛОТНЕНИЕ)
-// ==========================================
-// ==========================================
 // ПОИСК СВОБОДНЫХ ОКОШЕК (УМНОЕ УПЛОТНЕНИЕ + ГРАНИЦЫ)
 // ==========================================
 function findFreeSlots() {
@@ -336,356 +328,9 @@ function findFreeSlots() {
   const selectedIndexes = Array.from(checkboxes).map(cb => parseInt(cb.value));
   const resultsContainer = document.getElementById('slots-results');
 
-  // Получаем рамки, которые установил менеджер (или наш парсер)
-  const searchStartStr = document.getElementById('search-time-start').value || "08:00";
-  const searchEndStr = document.getElementById('search-time-end').value || "22:00";
-  const globalSearchStartMins = timeToMins(searchStartStr);
-  const globalSearchEndMins = timeToMins(searchEndStr);
-
-  if (selectedIndexes.length === 0) {
-    resultsContainer.innerHTML = '<div style="color: #ef4444; font-weight: bold;">Выберите хотя бы один день!</div>';
-    return;
-  }
-
-  resultsContainer.innerHTML = '';
-  const GAP = 10;
-  let smsLines = [];
-  let allDaysFull = true;
-
-  selectedIndexes.forEach(index => {
-    const dateObj = addDays(currentWeekMonday, index);
-    const dateStr = formatDateToString(dateObj);
-    const dayName = daysOfWeek[index];
-
-    if (index === 1 || index === 2) {
-      smsLines.push(`▪️ ${dayName}: выходной`);
-      return;
-    }
-
-    const dayEvents = scheduleData
-      .filter(e => e.date === dateStr)
-      .sort((a, b) => timeToMins(a.startTime) - timeToMins(b.startTime));
-
-    let currentMins = START_HOUR * 60; // Всегда начинаем день с 08:00
-    const recommendations = [];
-
-    dayEvents.forEach(event => {
-      const evStart = timeToMins(event.startTime);
-      const evEnd = timeToMins(event.endTime);
-
-      const freeStart = currentMins;
-      const freeEnd = evStart - GAP;
-
-      // Ограничиваем свободное окно рамками менеджера
-      const effStart = Math.max(freeStart, globalSearchStartMins);
-      const effEnd = Math.min(freeEnd, globalSearchEndMins);
-
-      // Если в окне есть место
-      if (effEnd - effStart >= duration) {
-        let ideal1 = freeStart; // Прижаться к предыдущему
-        let ideal2 = freeEnd - duration; // Прижаться к следующему
-
-        let recs = new Set();
-
-        // Проверяем, влезают ли идеальные (плотные) варианты в рамки менеджера
-        if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1);
-        if (ideal2 >= globalSearchStartMins && (ideal2 + duration) <= globalSearchEndMins) recs.add(ideal2);
-
-        // Если идеальные варианты выпадают за рамки менеджера, но место всё же есть — 
-        // прижимаем урок максимально близко к рамкам (например, просили с 13:00, ставим в 13:00)
-        if (recs.size === 0) {
-          recs.add(effStart);
-          if (effEnd - duration !== effStart) recs.add(effEnd - duration);
-        }
-
-        recs.forEach(start => recommendations.push(start));
-      }
-      currentMins = evEnd + GAP;
-    });
-
-    // Проверка времени после последнего урока
-    const freeStart = currentMins;
-    const freeEnd = END_HOUR * 60;
-    const effStart = Math.max(freeStart, globalSearchStartMins);
-    const effEnd = Math.min(freeEnd, globalSearchEndMins);
-
-    if (effEnd - effStart >= duration) {
-      let ideal = freeStart;
-      if (ideal >= globalSearchStartMins && (ideal + duration) <= globalSearchEndMins) {
-        recommendations.push(ideal);
-      } else {
-        recommendations.push(effStart);
-      }
-    }
-
-    if (recommendations.length > 0) {
-      let uniqueRecs = [...new Set(recommendations)].sort((a,b) => a-b);
-      let timeStrings = uniqueRecs.map(mins => `в ${minsToTime(mins)}`);
-      smsLines.push(`▪️ ${dayName}: ${timeStrings.join(' или ')}`);
-      allDaysFull = false; // Нашли хотя бы одно окно за все дни
-    } else {
-      smsLines.push(`▪️ ${dayName}: нет окошек в это время`);
-    }
-  });
-
-  // ФИНАЛЬНЫЙ ВЫВОД
-  let smsText = '';
-  if (allDaysFull) {
-    smsText = `К сожалению, в предложенное время предложить ничего не могу.`;
-  } else {
-    smsText = `Готов взять ученика (${duration} мин).\n\nМои окошки в рамках вашего запроса:\n${smsLines.join('\n')}\n\n*При необходимости могу сдвинуть время на +-30 минут. Какое бронируем?`;
-  }
-
-  resultsContainer.innerHTML = `
-    <div style="font-weight: 600; margin-bottom: 10px; color: var(--text-main); font-size: 0.85rem;">Шаблон ответа менеджеру:</div>
-    <textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-family: inherit; font-size: 0.85rem; resize: none; background: var(--bg-modal); color: var(--text-main); line-height: 1.5; outline: none;">${smsText}</textarea>
-    <button id="btn-copy-sms" class="btn-primary" style="width: 100%; margin-top: 10px; background: #10b981;">📋 Скопировать текст</button>
-  `;
-
-  document.getElementById('btn-copy-sms').addEventListener('click', function () {
-    const copyText = document.getElementById('sms-output');
-    copyText.select();
-    document.execCommand('copy');
-    const originalText = this.textContent;
-    this.textContent = '✅ Скопировано в буфер!';
-    this.style.background = '#059669';
-    setTimeout(() => {
-      this.textContent = originalText;
-      this.style.background = '#10b981';
-    }, 2000);
-  });
-}
-
-// ==========================================
-// СЛУШАТЕЛИ СОБЫТИЙ UI
-// ==========================================
-document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
-document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); fetchLessons(); });
-document.getElementById('btn-next').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, 7); fetchLessons(); });
-document.getElementById('btn-today').addEventListener('click', () => { currentWeekMonday = getMonday(new Date()); fetchLessons(); });
-
-document.getElementById('btn-stats').addEventListener('click', openStats);
-document.getElementById('btn-stats-close').addEventListener('click', () => { document.getElementById('stats-modal').classList.remove('active'); });
-
-document.getElementById('btn-theme').addEventListener('click', () => {
-  const currentTheme = document.documentElement.getAttribute('data-theme');
-  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', newTheme);
-  localStorage.setItem('theme', newTheme);
-  updateThemeButton(newTheme);
-});
-
-document.getElementById('btn-find-slots').addEventListener('click', () => {
-  document.getElementById('slots-results').innerHTML = '';
-  document.getElementById('slots-modal').classList.add('active');
-  document.getElementById('action-controls').classList.remove('open');
-});
-document.getElementById('btn-slots-cancel').addEventListener('click', () => { document.getElementById('slots-modal').classList.remove('active'); });
-document.getElementById('btn-slots-search').addEventListener('click', findFreeSlots);
-
-document.getElementById('btn-export').addEventListener('click', async () => {
-  document.getElementById('action-controls').classList.remove('open');
-  const btnExport = document.getElementById('btn-export');
-  const originalText = btnExport.innerHTML;
-  btnExport.innerHTML = '⏳ Создаю...';
-  const calendar = document.querySelector('.calendar-wrapper');
-
-  try {
-    const canvas = await html2canvas(calendar, { scale: 2 });
-    canvas.toBlob(async (blob) => {
-      const file = new File([blob], `Расписание_${formatDateToString(currentWeekMonday)}.png`, { type: 'image/png' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title: 'Моё расписание' });
-          btnExport.innerHTML = '✅ Отправлено!';
-        } catch (err) { btnExport.innerHTML = originalText; }
-      } else {
-        try {
-          const item = new ClipboardItem({ 'image/png': blob });
-          await navigator.clipboard.write([item]);
-          btnExport.innerHTML = '✅ В буфере!';
-          btnExport.style.background = '#059669';
-          btnExport.style.color = 'white';
-        } catch (err) {
-          const link = document.createElement('a');
-          link.download = file.name;
-          link.href = URL.createObjectURL(blob);
-          link.click();
-          btnExport.innerHTML = '✅ Скачано!';
-        }
-      }
-      setTimeout(() => {
-        btnExport.innerHTML = originalText;
-        btnExport.style.background = '';
-        btnExport.style.color = '';
-      }, 2000);
-    }, 'image/png');
-  } catch (error) {
-    alert('Не удалось создать скриншот!');
-    btnExport.innerHTML = originalText;
-  }
-});
-
-// ==========================================
-// СИНХРОНИЗАЦИЯ ЦЕН (ИМПОРТ/ЭКСПОРТ)
-// ==========================================
-document.getElementById('btn-export-prices').addEventListener('click', function () {
-  const data = localStorage.getItem('lessonPrices_v2') || '{}';
-  const input = document.getElementById('sync-data-input');
-  input.value = data;
-  input.select();
-  document.execCommand('copy');
-
-  const originalText = this.textContent;
-  this.textContent = '✅ Скопировано!';
-  setTimeout(() => this.textContent = originalText, 2000);
-});
-
-document.getElementById('btn-import-prices').addEventListener('click', function () {
-  const inputData = document.getElementById('sync-data-input').value.trim();
-
-  if (!inputData) {
-    alert('Поле пустое! Вставь код с ценами.');
-    return;
-  }
-
-  try {
-    const parsedData = JSON.parse(inputData);
-
-    priceBook = parsedData;
-    localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
-
-    calcSalary();
-    initCalendar();
-
-    document.getElementById('sync-data-input').value = '';
-    const originalText = this.textContent;
-    this.textContent = '✅ Успешно!';
-    setTimeout(() => {
-      this.textContent = originalText;
-      document.getElementById('stats-modal').classList.remove('active');
-    }, 1500);
-
-  } catch (e) {
-    alert('Ошибка! Похоже, код скопирован не полностью или с ошибкой.');
-  }
-});
-
-// ==========================================
-// АНАЛИЗАТОР ТЕКСТА МЕНЕДЖЕРА (АВТОЗАПОЛНЕНИЕ)
-// ==========================================
-// ==========================================
-// ПОИСК СВОБОДНЫХ ОКОШЕК (УМНОЕ УПЛОТНЕНИЕ + ГРАНИЦЫ)
-// ==========================================
-
-// Анализатор текста менеджера
-document.getElementById('manager-text-input').addEventListener('input', function(e) {
-  const text = e.target.value.toLowerCase();
-  if (!text.trim()) return;
-
-  const dayChecks = document.querySelectorAll('#slot-days-container input');
-  dayChecks.forEach(cb => cb.checked = false);
-
-  let foundDays = false;
-  const patterns = [
-    { id: 0, r: /пн|понедельник/ },
-    { id: 1, r: /вт|вторник/ },
-    { id: 2, r: /ср|сред[ау]/ },
-    { id: 3, r: /чт|четверг/ },
-    { id: 4, r: /пт|пятниц[ау]/ },
-    { id: 5, r: /сб|суббот[ау]/ },
-    { id: 6, r: /вс|воскресень[ея]|вскр/ }
-  ];
-
-  if (text.includes('все дни') || text.includes('любой день') || text.includes('каждый день')) {
-    dayChecks.forEach(cb => cb.checked = true);
-    foundDays = true;
-  } else {
-    patterns.forEach(p => {
-      if (p.r.test(text)) {
-        document.querySelector(`#slot-days-container input[value="${p.id}"]`).checked = true;
-        foundDays = true;
-      }
-    });
-  }
-
-  if (text.includes('кроме')) {
-    const parts = text.split('кроме');
-    if (parts.length > 1) {
-      patterns.forEach(p => {
-        if (p.r.test(parts[1])) document.querySelector(`#slot-days-container input[value="${p.id}"]`).checked = false;
-      });
-    }
-  }
-
-  if (!foundDays) dayChecks.forEach(cb => cb.checked = true);
-
-  let st = "08:00";
-  let et = "22:00";
-
-  // Улучшенный поиск времени: ловит диапазоны типа 18:00-20:00 или 18-20
-  const matchRange = text.match(/(\d{1,2})(?:[:.](\d{2}))?\s*(?:-|–|—)\s*(\d{1,2})(?:[:.](\d{2}))?/);
-  if (matchRange) {
-    let h1 = parseInt(matchRange[1]);
-    let m1 = matchRange[2] || "00";
-    let h2 = parseInt(matchRange[3]);
-    let m2 = matchRange[4] || "00";
-    if (h1 < 8 && h1 > 0) h1 += 12;
-    if (h2 <= 8 && h2 > 0) h2 += 12;
-    st = `${h1.toString().padStart(2, '0')}:${m1}`;
-    et = `${h2.toString().padStart(2, '0')}:${m2}`;
-  } else {
-    const matchFrom = text.match(/(?:с|от)\s*(\d{1,2})(?:[:.](\d{2}))?/);
-    if (matchFrom) {
-      let h = parseInt(matchFrom[1]);
-      let m = matchFrom[2] || "00";
-      if (h < 8 && h > 0) h += 12;
-      st = `${h.toString().padStart(2, '0')}:${m}`;
-    }
-    const matchTo = text.match(/(?:до|по)\s*(\d{1,2})(?:[:.](\d{2}))?/);
-    if (matchTo) {
-      let h = parseInt(matchTo[1]);
-      let m = matchTo[2] || "00";
-      if (h <= 8 && h > 0) h += 12;
-      et = `${h.toString().padStart(2, '0')}:${m}`;
-    }
-    const matchAt = text.match(/(?:в|на)\s*(\d{1,2})(?:[:.](\d{2}))?/);
-    if (matchAt && !matchFrom && !matchTo) {
-       let h = parseInt(matchAt[1]);
-       let m = matchAt[2] || "00";
-       if (h < 8 && h > 0) h += 12;
-       let startH = Math.max(8, h - 1);
-       let endH = Math.min(22, h + 2);
-       st = `${startH.toString().padStart(2, '0')}:${m}`;
-       et = `${endH.toString().padStart(2, '0')}:${m}`;
-    }
-  }
-
-  document.getElementById('search-time-start').value = st;
-  document.getElementById('search-time-end').value = et;
-});
-
-// Логика кнопки Очистить
-document.getElementById('btn-clear-sms').addEventListener('click', () => {
-  document.getElementById('manager-text-input').value = '';
-  document.getElementById('search-time-start').value = '08:00';
-  document.getElementById('search-time-end').value = '22:00';
-  document.querySelectorAll('#slot-days-container input').forEach(cb => cb.checked = false);
-  document.getElementById('slots-results').innerHTML = '';
-});
-
-// Алгоритм подбора
-function findFreeSlots() {
-  const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
-  const checkboxes = document.querySelectorAll('#slot-days-container input:checked');
-  const selectedIndexes = Array.from(checkboxes).map(cb => parseInt(cb.value));
-  const resultsContainer = document.getElementById('slots-results');
-
-  // Базовые рамки от менеджера
   const baseSearchStartMins = timeToMins(document.getElementById('search-time-start').value || "08:00");
   const baseSearchEndMins = timeToMins(document.getElementById('search-time-end').value || "22:00");
 
-  // ДОПУСК 30 МИНУТ: Расширяем рамки, так как мы можем двигать время менеджера
   const globalSearchStartMins = Math.max(START_HOUR * 60, baseSearchStartMins - 30);
   const globalSearchEndMins = Math.min(END_HOUR * 60, baseSearchEndMins + 30);
 
@@ -723,13 +368,12 @@ function findFreeSlots() {
       const freeStart = currentMins;
       const freeEnd = evStart - GAP;
 
-      // Ограничиваем окно рамками (уже с допуском в 30 минут)
       const effStart = Math.max(freeStart, globalSearchStartMins);
       const effEnd = Math.min(freeEnd, globalSearchEndMins);
 
       if (effEnd - effStart >= duration) {
-        let ideal1 = freeStart; 
-        let ideal2 = freeEnd - duration; 
+        let ideal1 = freeStart;
+        let ideal2 = freeEnd - duration;
         let recs = new Set();
 
         if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1);
@@ -760,7 +404,7 @@ function findFreeSlots() {
     }
 
     if (recommendations.length > 0) {
-      let uniqueRecs = [...new Set(recommendations)].sort((a,b) => a-b);
+      let uniqueRecs = [...new Set(recommendations)].sort((a, b) => a - b);
       let timeStrings = uniqueRecs.map(mins => `в ${minsToTime(mins)}`);
       smsLines.push(`▪️ ${dayName}: ${timeStrings.join(' или ')}`);
       allDaysFull = false;
@@ -796,5 +440,208 @@ function findFreeSlots() {
   });
 }
 
-// ЗАПУСК ПРИ ОТКРЫТИИ
-document.addEventListener('DOMContentLoaded', fetchLessons);
+// ==========================================
+// СЛУШАТЕЛИ СОБЫТИЙ UI И АВТОЗАПОЛНЕНИЕ
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+  fetchLessons();
+
+  document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
+  document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); fetchLessons(); });
+  document.getElementById('btn-next').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, 7); fetchLessons(); });
+  document.getElementById('btn-today').addEventListener('click', () => { currentWeekMonday = getMonday(new Date()); fetchLessons(); });
+
+  document.getElementById('btn-stats').addEventListener('click', openStats);
+  document.getElementById('btn-stats-close').addEventListener('click', () => { document.getElementById('stats-modal').classList.remove('active'); });
+
+  document.getElementById('btn-theme').addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeButton(newTheme);
+  });
+
+  document.getElementById('btn-find-slots').addEventListener('click', () => {
+    document.getElementById('slots-results').innerHTML = '';
+    document.getElementById('slots-modal').classList.add('active');
+    document.getElementById('action-controls').classList.remove('open');
+  });
+  
+  document.getElementById('btn-slots-cancel').addEventListener('click', () => { document.getElementById('slots-modal').classList.remove('active'); });
+  document.getElementById('btn-slots-search').addEventListener('click', findFreeSlots);
+
+  // Скриншот
+  document.getElementById('btn-export').addEventListener('click', async () => {
+    document.getElementById('action-controls').classList.remove('open');
+    const btnExport = document.getElementById('btn-export');
+    const originalText = btnExport.innerHTML;
+    btnExport.innerHTML = '⏳ Создаю...';
+    const calendar = document.querySelector('.calendar-wrapper');
+
+    try {
+      const canvas = await html2canvas(calendar, { scale: 2 });
+      canvas.toBlob(async (blob) => {
+        const file = new File([blob], `Расписание_${formatDateToString(currentWeekMonday)}.png`, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ files: [file], title: 'Моё расписание' });
+            btnExport.innerHTML = '✅ Отправлено!';
+          } catch (err) { btnExport.innerHTML = originalText; }
+        } else {
+          try {
+            const item = new ClipboardItem({ 'image/png': blob });
+            await navigator.clipboard.write([item]);
+            btnExport.innerHTML = '✅ В буфере!';
+            btnExport.style.background = '#059669';
+            btnExport.style.color = 'white';
+          } catch (err) {
+            const link = document.createElement('a');
+            link.download = file.name;
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            btnExport.innerHTML = '✅ Скачано!';
+          }
+        }
+        setTimeout(() => {
+          btnExport.innerHTML = originalText;
+          btnExport.style.background = '';
+          btnExport.style.color = '';
+        }, 2000);
+      }, 'image/png');
+    } catch (error) {
+      alert('Не удалось создать скриншот!');
+      btnExport.innerHTML = originalText;
+    }
+  });
+
+  // Синхронизация цен
+  document.getElementById('btn-export-prices').addEventListener('click', function () {
+    const data = localStorage.getItem('lessonPrices_v2') || '{}';
+    const input = document.getElementById('sync-data-input');
+    input.value = data;
+    input.select();
+    document.execCommand('copy');
+    const originalText = this.textContent;
+    this.textContent = '✅ Скопировано!';
+    setTimeout(() => this.textContent = originalText, 2000);
+  });
+
+  document.getElementById('btn-import-prices').addEventListener('click', function () {
+    const inputData = document.getElementById('sync-data-input').value.trim();
+    if (!inputData) {
+      alert('Поле пустое! Вставь код с ценами.');
+      return;
+    }
+    try {
+      const parsedData = JSON.parse(inputData);
+      priceBook = parsedData;
+      localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
+      calcSalary();
+      initCalendar();
+      document.getElementById('sync-data-input').value = '';
+      const originalText = this.textContent;
+      this.textContent = '✅ Успешно!';
+      setTimeout(() => {
+        this.textContent = originalText;
+        document.getElementById('stats-modal').classList.remove('active');
+      }, 1500);
+    } catch (e) {
+      alert('Ошибка! Похоже, код скопирован не полностью или с ошибкой.');
+    }
+  });
+
+  // Автозаполнение СМС
+  document.getElementById('manager-text-input').addEventListener('input', function (e) {
+    const text = e.target.value.toLowerCase();
+    if (!text.trim()) return;
+
+    const dayChecks = document.querySelectorAll('#slot-days-container input');
+    dayChecks.forEach(cb => cb.checked = false);
+
+    let foundDays = false;
+    const patterns = [
+      { id: 0, r: /пн|понедельник/ },
+      { id: 1, r: /вт|вторник/ },
+      { id: 2, r: /ср|сред[ау]/ },
+      { id: 3, r: /чт|четверг/ },
+      { id: 4, r: /пт|пятниц[ау]/ },
+      { id: 5, r: /сб|суббот[ау]/ },
+      { id: 6, r: /вс|воскресень[ея]|вскр/ }
+    ];
+
+    if (text.includes('все дни') || text.includes('любой день') || text.includes('каждый день')) {
+      dayChecks.forEach(cb => cb.checked = true);
+      foundDays = true;
+    } else {
+      patterns.forEach(p => {
+        if (p.r.test(text)) {
+          document.querySelector(`#slot-days-container input[value="${p.id}"]`).checked = true;
+          foundDays = true;
+        }
+      });
+    }
+
+    if (text.includes('кроме')) {
+      const parts = text.split('кроме');
+      if (parts.length > 1) {
+        patterns.forEach(p => {
+          if (p.r.test(parts[1])) document.querySelector(`#slot-days-container input[value="${p.id}"]`).checked = false;
+        });
+      }
+    }
+
+    if (!foundDays) dayChecks.forEach(cb => cb.checked = true);
+
+    let st = "08:00";
+    let et = "22:00";
+
+    const matchRange = text.match(/(\d{1,2})(?:[:.](\d{2}))?\s*(?:-|–|—)\s*(\d{1,2})(?:[:.](\d{2}))?/);
+    if (matchRange) {
+      let h1 = parseInt(matchRange[1]);
+      let m1 = matchRange[2] || "00";
+      let h2 = parseInt(matchRange[3]);
+      let m2 = matchRange[4] || "00";
+      if (h1 < 8 && h1 > 0) h1 += 12;
+      if (h2 <= 8 && h2 > 0) h2 += 12;
+      st = `${h1.toString().padStart(2, '0')}:${m1}`;
+      et = `${h2.toString().padStart(2, '0')}:${m2}`;
+    } else {
+      const matchFrom = text.match(/(?:с|от)\s*(\d{1,2})(?:[:.](\d{2}))?/);
+      if (matchFrom) {
+        let h = parseInt(matchFrom[1]);
+        let m = matchFrom[2] || "00";
+        if (h < 8 && h > 0) h += 12;
+        st = `${h.toString().padStart(2, '0')}:${m}`;
+      }
+      const matchTo = text.match(/(?:до|по)\s*(\d{1,2})(?:[:.](\d{2}))?/);
+      if (matchTo) {
+        let h = parseInt(matchTo[1]);
+        let m = matchTo[2] || "00";
+        if (h <= 8 && h > 0) h += 12;
+        et = `${h.toString().padStart(2, '0')}:${m}`;
+      }
+      const matchAt = text.match(/(?:в|на)\s*(\d{1,2})(?:[:.](\d{2}))?/);
+      if (matchAt && !matchFrom && !matchTo) {
+        let h = parseInt(matchAt[1]);
+        let m = matchAt[2] || "00";
+        if (h < 8 && h > 0) h += 12;
+        let startH = Math.max(8, h - 1);
+        let endH = Math.min(22, h + 2);
+        st = `${startH.toString().padStart(2, '0')}:${m}`;
+        et = `${endH.toString().padStart(2, '0')}:${m}`;
+      }
+    }
+
+    document.getElementById('search-time-start').value = st;
+    document.getElementById('search-time-end').value = et;
+  });
+
+  document.getElementById('btn-clear-sms').addEventListener('click', () => {
+    document.getElementById('manager-text-input').value = '';
+    document.getElementById('search-time-start').value = '08:00';
+    document.getElementById('search-time-end').value = '22:00';
+    document.querySelectorAll('#slot-days-container input').forEach(cb => cb.checked = false);
+    document.getElementById('slots-results').innerHTML = '';
+  });
+});
