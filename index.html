@@ -61,11 +61,13 @@
 
       <div style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
         <label style="display: block; margin-bottom: 8px;">🔄 Синхронизация между устройствами</label>
-        <textarea id="sync-data-input" placeholder="Вставь сюда код с ценами..." style="width: 100%; height: 60px; font-size: 0.7rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); margin-bottom: 10px; resize: none;"></textarea>
-        
+        <textarea id="sync-data-input" placeholder="Вставь сюда код с ценами..."
+          style="width: 100%; height: 60px; font-size: 0.7rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); margin-bottom: 10px; resize: none;"></textarea>
+
         <div style="display: flex; gap: 10px;">
           <button id="btn-export-prices" class="btn-secondary" style="flex: 1;">📋 Скопировать мои</button>
-          <button id="btn-import-prices" class="btn-primary" style="flex: 1; background: #10b981;">📥 Загрузить из поля</button>
+          <button id="btn-import-prices" class="btn-primary" style="flex: 1; background: #10b981;">📥 Загрузить из
+            поля</button>
         </div>
       </div>
 
@@ -79,9 +81,26 @@
     <div class="modal-content" style="max-width: 400px;">
       <h3>🔍 Поиск свободных окошек</h3>
 
+      <div class="form-group" style="margin-bottom: 15px;">
+        <label>Текст от менеджера (автоматически заполнит фильтры)</label>
+        <textarea id="manager-text-input" placeholder="Вставь смс сюда (например: вторник с 18:00...)"
+          style="width: 100%; height: 60px; font-size: 0.8rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); resize: none;"></textarea>
+      </div>
+
       <div class="form-group">
         <label>Длительность урока (в минутах)</label>
         <input type="number" id="input-slot-duration" value="45" min="15" step="5">
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+          <label>Искать с:</label>
+          <input type="time" id="search-time-start" value="08:00">
+        </div>
+        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+          <label>До:</label>
+          <input type="time" id="search-time-end" value="22:00">
+        </div>
       </div>
 
       <div class="form-group">
