@@ -406,6 +406,9 @@ function calcSalary() {
 // ==========================================
 // ПОИСК СВОБОДНЫХ ОКОШЕК (С ФАНТОМНЫМИ УРОКАМИ)
 // ==========================================
+// ==========================================
+// ПОИСК СВОБОДНЫХ ОКОШЕК (С ФАНТОМНЫМИ УРОКАМИ)
+// ==========================================
 function findFreeSlots() {
   const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
   const selectedIndexes = Array.from(document.querySelectorAll('#slot-days-container input:checked')).map(cb => parseInt(cb.value));
@@ -427,7 +430,6 @@ function findFreeSlots() {
 
     const targetDayIndex = index === 6 ? 0 : index + 1;
 
-    // БРОНЕБОЙНЫЙ ФИЛЬТР
     const phantomEvents = scheduleData.filter(e => {
       const [y, m, d] = e.date.split('-');
       if (new Date(y, m - 1, d).getDay() !== targetDayIndex) return false;
@@ -478,8 +480,10 @@ function findFreeSlots() {
     } else smsLines.push(`▪️ ${dayName}: нет окошек`);
   });
 
-  let smsText = allDaysFull ? `К сожалению, в предложенное время ничего не могу предложить.` : `Готов взять ученика (${duration} мин).\n\nМои окошки (с учетом уроков из будущих недель):\n${smsLines.join('\n')}\n\n*С учетом того, что время я могу двигать на 30 мин. Какое бронируем?`;
-  resultsContainer.innerHTML = `<textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-modal); color: var(--text-main);">${smsText}</textarea><button id="btn-copy-sms" class="btn-primary" style="width: 100%; margin-top: 10px;">📋 Скопировать</button>`;
+  // НОВОЕ: Оставляем только строчки со временем, без лишних приветствий и сносок
+  let smsText = allDaysFull ? `К сожалению, в предложенное время ничего не могу предложить.` : smsLines.join('\n');
+
+  resultsContainer.innerHTML = `<textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-modal); color: var(--text-main); font-family: inherit; font-size: 0.85rem; resize: none; outline: none; line-height: 1.5;">${smsText}</textarea><button id="btn-copy-sms" class="btn-primary" style="width: 100%; margin-top: 10px; background: #10b981;">📋 Скопировать</button>`;
   document.getElementById('btn-copy-sms').addEventListener('click', function () { document.getElementById('sms-output').select(); document.execCommand('copy'); this.textContent = '✅ Скопировано!'; setTimeout(() => this.textContent = '📋 Скопировать', 2000); });
 }
 
