@@ -111,19 +111,19 @@ function updateModalTotals(price) {
 async function fetchLessons(forceSync = false) {
   const viewStart = currentWeekMonday;
   const viewEnd = addDays(currentWeekMonday, 6);
-  
+
   let hasCacheForThisWeek = false;
   if (loadedStartStr && loadedEndStr) {
-      const vsTime = viewStart.getTime();
-      const veTime = viewEnd.getTime();
-      const lsTime = new Date(loadedStartStr).getTime();
-      const leTime = new Date(loadedEndStr).getTime();
-      if (vsTime >= lsTime && veTime <= leTime) hasCacheForThisWeek = true;
+    const vsTime = viewStart.getTime();
+    const veTime = viewEnd.getTime();
+    const lsTime = new Date(loadedStartStr).getTime();
+    const leTime = new Date(loadedEndStr).getTime();
+    if (vsTime >= lsTime && veTime <= leTime) hasCacheForThisWeek = true;
   }
 
   if (hasCacheForThisWeek && !forceSync) {
-      initCalendar();
-      return; 
+    initCalendar();
+    return;
   }
 
   if (isFetching) return;
@@ -131,7 +131,7 @@ async function fetchLessons(forceSync = false) {
 
   const btnRefresh = document.getElementById('btn-refresh');
   const rangeDisplay = document.getElementById('week-range-display');
-  
+
   if (btnRefresh && forceSync) btnRefresh.innerHTML = '⏳';
   if (rangeDisplay && !hasCacheForThisWeek) rangeDisplay.style.opacity = '0.5';
 
@@ -153,7 +153,7 @@ async function fetchLessons(forceSync = false) {
       });
 
       scheduleData = validEvents;
-      
+
       localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       localStorage.setItem('loadedStartStr', startStr);
       localStorage.setItem('loadedEndStr', endStr);
@@ -170,11 +170,11 @@ async function fetchLessons(forceSync = false) {
 
       initCalendar();
     }
-  } catch (error) { 
-    console.error('Ошибка загрузки данных:', error); 
-    if (scheduleData.length > 0) initCalendar(); 
-  } finally { 
-    isFetching = false; 
+  } catch (error) {
+    console.error('Ошибка загрузки данных:', error);
+    if (scheduleData.length > 0) initCalendar();
+  } finally {
+    isFetching = false;
     if (btnRefresh) btnRefresh.innerHTML = '🔄';
     if (rangeDisplay) rangeDisplay.style.opacity = '1';
   }
@@ -185,30 +185,30 @@ async function fetchLessons(forceSync = false) {
 // ==========================================
 function openLessonModal(event, dayName) {
   currentEditingLesson = { event, dayName };
-  
+
   document.getElementById('lm-school').textContent = event.school || 'Неизвестно';
-  
+
   const [, month, day] = event.date.split('-');
   document.getElementById('lm-time').textContent = `${day}.${month} | ${event.startTime} - ${event.endTime}`;
   document.getElementById('lm-name').textContent = event.title;
-  
+
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
   let currentPrice = parseFloat(priceBook[lessonKey]);
 
   const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
   const isPerStudent = (event.school === 'ITCompot' && duration >= 90);
-  currentEditingLesson.isPerStudent = isPerStudent; 
+  currentEditingLesson.isPerStudent = isPerStudent;
 
   if (isNaN(currentPrice)) {
     if (event.school === 'ITCompot' && duration === 45) currentPrice = 390;
     else if (event.school === 'Zerocoder' && duration === 45) currentPrice = 450;
     else if (event.school === 'Zerocoder' && duration === 30) currentPrice = 300;
     else if (event.school === 'Matrius' && duration === 90) currentPrice = 645;
-    else currentPrice = 0; 
+    else currentPrice = 0;
   }
-  
+
   const priceZone = document.getElementById('lm-price-zone');
-  
+
   if (isPerStudent) {
     const currentStudents = currentPrice > 0 ? Math.round(currentPrice / ITCOMPOT_RATE) : 0;
     priceZone.innerHTML = `
@@ -415,8 +415,12 @@ function calcSalary() {
     if (ev.date === realTodayStr) todaySum += price;
   });
 
+  // Вычисляем прогноз: берем сумму текущей открытой недели и умножаем на 4.33
+  const monthProjectSum = Math.round(weekSum * 4.33);
+
   const todayByn = (todaySum * BYN_RATE).toFixed(2);
   const weekByn = (weekSum * BYN_RATE).toFixed(2);
+  const monthByn = (monthProjectSum * BYN_RATE).toFixed(2);
   const bynSymbol = 'Br';
 
   document.getElementById('stat-today').innerHTML =
@@ -424,6 +428,10 @@ function calcSalary() {
 
   document.getElementById('stat-week').innerHTML =
     `${weekSum} ₽ <span style="font-size: 0.8rem; color: var(--text-muted);">(${weekByn} ${bynSymbol})</span>`;
+
+  // Выводим прогноз в интерфейс (выделим его зеленым цветом)
+  document.getElementById('stat-month-project').innerHTML =
+    `${monthProjectSum} ₽ <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(${monthByn} ${bynSymbol})</span>`;
 }
 
 // ==========================================
@@ -486,9 +494,9 @@ function findFreeSlots() {
 
         // Не предлагаем самое начало дня, если только менеджер сам об этом не просил
         if (i > 0 || (ideal1 >= baseSearchStartMins - 30)) {
-            if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1);
+          if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1);
         }
-        
+
         if (ideal2 >= globalSearchStartMins && (ideal2 + duration) <= globalSearchEndMins) recs.add(ideal2);
 
         // Если идеальные точки (прижатые к урокам) не влезли в границы, но окно в целом есть - берем края окна
@@ -557,16 +565,16 @@ function findFreeSlots() {
 // СЛУШАТЕЛИ СОБЫТИЙ UI И ЗАПУСК
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-  
+
   if (scheduleData.length > 0) initCalendar();
-  fetchLessons(true); 
+  fetchLessons(true);
 
   document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
-  
+
   document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); fetchLessons(); });
   document.getElementById('btn-next').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, 7); fetchLessons(); });
   document.getElementById('btn-today').addEventListener('click', () => { currentWeekMonday = getMonday(new Date()); fetchLessons(); });
-  
+
   document.getElementById('btn-refresh').addEventListener('click', () => { fetchLessons(true); });
   document.getElementById('btn-wife').addEventListener('click', () => { window.location.href = 'wife.html'; });
 
@@ -588,14 +596,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-lm-crm').addEventListener('click', () => {
     if (currentEditingLesson && currentEditingLesson.event.school) {
-       const link = LINKS[currentEditingLesson.event.school];
-       if (link) window.open(link, '_blank');
+      const link = LINKS[currentEditingLesson.event.school];
+      if (link) window.open(link, '_blank');
     }
   });
 
   document.getElementById('btn-lm-save').addEventListener('click', () => {
     if (!currentEditingLesson) return;
-    
+
     let finalPrice = 0;
     const inputVal = parseFloat(document.getElementById('lm-input-price').value) || 0;
 
@@ -607,13 +615,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const { event, dayName } = currentEditingLesson;
     const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
-    
+
     priceBook[lessonKey] = finalPrice;
     localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
-    
+
     calcSalary();
-    initCalendar(); 
-    
+    initCalendar();
+
     document.getElementById('lesson-modal').classList.remove('active');
   });
 
@@ -745,7 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Вытаскиваем все точные форматы HH:MM
     const times = [...text.matchAll(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/g)].map(m => parseInt(m[1]) * 60 + parseInt(m[2]));
-    
+
     const matchFrom = text.match(/(?:с|от|начиная с)\s*(\d{1,2})(?:[:.](\d{2}))?/);
     const matchTo = text.match(/(?:до|по)\s*(\d{1,2})(?:[:.](\d{2}))?/);
     const matchRange = text.match(/(\d{1,2})(?:[:.](\d{2}))?\s*(?:-|–|—)\s*(\d{1,2})(?:[:.](\d{2}))?/);

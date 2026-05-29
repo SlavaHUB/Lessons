@@ -16,7 +16,8 @@
       <button id="btn-prev" class="btn-secondary">←</button>
       <button id="btn-today" class="btn-secondary">Сегодня</button>
       <button id="btn-next" class="btn-secondary">→</button>
-      <button id="btn-refresh" class="btn-secondary" style="padding: 8px 10px;" title="Синхронизировать с CRM">🔄</button>
+      <button id="btn-refresh" class="btn-secondary" style="padding: 8px 10px;"
+        title="Синхронизировать с CRM">🔄</button>
       <button id="btn-wife" class="btn-secondary">👩 Расписание Жены</button>
       <span id="week-range-display" class="week-range">Загрузка...</span>
     </div>
@@ -52,8 +53,12 @@
       <div style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 5px;">
         <span>За сегодня:</span><strong id="stat-today" style="color: #2563eb;">0 ₽</strong>
       </div>
-      <div style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color);">
-        <span>За неделю:</span><strong id="stat-week" style="color: #2563eb;">0 ₽</strong>
+      <div style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 5px;">
+        <span>За эту неделю:</span><strong id="stat-week" style="color: #2563eb;">0 ₽</strong>
+      </div>
+      <div
+        style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color);">
+        <span>Прогноз на месяц:</span><strong id="stat-month-project" style="color: #10b981;">0 ₽</strong>
       </div>
 
       <div id="price-settings-list" style="max-height: 300px; overflow-y: auto; padding-right: 5px;">
@@ -61,11 +66,13 @@
 
       <div style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
         <label style="display: block; margin-bottom: 8px;">🔄 Синхронизация между устройствами</label>
-        <textarea id="sync-data-input" placeholder="Вставь сюда код с ценами..." style="width: 100%; height: 60px; font-size: 0.7rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); margin-bottom: 10px; resize: none;"></textarea>
+        <textarea id="sync-data-input" placeholder="Вставь сюда код с ценами..."
+          style="width: 100%; height: 60px; font-size: 0.7rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); margin-bottom: 10px; resize: none;"></textarea>
 
         <div style="display: flex; gap: 10px;">
           <button id="btn-export-prices" class="btn-secondary" style="flex: 1;">📋 Скопировать мои</button>
-          <button id="btn-import-prices" class="btn-primary" style="flex: 1; background: #10b981;">📥 Загрузить из поля</button>
+          <button id="btn-import-prices" class="btn-primary" style="flex: 1; background: #10b981;">📥 Загрузить из
+            поля</button>
         </div>
       </div>
 
@@ -82,9 +89,12 @@
       <div class="form-group" style="margin-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
           <label style="margin-bottom: 0;">Текст от менеджера (автозаполнение)</label>
-          <button id="btn-clear-sms" style="background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; padding: 0;">❌ Очистить</button>
+          <button id="btn-clear-sms"
+            style="background: none; border: none; color: #ef4444; font-size: 0.75rem; cursor: pointer; padding: 0;">❌
+            Очистить</button>
         </div>
-        <textarea id="manager-text-input" placeholder="Вставь смс сюда (например: вторник с 18:00-20:00...)" style="width: 100%; height: 60px; font-size: 0.8rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); resize: none;"></textarea>
+        <textarea id="manager-text-input" placeholder="Вставь смс сюда (например: вторник с 18:00-20:00...)"
+          style="width: 100%; height: 60px; font-size: 0.8rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); resize: none;"></textarea>
       </div>
 
       <div class="form-group">
@@ -121,31 +131,36 @@
         <button id="btn-slots-search" class="btn-primary">Искать</button>
       </div>
 
-      <div id="slots-results" style="margin-top: 20px; max-height: 250px; overflow-y: auto; font-size: 0.9rem; line-height: 1.4;">
+      <div id="slots-results"
+        style="margin-top: 20px; max-height: 250px; overflow-y: auto; font-size: 0.9rem; line-height: 1.4;">
       </div>
     </div>
   </div>
 
   <div class="modal-overlay" id="lesson-modal">
     <div class="modal-content" style="max-width: 350px; padding: 20px;">
-      
+
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
         <h3 id="lm-title" style="margin: 0; font-size: 1.2rem; color: var(--text-main);">Детали урока</h3>
-        <button id="btn-lesson-close" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); padding: 0;">✖</button>
+        <button id="btn-lesson-close"
+          style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); padding: 0;">✖</button>
       </div>
-      
-      <div style="margin-bottom: 15px; font-size: 0.95rem; color: var(--text-main); line-height: 1.6; background: var(--btn-secondary-bg); padding: 12px; border-radius: 8px;">
+
+      <div
+        style="margin-bottom: 15px; font-size: 0.95rem; color: var(--text-main); line-height: 1.6; background: var(--btn-secondary-bg); padding: 12px; border-radius: 8px;">
         <div><strong>Школа:</strong> <span id="lm-school" style="color: #3b82f6;"></span></div>
         <div><strong>Время:</strong> <span id="lm-time"></span></div>
         <div><strong>Урок/Группа:</strong> <span id="lm-name" style="font-weight: bold;"></span></div>
       </div>
 
       <div id="lm-price-zone" class="form-group" style="margin-bottom: 15px;">
-        </div>
+      </div>
 
-      <div style="text-align: center; font-size: 1.2rem; font-weight: bold; padding-top: 10px; border-top: 1px dashed var(--border-color);">
-        Итого: <span id="lm-total-rub" style="color: #10b981;">0 ₽</span> 
-        <span id="lm-total-byn" style="font-size: 0.85rem; color: var(--text-muted); font-weight: normal;">(≈ 0 Br)</span>
+      <div
+        style="text-align: center; font-size: 1.2rem; font-weight: bold; padding-top: 10px; border-top: 1px dashed var(--border-color);">
+        Итого: <span id="lm-total-rub" style="color: #10b981;">0 ₽</span>
+        <span id="lm-total-byn" style="font-size: 0.85rem; color: var(--text-muted); font-weight: normal;">(≈ 0
+          Br)</span>
       </div>
 
       <div class="modal-actions" style="margin-top: 20px; justify-content: space-between;">
