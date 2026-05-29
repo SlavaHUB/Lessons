@@ -111,19 +111,19 @@ function updateModalTotals(price) {
 async function fetchLessons(forceSync = false) {
   const viewStart = currentWeekMonday;
   const viewEnd = addDays(currentWeekMonday, 6);
-  
+
   let hasCacheForThisWeek = false;
   if (loadedStartStr && loadedEndStr) {
-      const vsTime = viewStart.getTime();
-      const veTime = viewEnd.getTime();
-      const lsTime = new Date(loadedStartStr).getTime();
-      const leTime = new Date(loadedEndStr).getTime();
-      if (vsTime >= lsTime && veTime <= leTime) hasCacheForThisWeek = true;
+    const vsTime = viewStart.getTime();
+    const veTime = viewEnd.getTime();
+    const lsTime = new Date(loadedStartStr).getTime();
+    const leTime = new Date(loadedEndStr).getTime();
+    if (vsTime >= lsTime && veTime <= leTime) hasCacheForThisWeek = true;
   }
 
   if (hasCacheForThisWeek && !forceSync) {
-      initCalendar();
-      return; 
+    initCalendar();
+    return;
   }
 
   if (isFetching) return;
@@ -131,7 +131,7 @@ async function fetchLessons(forceSync = false) {
 
   const btnRefresh = document.getElementById('btn-refresh');
   const rangeDisplay = document.getElementById('week-range-display');
-  
+
   if (btnRefresh && forceSync) btnRefresh.innerHTML = '⏳';
   if (rangeDisplay && !hasCacheForThisWeek) rangeDisplay.style.opacity = '0.5';
 
@@ -153,7 +153,7 @@ async function fetchLessons(forceSync = false) {
       });
 
       scheduleData = validEvents;
-      
+
       localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       localStorage.setItem('loadedStartStr', startStr);
       localStorage.setItem('loadedEndStr', endStr);
@@ -170,11 +170,11 @@ async function fetchLessons(forceSync = false) {
 
       initCalendar();
     }
-  } catch (error) { 
-    console.error('Ошибка загрузки данных:', error); 
-    if (scheduleData.length > 0) initCalendar(); 
-  } finally { 
-    isFetching = false; 
+  } catch (error) {
+    console.error('Ошибка загрузки данных:', error);
+    if (scheduleData.length > 0) initCalendar();
+  } finally {
+    isFetching = false;
     if (btnRefresh) btnRefresh.innerHTML = '🔄';
     if (rangeDisplay) rangeDisplay.style.opacity = '1';
   }
@@ -183,22 +183,40 @@ async function fetchLessons(forceSync = false) {
 // ==========================================
 // ЛОГИКА МОДАЛКИ ДЕТАЛЕЙ УРОКА
 // ==========================================
+// ==========================================
+// ЛОГИКА МОДАЛКИ ДЕТАЛЕЙ УРОКА
+// ==========================================
 function openLessonModal(event, dayName) {
   currentEditingLesson = { event, dayName };
-  
+
   document.getElementById('lm-school').textContent = event.school || 'Неизвестно';
-  
+
   const [, month, day] = event.date.split('-');
   document.getElementById('lm-time').textContent = `${day}.${month} | ${event.startTime} - ${event.endTime}`;
   document.getElementById('lm-name').textContent = event.title;
-  
+
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
-  const currentPrice = parseFloat(priceBook[lessonKey]) || 0;
-  
+  let currentPrice = parseFloat(priceBook[lessonKey]);
+
+  // Считаем длительность урока в минутах
+  const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
+
+  // Включаем "режим учеников" ТОЛЬКО для ITCompot от 90 минут
+  const isPerStudent = (event.school === 'ITCompot' && duration >= 90);
+  currentEditingLesson.isPerStudent = isPerStudent; // Сохраняем флаг для кнопки "Сохранить"
+
+  // Авто-подстановка цен по твоим правилам, если цена еще не сохранена
+  if (isNaN(currentPrice)) {
+    if (event.school === 'ITCompot' && duration === 45) currentPrice = 390;
+    else if (event.school === 'Zerocoder' && duration === 45) currentPrice = 450;
+    else if (event.school === 'Zerocoder' && duration === 30) currentPrice = 300;
+    else if (event.school === 'Matrius' && duration === 90) currentPrice = 645;
+    else currentPrice = 0; // Сюда попадет ITCompot 90 мин, пока не впишешь число учеников
+  }
+
   const priceZone = document.getElementById('lm-price-zone');
-  
-  // Умный выбор поля ввода в зависимости от школы
-  if (event.school === 'ITCompot') {
+
+  if (isPerStudent) {
     const currentStudents = currentPrice > 0 ? Math.round(currentPrice / ITCOMPOT_RATE) : 0;
     priceZone.innerHTML = `
       <label>Количество учеников (по ${ITCOMPOT_RATE} ₽):</label>
@@ -208,15 +226,14 @@ function openLessonModal(event, dayName) {
   } else {
     priceZone.innerHTML = `
       <label>Стоимость урока (₽):</label>
-      <input type="number" id="lm-input-price" value="${currentPrice}" min="0" step="50">
+      <input type="number" id="lm-input-price" value="${currentPrice}" min="0" step="10">
     `;
     updateModalTotals(currentPrice);
   }
 
-  // Вешаем слушатель на созданный инпут
   document.getElementById('lm-input-price').addEventListener('input', (e) => {
     const val = parseFloat(e.target.value) || 0;
-    if (event.school === 'ITCompot') {
+    if (isPerStudent) {
       updateModalTotals(val * ITCOMPOT_RATE);
     } else {
       updateModalTotals(val);
@@ -475,7 +492,7 @@ function findFreeSlots() {
         let recs = new Set();
 
         if (i > 0) {
-            if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1);
+          if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1);
         }
         if (ideal2 >= globalSearchStartMins && (ideal2 + duration) <= globalSearchEndMins) recs.add(ideal2);
 
@@ -544,16 +561,16 @@ function findFreeSlots() {
 // СЛУШАТЕЛИ СОБЫТИЙ UI И ЗАПУСК
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-  
+
   if (scheduleData.length > 0) initCalendar();
-  fetchLessons(true); 
+  fetchLessons(true);
 
   document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
-  
+
   document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); fetchLessons(); });
   document.getElementById('btn-next').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, 7); fetchLessons(); });
   document.getElementById('btn-today').addEventListener('click', () => { currentWeekMonday = getMonday(new Date()); fetchLessons(); });
-  
+
   document.getElementById('btn-refresh').addEventListener('click', () => { fetchLessons(true); });
   document.getElementById('btn-wife').addEventListener('click', () => { window.location.href = 'wife.html'; });
 
@@ -575,18 +592,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-lm-crm').addEventListener('click', () => {
     if (currentEditingLesson && currentEditingLesson.event.school) {
-       const link = LINKS[currentEditingLesson.event.school];
-       if (link) window.open(link, '_blank');
+      const link = LINKS[currentEditingLesson.event.school];
+      if (link) window.open(link, '_blank');
     }
   });
 
   document.getElementById('btn-lm-save').addEventListener('click', () => {
     if (!currentEditingLesson) return;
-    
+
     let finalPrice = 0;
     const inputVal = parseFloat(document.getElementById('lm-input-price').value) || 0;
 
-    if (currentEditingLesson.event.school === 'ITCompot') {
+    // Если это урок "по ученикам" (ITCompot 90 мин) - умножаем, иначе берем фикс
+    if (currentEditingLesson.isPerStudent) {
       finalPrice = inputVal * ITCOMPOT_RATE;
     } else {
       finalPrice = inputVal;
@@ -594,13 +612,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const { event, dayName } = currentEditingLesson;
     const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
-    
+
     priceBook[lessonKey] = finalPrice;
     localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
-    
+
     calcSalary();
     initCalendar(); // Обновляет ценник прямо на карточке
-    
+
     document.getElementById('lesson-modal').classList.remove('active');
   });
 
