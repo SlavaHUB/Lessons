@@ -19,26 +19,7 @@ const LINKS = {
 };
 
 // ==========================================
-// КЭШ И УМНЫЕ ДАННЫЕ (РАЗДЕЛЕНИЕ БАЗЫ И ДАТ)
-// ==========================================
-let scheduleData = JSON.parse(localStorage.getItem('cachedSchedule')) || [];
-let loadedStartStr = localStorage.getItem('loadedStartStr') || "";
-let loadedEndStr = localStorage.getItem('loadedEndStr') || "";
-let isFetching = false;
-let currentEditingLesson = null;
-
-// priceBook - Базовые еженедельные цены
-let priceBook = JSON.parse(localStorage.getItem('lessonPrices_v2')) || {};
-
-// Строго по датам (YYYY-MM-DD_time_title)
-let statusBook = JSON.parse(localStorage.getItem('lessonStatuses')) || {};
-let notesBook = JSON.parse(localStorage.getItem('lessonNotes')) || {};
-let overridePriceBook = JSON.parse(localStorage.getItem('lessonOverrides')) || {};
-
-document.documentElement.setAttribute('data-theme', 'dark');
-
-// ==========================================
-// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И РАСЧЕТ ЦЕНЫ
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И ИНДЕКСАЦИЯ
 // ==========================================
 function getMonday(d) {
   const date = new Date(d);
@@ -54,6 +35,14 @@ function formatDateToString(date) {
   const adjustedDate = new Date(date.getTime() - (offset * 60 * 1000));
   return adjustedDate.toISOString().split('T')[0];
 }
+
+// НОВОЕ: Мгновенный вычислитель дня недели, чтобы не убивать процессор в циклах
+function getCustomDayIndex(dateStr) {
+  const [y, m, d] = dateStr.split('-');
+  const jsDay = new Date(y, m - 1, d).getDay();
+  return jsDay === 0 ? 6 : jsDay - 1; // Возвращает 0 для Пн, 6 для Вс
+}
+
 function getTheme(school, dayName) {
   if (dayName === 'Вт' || dayName === 'Ср') return 'theme-red';
   switch (school) {
@@ -80,17 +69,33 @@ function getStandardPrice(school, duration) {
   return 0;
 }
 
-// ГЛОБАЛЬНЫЙ ВЫЧИСЛИТЕЛЬ ФИНАЛЬНОЙ ЦЕНЫ УРОКА
+// ==========================================
+// КЭШ И УМНЫЕ ДАННЫЕ
+// ==========================================
+let scheduleData = JSON.parse(localStorage.getItem('cachedSchedule')) || [];
+// Сразу индексируем уроки из кэша для турбо-скорости
+scheduleData.forEach(e => { e.customDayIndex = getCustomDayIndex(e.date); });
+
+let loadedStartStr = localStorage.getItem('loadedStartStr') || "";
+let loadedEndStr = localStorage.getItem('loadedEndStr') || "";
+let isFetching = false;
+let currentEditingLesson = null;
+
+let priceBook = JSON.parse(localStorage.getItem('lessonPrices_v2')) || {};
+let statusBook = JSON.parse(localStorage.getItem('lessonStatuses')) || {};
+let notesBook = JSON.parse(localStorage.getItem('lessonNotes')) || {};
+let overridePriceBook = JSON.parse(localStorage.getItem('lessonOverrides')) || {};
+
+document.documentElement.setAttribute('data-theme', 'dark');
+
 function getEffectivePrice(event, dayName) {
   const dateKey = `${event.date}_${event.startTime}_${event.title}`;
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
   const status = statusBook[dateKey] || 'done';
 
   if (status === 'canceled') return 0;
-  // Если на эту дату задана ручная цена-исключение
   if (overridePriceBook[dateKey] !== undefined) return overridePriceBook[dateKey];
 
-  // Берем базовую цену из настроек недели
   let basePrice = parseFloat(priceBook[lessonKey]);
   const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
   if (isNaN(basePrice)) basePrice = getStandardPrice(event.school, duration);
@@ -123,7 +128,11 @@ async function fetchLessons(forceSync = false) {
   isFetching = true;
 
   const btnRefresh = document.getElementById('btn-refresh');
+  const calendarWrap = document.querySelector('.calendar-wrapper');
+
   if (btnRefresh && forceSync) btnRefresh.innerHTML = '⏳';
+  // Включаем визуальный лоадер затемнения, если данные реально качаются
+  if (calendarWrap && (!hasCacheForThisWeek || forceSync)) calendarWrap.classList.add('loading');
 
   try {
     const reqStart = addDays(currentWeekMonday, -7);
@@ -135,7 +144,13 @@ async function fetchLessons(forceSync = false) {
     if (response.ok) {
       const rawData = await response.json();
       const validEvents = [];
-      rawData.forEach(item => { if (!item.isError) validEvents.push(item); });
+      rawData.forEach(item => {
+        if (!item.isError) {
+          // Мгновенная индексация новых данных
+          item.customDayIndex = getCustomDayIndex(item.date);
+          validEvents.push(item);
+        }
+      });
       scheduleData = validEvents;
       localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       localStorage.setItem('loadedStartStr', startStr);
@@ -148,6 +163,7 @@ async function fetchLessons(forceSync = false) {
   } finally {
     isFetching = false;
     if (btnRefresh) btnRefresh.innerHTML = '🔄';
+    if (calendarWrap) calendarWrap.classList.remove('loading');
   }
 }
 
@@ -235,12 +251,10 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
   statusBook[dateKey] = newStatus;
   notesBook[dateKey] = document.getElementById('lm-notes').value.trim();
 
-  // Изоляция: Если обычный урок, сохраняем как базовую еженедельную цену
   if (newStatus === 'done') {
     priceBook[lessonKey] = finalPrice;
-    delete overridePriceBook[dateKey]; // Чистим исключения
+    delete overridePriceBook[dateKey];
   } else {
-    // Иначе (отмена/прогул) сохраняем переназначенную цену только на этот конкретный день!
     overridePriceBook[dateKey] = finalPrice;
   }
 
@@ -292,17 +306,13 @@ function initCalendar() {
 
     const realEvents = scheduleData.filter(e => e.date === columnDateStr).map(e => ({ ...e, isPhantom: false }));
 
-    const targetDayIndex = index === 6 ? 0 : index + 1;
-    const allFutureEvents = scheduleData.filter(e => {
-      if (e.date <= columnDateStr) return false;
-      const [y, m, d] = e.date.split('-');
-      return new Date(y, m - 1, d).getDay() === targetDayIndex;
-    });
+    // ТУРБО-ФИЛЬТР БЕЗ new Date(): Используем готовый customDayIndex
+    const allFutureEvents = scheduleData.filter(e => e.customDayIndex === index && e.date > columnDateStr);
 
     const phantomMap = new Map();
     allFutureEvents.forEach(fe => {
       const dateKey = `${fe.date}_${fe.startTime}_${fe.title}`;
-      if (statusBook[dateKey] === 'canceled') return; // Игнорируем отмененные будущие
+      if (statusBook[dateKey] === 'canceled') return;
 
       const isSameRecurring = realEvents.some(ce => ce.startTime === fe.startTime && ce.title === fe.title);
       if (!isSameRecurring) {
@@ -427,11 +437,9 @@ function calcSalary() {
   const currentWeekDates = []; for (let i = 0; i < 7; i++) currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
 
   scheduleData.filter(e => currentWeekDates.includes(e.date)).forEach(ev => {
-    const dayIndex = new Date(ev.date).getDay() === 0 ? 6 : new Date(ev.date).getDay() - 1;
-    const dayName = daysOfWeek[dayIndex];
+    const dayName = daysOfWeek[ev.customDayIndex];
     const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
 
-    // Игнорируем в статистике отмененные на эту дату
     if (statusBook[dateKey] === 'canceled') return;
 
     const price = getEffectivePrice(ev, dayName);
@@ -469,17 +477,11 @@ function findFreeSlots() {
     const dayName = daysOfWeek[index];
     if (index === 1 || index === 2) { smsLines.push(`▪️ ${dayName}: выходной`); return; }
 
-    const targetDayIndex = index === 6 ? 0 : index + 1;
-
-    // Получаем точную дату того дня, для которого сейчас ищем окошки
     const targetDateStr = formatDateToString(addDays(currentWeekMonday, index));
 
-    // БРОНЕБОЙНЫЙ ФИЛЬТР
+    // ТУРБО-ФИЛЬТР С ИНДЕКСАМИ
     const phantomEvents = scheduleData.filter(e => {
-      const [y, m, d] = e.date.split('-');
-      if (new Date(y, m - 1, d).getDay() !== targetDayIndex) return false;
-
-      // ИСПРАВЛЕНИЕ: Жестко отсекаем призраки из прошлого! Берем только уроки начиная с сегодня
+      if (e.customDayIndex !== index) return false;
       if (e.date < targetDateStr) return false;
 
       const exactLessonKey = `${e.date}_${e.startTime}_${e.title}`;
@@ -583,6 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { btnExport.innerHTML = originalText; }
   });
 
+  // Автозаполнение СМС
   document.getElementById('manager-text-input').addEventListener('input', function (e) {
     const text = e.target.value.toLowerCase(); if (!text.trim()) return;
     const dayChecks = document.querySelectorAll('#slot-days-container input');
