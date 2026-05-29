@@ -40,9 +40,7 @@ if (Object.keys(newPriceBook).length === 0 && Object.keys(oldPriceBook).length >
   priceBook = newPriceBook;
 }
 
-const savedTheme = localStorage.getItem('theme') || 'light';
-document.documentElement.setAttribute('data-theme', savedTheme);
-updateThemeButton(savedTheme);
+document.documentElement.setAttribute('data-theme', 'dark');
 
 // ==========================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -95,10 +93,6 @@ function timeToPixels(timeStr) {
   return ((hours - START_HOUR) + minutes / 60) * HOUR_HEIGHT;
 }
 
-function updateThemeButton(theme) {
-  const btn = document.getElementById('btn-theme');
-  if (btn) btn.textContent = theme === 'dark' ? '☀️ Светлая' : '🌙 Тёмная';
-}
 
 // ==========================================
 // СЕТЕВАЯ ЛОГИКА
@@ -322,9 +316,6 @@ function calcSalary() {
 // ==========================================
 // ПОИСК СВОБОДНЫХ ОКОШЕК (УМНОЕ УПЛОТНЕНИЕ + ГРАНИЦЫ)
 // ==========================================
-// ==========================================
-// ПОИСК СВОБОДНЫХ ОКОШЕК (УМНОЕ УПЛОТНЕНИЕ + ГРАНИЦЫ)
-// ==========================================
 function findFreeSlots() {
   const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
   const checkboxes = document.querySelectorAll('#slot-days-container input:checked');
@@ -464,11 +455,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-stats-close').addEventListener('click', () => { document.getElementById('stats-modal').classList.remove('active'); });
 
   document.getElementById('btn-theme').addEventListener('click', () => {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    updateThemeButton(newTheme);
+    document.getElementById('btn-wife').addEventListener('click', () => {
+      window.location.href = 'wife.html';
+    });
   });
 
   document.getElementById('btn-find-slots').addEventListener('click', () => {
