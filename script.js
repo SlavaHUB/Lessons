@@ -19,7 +19,7 @@ const LINKS = {
 };
 
 // ==========================================
-// КЭШ И ДАННЫЕ
+// КЭШ И УМНЫЕ ДАННЫЕ (РАЗДЕЛЕНИЕ БАЗЫ И ДАТ)
 // ==========================================
 let scheduleData = JSON.parse(localStorage.getItem('cachedSchedule')) || [];
 let loadedStartStr = localStorage.getItem('loadedStartStr') || "";
@@ -27,14 +27,18 @@ let loadedEndStr = localStorage.getItem('loadedEndStr') || "";
 let isFetching = false;
 let currentEditingLesson = null;
 
+// priceBook - Базовые еженедельные цены
 let priceBook = JSON.parse(localStorage.getItem('lessonPrices_v2')) || {};
+
+// Строго по датам (YYYY-MM-DD_time_title)
 let statusBook = JSON.parse(localStorage.getItem('lessonStatuses')) || {};
 let notesBook = JSON.parse(localStorage.getItem('lessonNotes')) || {};
+let overridePriceBook = JSON.parse(localStorage.getItem('lessonOverrides')) || {};
 
 document.documentElement.setAttribute('data-theme', 'dark');
 
 // ==========================================
-// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И РАСЧЕТ ЦЕНЫ
 // ==========================================
 function getMonday(d) {
   const date = new Date(d);
@@ -76,6 +80,28 @@ function getStandardPrice(school, duration) {
   return 0;
 }
 
+// ГЛОБАЛЬНЫЙ ВЫЧИСЛИТЕЛЬ ФИНАЛЬНОЙ ЦЕНЫ УРОКА
+function getEffectivePrice(event, dayName) {
+  const dateKey = `${event.date}_${event.startTime}_${event.title}`;
+  const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
+  const status = statusBook[dateKey] || 'done';
+
+  if (status === 'canceled') return 0;
+  // Если на эту дату задана ручная цена-исключение
+  if (overridePriceBook[dateKey] !== undefined) return overridePriceBook[dateKey];
+
+  // Берем базовую цену из настроек недели
+  let basePrice = parseFloat(priceBook[lessonKey]);
+  const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
+  if (isNaN(basePrice)) basePrice = getStandardPrice(event.school, duration);
+
+  if (status === 'noshow') {
+    if (event.school === 'Zerocoder' && duration === 45) return 135;
+    if (event.school === 'Zerocoder' && duration === 30) return 90;
+  }
+  return basePrice;
+}
+
 // ==========================================
 // СЕТЕВАЯ ЛОГИКА
 // ==========================================
@@ -89,7 +115,6 @@ async function fetchLessons(forceSync = false) {
     const reqEndTime = requiredEndForPhantoms.getTime();
     const lsTime = new Date(loadedStartStr).getTime();
     const leTime = new Date(loadedEndStr).getTime();
-
     if (vsTime >= lsTime && reqEndTime <= leTime) hasCacheForThisWeek = true;
   }
 
@@ -102,7 +127,7 @@ async function fetchLessons(forceSync = false) {
 
   try {
     const reqStart = addDays(currentWeekMonday, -7);
-    const reqEnd = addDays(currentWeekMonday, 45); // Качаем с запасом 45 дней!
+    const reqEnd = addDays(currentWeekMonday, 45);
     const startStr = formatDateToString(reqStart);
     const endStr = formatDateToString(reqEnd);
 
@@ -127,7 +152,7 @@ async function fetchLessons(forceSync = false) {
 }
 
 // ==========================================
-// ЛОГИКА МОДАЛКИ ДЕТАЛЕЙ УРОКА (Статусы и Метки)
+// ЛОГИКА МОДАЛКИ ДЕТАЛЕЙ УРОКА
 // ==========================================
 function openLessonModal(event, dayName) {
   currentEditingLesson = { event, dayName };
@@ -136,18 +161,30 @@ function openLessonModal(event, dayName) {
   document.getElementById('lm-time').textContent = `${day}.${month} | ${event.startTime} - ${event.endTime}`;
   document.getElementById('lm-name').textContent = event.title;
 
+  const dateKey = `${event.date}_${event.startTime}_${event.title}`;
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
-  let currentPrice = parseFloat(priceBook[lessonKey]);
-  const exactLessonKey = `${event.date}_${event.startTime}_${event.title}`;
-  let currentStatus = statusBook[exactLessonKey] || 'done';
-  const currentNote = notesBook[lessonKey] || '';
+
+  let currentStatus = statusBook[dateKey] || 'done';
+  const currentNote = notesBook[dateKey] || '';
 
   const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
   const isPerStudent = (event.school === 'ITCompot' && duration >= 90);
   currentEditingLesson.isPerStudent = isPerStudent;
 
-  if (isNaN(currentPrice)) currentPrice = getStandardPrice(event.school, duration);
+  const computePrice = (status) => {
+    if (status === 'canceled') return 0;
+    if (overridePriceBook[dateKey] !== undefined && status === currentStatus) return overridePriceBook[dateKey];
 
+    let base = parseFloat(priceBook[lessonKey]);
+    if (isNaN(base)) base = getStandardPrice(event.school, duration);
+    if (status === 'noshow') {
+      if (event.school === 'Zerocoder' && duration === 45) return 135;
+      if (event.school === 'Zerocoder' && duration === 30) return 90;
+    }
+    return base;
+  };
+
+  let currentPrice = computePrice(currentStatus);
   const priceZone = document.getElementById('lm-price-zone');
 
   function renderPriceInput(price) {
@@ -177,17 +214,8 @@ function openLessonModal(event, dayName) {
       e.target.classList.add('active');
       currentStatus = e.target.dataset.status;
 
-      let newPrice = currentPrice;
-      if (currentStatus === 'canceled') newPrice = 0;
-      else if (currentStatus === 'noshow') {
-        if (event.school === 'Zerocoder' && duration === 45) newPrice = 135;
-        else if (event.school === 'Zerocoder' && duration === 30) newPrice = 90;
-        else newPrice = isNaN(parseFloat(priceBook[lessonKey])) ? getStandardPrice(event.school, duration) : currentPrice;
-      } else {
-        newPrice = getStandardPrice(event.school, duration);
-      }
-      currentPrice = newPrice;
-      renderPriceInput(newPrice);
+      currentPrice = computePrice(currentStatus);
+      renderPriceInput(currentPrice);
     };
   });
 
@@ -201,15 +229,25 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
 
   const { event, dayName } = currentEditingLesson;
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
+  const dateKey = `${event.date}_${event.startTime}_${event.title}`;
+  const newStatus = document.querySelector('.status-btn.active').dataset.status;
 
-  priceBook[lessonKey] = finalPrice;
-  const exactLessonKey = `${event.date}_${event.startTime}_${event.title}`;
-  statusBook[exactLessonKey] = document.querySelector('.status-btn.active').dataset.status;
-  notesBook[lessonKey] = document.getElementById('lm-notes').value.trim();
+  statusBook[dateKey] = newStatus;
+  notesBook[dateKey] = document.getElementById('lm-notes').value.trim();
+
+  // Изоляция: Если обычный урок, сохраняем как базовую еженедельную цену
+  if (newStatus === 'done') {
+    priceBook[lessonKey] = finalPrice;
+    delete overridePriceBook[dateKey]; // Чистим исключения
+  } else {
+    // Иначе (отмена/прогул) сохраняем переназначенную цену только на этот конкретный день!
+    overridePriceBook[dateKey] = finalPrice;
+  }
 
   localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
   localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
   localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
+  localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
 
   calcSalary();
   initCalendar();
@@ -263,14 +301,12 @@ function initCalendar() {
 
     const phantomMap = new Map();
     allFutureEvents.forEach(fe => {
-      const lessonKey = `${dayName}_${fe.startTime}_${fe.title}`;
-      if (statusBook[lessonKey] === 'canceled') return;
+      const dateKey = `${fe.date}_${fe.startTime}_${fe.title}`;
+      if (statusBook[dateKey] === 'canceled') return; // Игнорируем отмененные будущие
 
       const isSameRecurring = realEvents.some(ce => ce.startTime === fe.startTime && ce.title === fe.title);
       if (!isSameRecurring) {
-        // Ключ строго по времени и названию, чтобы они НЕ дублировались лесенкой
         const key = `${fe.startTime}_${fe.title}`;
-        // Сохраняем самый ближайший будущий фантом
         if (!phantomMap.has(key)) phantomMap.set(key, { ...fe, isPhantom: true });
       }
     });
@@ -282,7 +318,7 @@ function initCalendar() {
       const heightPx = Math.max(timeToPixels(event.endTime) - topPx, (45 / 60) * HOUR_HEIGHT);
       const eventDiv = document.createElement('div');
 
-      const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
+      const dateKey = `${event.date}_${event.startTime}_${event.title}`;
       eventDiv.className = `event-card ${getTheme(event.school, dayName)}`;
 
       let priceHtml = '';
@@ -294,18 +330,17 @@ function initCalendar() {
         const [, m, d] = event.date.split('-');
         pinHtml = `<div class="event-note-pin" title="Будущий урок (${d}.${m})">👻</div>`;
         titlePrefix = `[${d}.${m}] `;
-
         eventDiv.addEventListener('click', () => {
           alert(`👻 Это фантомный урок!\n\nШкола: ${event.school}\nУченик: ${event.title}\nОн запланирован на ${d}.${m}\n\nПожалуйста, не занимайте этот слот новыми учениками.`);
         });
       } else {
-        const status = statusBook[lessonKey] || 'done';
+        const status = statusBook[dateKey] || 'done';
         if (status === 'canceled') eventDiv.classList.add('status-canceled');
         if (status === 'noshow') eventDiv.classList.add('status-noshow');
 
-        const price = parseFloat(priceBook[lessonKey]) || 0;
+        const price = getEffectivePrice(event, dayName);
         priceHtml = price > 0 ? `<div class="event-price-tag"><span class="price-rub">${price} ₽</span><span class="price-byn">≈ ${(price * BYN_RATE).toFixed(2)} Br</span></div>` : '';
-        pinHtml = notesBook[lessonKey] ? `<div class="event-note-pin" title="${notesBook[lessonKey]}">📌</div>` : '';
+        pinHtml = notesBook[dateKey] ? `<div class="event-note-pin" title="${notesBook[dateKey]}">📌</div>` : '';
 
         eventDiv.addEventListener('click', () => openLessonModal(event, dayName));
       }
@@ -392,10 +427,14 @@ function calcSalary() {
   const currentWeekDates = []; for (let i = 0; i < 7; i++) currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
 
   scheduleData.filter(e => currentWeekDates.includes(e.date)).forEach(ev => {
-    const lessonKey = `${daysOfWeek[new Date(ev.date).getDay() === 0 ? 6 : new Date(ev.date).getDay() - 1]}_${ev.startTime}_${ev.title}`;
-    if (statusBook[lessonKey] === 'canceled') return;
+    const dayIndex = new Date(ev.date).getDay() === 0 ? 6 : new Date(ev.date).getDay() - 1;
+    const dayName = daysOfWeek[dayIndex];
+    const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
 
-    const price = parseFloat(priceBook[lessonKey]) || 0;
+    // Игнорируем в статистике отмененные на эту дату
+    if (statusBook[dateKey] === 'canceled') return;
+
+    const price = getEffectivePrice(ev, dayName);
     weekSum += price; if (ev.date === realTodayStr) todaySum += price;
   });
 
@@ -406,14 +445,13 @@ function calcSalary() {
 }
 
 // ==========================================
-// ПОИСК СВОБОДНЫХ ОКОШЕК (УСИЛЕННАЯ ЗАЩИТА)
+// ПОИСК СВОБОДНЫХ ОКОШЕК
 // ==========================================
 function findFreeSlots() {
   const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
   const selectedIndexes = Array.from(document.querySelectorAll('#slot-days-container input:checked')).map(cb => parseInt(cb.value));
   const resultsContainer = document.getElementById('slots-results');
 
-  // Защита: если поля времени пусты, жестко ставим рамки
   let baseSearchStartMins = timeToMins(document.getElementById('search-time-start').value);
   if (isNaN(baseSearchStartMins)) baseSearchStartMins = 480;
   let baseSearchEndMins = timeToMins(document.getElementById('search-time-end').value);
@@ -433,7 +471,6 @@ function findFreeSlots() {
 
     const targetDayIndex = index === 6 ? 0 : index + 1;
 
-    // БРОНЕБОЙНЫЙ ФИЛЬТР
     const phantomEvents = scheduleData.filter(e => {
       const [y, m, d] = e.date.split('-');
       if (new Date(y, m - 1, d).getDay() !== targetDayIndex) return false;
@@ -441,11 +478,10 @@ function findFreeSlots() {
       const exactLessonKey = `${e.date}_${e.startTime}_${e.title}`;
       if (statusBook[exactLessonKey] === 'canceled') return false;
 
-      // Защита от "сломанного" времени и полнодневных блоков из CRM
       const startM = timeToMins(e.startTime);
       const endM = timeToMins(e.endTime);
       if (isNaN(startM) || isNaN(endM)) return false;
-      if (endM - startM > 300 || endM - startM <= 0) return false; // Игнорируем "уроки" дольше 5 часов
+      if (endM - startM > 300 || endM - startM <= 0) return false;
 
       return true;
     });
@@ -498,6 +534,7 @@ function findFreeSlots() {
   resultsContainer.innerHTML = `<textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-modal); color: var(--text-main); font-family: inherit; font-size: 0.85rem; resize: none; outline: none; line-height: 1.5;">${smsText}</textarea><button id="btn-copy-sms" class="btn-primary" style="width: 100%; margin-top: 10px; background: #10b981;">📋 Скопировать</button>`;
   document.getElementById('btn-copy-sms').addEventListener('click', function () { document.getElementById('sms-output').select(); document.execCommand('copy'); this.textContent = '✅ Скопировано!'; setTimeout(() => this.textContent = '📋 Скопировать', 2000); });
 }
+
 // ==========================================
 // СЛУШАТЕЛИ СОБЫТИЙ UI
 // ==========================================
@@ -524,7 +561,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-lesson-close').addEventListener('click', () => { document.getElementById('lesson-modal').classList.remove('active'); });
   document.getElementById('btn-lm-crm').addEventListener('click', () => { if (currentEditingLesson?.event?.school) window.open(LINKS[currentEditingLesson.event.school], '_blank'); });
 
-  // Скриншот
   document.getElementById('btn-export').addEventListener('click', async () => {
     document.getElementById('action-controls').classList.remove('open');
     const btnExport = document.getElementById('btn-export');
@@ -540,7 +576,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { btnExport.innerHTML = originalText; }
   });
 
-  // Автозаполнение СМС
   document.getElementById('manager-text-input').addEventListener('input', function (e) {
     const text = e.target.value.toLowerCase(); if (!text.trim()) return;
     const dayChecks = document.querySelectorAll('#slot-days-container input');
@@ -573,7 +608,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('#slot-days-container input').forEach(cb => cb.checked = false); document.getElementById('slots-results').innerHTML = '';
   });
 
-  // Кнопки импорта/экспорта цен
   document.getElementById('btn-export-prices').addEventListener('click', function () {
     const input = document.getElementById('sync-data-input');
     input.value = localStorage.getItem('lessonPrices_v2') || '{}';
