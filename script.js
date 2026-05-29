@@ -4,7 +4,6 @@
 
 const API_URL = 'https://lessons-mqy0.onrender.com/api/schedule';
 
-let scheduleData = [];
 let currentWeekMonday = getMonday(new Date());
 
 const BYN_RATE = 0.0387; // Курс RUB к BYN
@@ -21,7 +20,14 @@ const LINKS = {
   Matrius: 'https://crm.genius-school.online/#/lessons'
 };
 
-// База цен в LocalStorage
+// ==========================================
+// КЭШ И ДАННЫЕ
+// ==========================================
+let scheduleData = JSON.parse(localStorage.getItem('cachedSchedule')) || [];
+let loadedStartStr = localStorage.getItem('loadedStartStr') || "";
+let loadedEndStr = localStorage.getItem('loadedEndStr') || "";
+let isFetching = false;
+
 let priceBook = JSON.parse(localStorage.getItem('lessonPrices')) || {};
 let oldPriceBook = JSON.parse(localStorage.getItem('lessonPrices')) || {};
 let newPriceBook = JSON.parse(localStorage.getItem('lessonPrices_v2')) || {};
@@ -30,9 +36,7 @@ if (Object.keys(newPriceBook).length === 0 && Object.keys(oldPriceBook).length >
   scheduleData.forEach(ev => {
     const oldKey = ev.title;
     const newKey = `${daysOfWeek[new Date(ev.date).getDay() === 0 ? 6 : new Date(ev.date).getDay() - 1]}_${ev.startTime}_${ev.title}`;
-    if (oldPriceBook[oldKey]) {
-      newPriceBook[newKey] = oldPriceBook[oldKey];
-    }
+    if (oldPriceBook[oldKey]) newPriceBook[newKey] = oldPriceBook[oldKey];
   });
   priceBook = newPriceBook;
   localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
@@ -93,14 +97,44 @@ function timeToPixels(timeStr) {
   return ((hours - START_HOUR) + minutes / 60) * HOUR_HEIGHT;
 }
 
+// ==========================================
+// СЕТЕВАЯ ЛОГИКА (УМНАЯ ЗАГРУЗКА И КЭШ)
+// ==========================================
+async function fetchLessons(forceSync = false) {
+  const viewStart = currentWeekMonday;
+  const viewEnd = addDays(currentWeekMonday, 6);
+  
+  let hasCacheForThisWeek = false;
+  if (loadedStartStr && loadedEndStr) {
+      const vsTime = viewStart.getTime();
+      const veTime = viewEnd.getTime();
+      const lsTime = new Date(loadedStartStr).getTime();
+      const leTime = new Date(loadedEndStr).getTime();
+      // Если требуемая неделя находится внутри загруженного окна - рисуем мгновенно
+      if (vsTime >= lsTime && veTime <= leTime) hasCacheForThisWeek = true;
+  }
 
-// ==========================================
-// СЕТЕВАЯ ЛОГИКА
-// ==========================================
-async function fetchLessons() {
+  // МГНОВЕННЫЙ РЕНДЕР ИЗ КЭША (Если есть и мы не нажали кнопку 🔄)
+  if (hasCacheForThisWeek && !forceSync) {
+      initCalendar();
+      return; 
+  }
+
+  if (isFetching) return;
+  isFetching = true;
+
+  const btnRefresh = document.getElementById('btn-refresh');
+  const rangeDisplay = document.getElementById('week-range-display');
+  
+  if (btnRefresh && forceSync) btnRefresh.innerHTML = '⏳';
+  if (rangeDisplay && !hasCacheForThisWeek) rangeDisplay.style.opacity = '0.5';
+
   try {
-    const startStr = formatDateToString(currentWeekMonday);
-    const endStr = formatDateToString(addDays(currentWeekMonday, 6));
+    // Широкий фетч: качаем сразу 4 недели (прошлую, текущую и 2 вперед)
+    const reqStart = addDays(currentWeekMonday, -7);
+    const reqEnd = addDays(currentWeekMonday, 21);
+    const startStr = formatDateToString(reqStart);
+    const endStr = formatDateToString(reqEnd);
 
     const response = await fetch(`${API_URL}?start=${startStr}&end=${endStr}`);
     if (response.ok) {
@@ -114,6 +148,13 @@ async function fetchLessons() {
       });
 
       scheduleData = validEvents;
+      
+      // Обновляем память и LocalStorage
+      localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
+      localStorage.setItem('loadedStartStr', startStr);
+      localStorage.setItem('loadedEndStr', endStr);
+      loadedStartStr = startStr;
+      loadedEndStr = endStr;
 
       const alertBox = document.getElementById('cookie-alert');
       if (expiredSchools.size > 0) {
@@ -125,7 +166,14 @@ async function fetchLessons() {
 
       initCalendar();
     }
-  } catch (error) { console.error('Ошибка загрузки данных:', error); }
+  } catch (error) { 
+    console.error('Ошибка загрузки данных:', error); 
+    if (scheduleData.length > 0) initCalendar(); // Откат к кэшу при сбое
+  } finally { 
+    isFetching = false; 
+    if (btnRefresh) btnRefresh.innerHTML = '🔄';
+    if (rangeDisplay) rangeDisplay.style.opacity = '1';
+  }
 }
 
 // ==========================================
@@ -181,6 +229,7 @@ function initCalendar() {
     if (columnDateStr === realTodayStr) dayCol.classList.add('today');
     if (index === 1 || index === 2) dayCol.classList.add('day-off');
 
+    // Фильтруем общую пачку данных под конкретный рисуемый день
     const events = scheduleData.filter(e => e.date === columnDateStr);
 
     events.forEach(event => {
@@ -294,8 +343,14 @@ function calcSalary() {
   let weekSum = 0;
   const realTodayStr = formatDateToString(new Date());
 
-  scheduleData.forEach(ev => {
-    const lessonKey = `${daysOfWeek[new Date(ev.date).getDay() === 0 ? 6 : new Date(ev.date).getDay() - 1]}_${ev.startTime}_${ev.title}`;
+  const currentWeekDates = [];
+  for (let i = 0; i < 7; i++) currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
+
+  const currentWeekEvents = scheduleData.filter(e => currentWeekDates.includes(e.date));
+
+  currentWeekEvents.forEach(ev => {
+    const dayIndex = new Date(ev.date).getDay() === 0 ? 6 : new Date(ev.date).getDay() - 1;
+    const lessonKey = `${daysOfWeek[dayIndex]}_${ev.startTime}_${ev.title}`;
     const price = parseFloat(priceBook[lessonKey]) || 0;
 
     weekSum += price;
@@ -370,14 +425,11 @@ function findFreeSlots() {
         let ideal2 = freeEnd - duration;
         let recs = new Set();
 
-        // ИСПРАВЛЕНИЕ: Если это окно перед ПЕРВЫМ уроком в дне (i === 0), 
-        // мы НЕ предлагаем самое начало дня, а только прижимаем к уроку (ideal2).
         if (i > 0) {
-          if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1);
+            if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1);
         }
         if (ideal2 >= globalSearchStartMins && (ideal2 + duration) <= globalSearchEndMins) recs.add(ideal2);
 
-        // Если плотные слоты вылезли за рамки менеджера, даем крайние точки внутри рамок
         if (recs.size === 0) {
           recs.add(effStart);
           if (effEnd - duration !== effStart) recs.add(effEnd - duration);
@@ -388,7 +440,6 @@ function findFreeSlots() {
       currentMins = evEnd + GAP;
     });
 
-    // Окно после ПОСЛЕДНЕГО урока
     const freeStart = currentMins;
     const freeEnd = END_HOUR * 60;
     const effStart = Math.max(freeStart, globalSearchStartMins);
@@ -441,29 +492,38 @@ function findFreeSlots() {
 }
 
 // ==========================================
-// СЛУШАТЕЛИ СОБЫТИЙ UI И АВТОЗАПОЛНЕНИЕ
+// СЛУШАТЕЛИ СОБЫТИЙ UI И ЗАПУСК
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-  fetchLessons();
+  
+  // Если у нас уже есть закэшированные данные - МГНОВЕННО рисуем их без ожидания сервера
+  if (scheduleData.length > 0) {
+    initCalendar();
+  }
+  
+  // В фоне (тихо) качаем свежие данные за месяц
+  fetchLessons(true); 
 
   document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
+  
+  // Кнопки навигации теперь просто дергают умную функцию (если внутри месяца - всё произойдет моментально)
   document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); fetchLessons(); });
   document.getElementById('btn-next').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, 7); fetchLessons(); });
   document.getElementById('btn-today').addEventListener('click', () => { currentWeekMonday = getMonday(new Date()); fetchLessons(); });
+  
+  // Новая кнопка принудительного обновления
+  document.getElementById('btn-refresh').addEventListener('click', () => { fetchLessons(true); });
+
+  document.getElementById('btn-wife').addEventListener('click', () => { window.location.href = 'wife.html'; });
 
   document.getElementById('btn-stats').addEventListener('click', openStats);
   document.getElementById('btn-stats-close').addEventListener('click', () => { document.getElementById('stats-modal').classList.remove('active'); });
-
-  document.getElementById('btn-wife').addEventListener('click', () => {
-    window.location.href = 'wife.html';
-  });
 
   document.getElementById('btn-find-slots').addEventListener('click', () => {
     document.getElementById('slots-results').innerHTML = '';
     document.getElementById('slots-modal').classList.add('active');
     document.getElementById('action-controls').classList.remove('open');
   });
-
   document.getElementById('btn-slots-cancel').addEventListener('click', () => { document.getElementById('slots-modal').classList.remove('active'); });
   document.getElementById('btn-slots-search').addEventListener('click', findFreeSlots);
 
