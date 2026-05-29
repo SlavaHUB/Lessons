@@ -454,10 +454,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-stats').addEventListener('click', openStats);
   document.getElementById('btn-stats-close').addEventListener('click', () => { document.getElementById('stats-modal').classList.remove('active'); });
 
-  document.getElementById('btn-theme').addEventListener('click', () => {
-    document.getElementById('btn-wife').addEventListener('click', () => {
-      window.location.href = 'wife.html';
-    });
+  document.getElementById('btn-wife').addEventListener('click', () => {
+    window.location.href = 'wife.html';
   });
 
   document.getElementById('btn-find-slots').addEventListener('click', () => {
