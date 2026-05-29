@@ -471,9 +471,16 @@ function findFreeSlots() {
 
     const targetDayIndex = index === 6 ? 0 : index + 1;
 
+    // Получаем точную дату того дня, для которого сейчас ищем окошки
+    const targetDateStr = formatDateToString(addDays(currentWeekMonday, index));
+
+    // БРОНЕБОЙНЫЙ ФИЛЬТР
     const phantomEvents = scheduleData.filter(e => {
       const [y, m, d] = e.date.split('-');
       if (new Date(y, m - 1, d).getDay() !== targetDayIndex) return false;
+
+      // ИСПРАВЛЕНИЕ: Жестко отсекаем призраки из прошлого! Берем только уроки начиная с сегодня
+      if (e.date < targetDateStr) return false;
 
       const exactLessonKey = `${e.date}_${e.startTime}_${e.title}`;
       if (statusBook[exactLessonKey] === 'canceled') return false;
