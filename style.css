@@ -103,7 +103,6 @@ body {
   transition: background 0.3s, color 0.3s;
 }
 
-/* UI ЭЛЕМЕНТЫ */
 .toolbar {
   margin-bottom: 15px;
   display: flex;
@@ -183,7 +182,6 @@ button {
   border-color: #991b1b;
 }
 
-/* СЕТКА КАЛЕНДАРЯ */
 .calendar-wrapper {
   display: flex;
   flex-direction: column;
@@ -311,11 +309,7 @@ button {
   border-right: none;
 }
 
-
-/* =======================================
-   НОВЫЙ ДИЗАЙН КАРТОЧЕК УРОКОВ (FLEXBOX)
-   ======================================= */
-/* КАРТОЧКИ УРОКОВ */
+/* КАРТОЧКИ УРОКОВ И СТАТУСЫ */
 .event-card {
   position: absolute;
   left: 2px;
@@ -329,12 +323,9 @@ button {
   transition: all 0.2s;
   display: flex;
   flex-direction: column;
-  /* Время строго сверху */
   justify-content: flex-start;
   align-items: flex-start;
-  /* Выравнивание контента по левому краю */
   gap: 2px;
-  /* Минимальный аккуратный отступ */
   border: 1px solid transparent;
 }
 
@@ -344,25 +335,42 @@ button {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
 }
 
+/* Визуальные эффекты статусов */
+.event-card.status-canceled {
+  opacity: 0.35;
+  filter: grayscale(0.8);
+}
+
+.event-card.status-noshow {
+  background-image: repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.05) 5px, transparent 5px, transparent 10px);
+}
+
+[data-theme="dark"] .event-card.status-noshow {
+  background-image: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05) 5px, transparent 5px, transparent 10px);
+}
+
+.event-note-pin {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 10px;
+}
+
 .event-time {
   font-weight: 700;
   font-size: 0.65rem;
   opacity: 0.8;
   width: 100%;
-  /* Время на всю ширину сверху */
 }
 
-/* Контейнер: Название слева, Цена справа (ДЛЯ ПК) */
 .event-body {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  /* Центрируем название и цену по вертикали */
   width: 100%;
   gap: 6px;
   flex: 1;
-  /* Занимает всё оставшееся место в карточке */
   overflow: hidden;
 }
 
@@ -371,14 +379,11 @@ button {
   font-size: 0.7rem;
   line-height: 1.1;
   white-space: nowrap;
-  /* На ПК держим в одну строку */
   overflow: hidden;
   text-overflow: ellipsis;
-  /* Красивое многоточие на ПК */
   flex: 1;
 }
 
-/* Блок цены: фиксированная плашка справа */
 .event-price-tag {
   display: flex;
   flex-direction: column;
@@ -387,7 +392,6 @@ button {
   padding: 2px 4px;
   border-radius: 4px;
   flex-shrink: 0;
-  /* Цена никогда не сожмется */
   text-align: right;
 }
 
@@ -495,6 +499,8 @@ label {
 }
 
 input[type="number"],
+input[type="text"],
+input[type="time"],
 select {
   width: 100%;
   padding: 8px 12px;
@@ -507,7 +513,8 @@ select {
   outline: none;
 }
 
-input[type="number"]:focus {
+input[type="number"]:focus,
+input[type="text"]:focus {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
@@ -519,7 +526,6 @@ input[type="number"]:focus {
   margin-top: 20px;
 }
 
-/* ЧЕКБОКСЫ (ЧИПЫ) */
 .days-selector {
   display: flex;
   gap: 6px;
@@ -565,7 +571,38 @@ input[type="number"]:focus {
   box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
 }
 
-/* СПИСОК СТАТИСТИКИ ПО ДНЯМ */
+/* Кнопки статуса */
+.status-btn {
+  flex: 1;
+  padding: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--btn-secondary-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.status-btn.active[data-status="done"] {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.status-btn.active[data-status="noshow"] {
+  background: #f59e0b;
+  color: white;
+  border-color: #f59e0b;
+}
+
+.status-btn.active[data-status="canceled"] {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
+
 .stat-day-header {
   background: var(--btn-secondary-bg);
   color: var(--text-main);
@@ -607,7 +644,6 @@ input[type="number"]:focus {
   text-align: right;
 }
 
-/* Стили для двойного отображения валют */
 #stat-today,
 #stat-week {
   display: flex;
@@ -622,7 +658,15 @@ input[type="number"]:focus {
   color: var(--text-muted);
 }
 
-/* АДАПТАЦИЯ ДЛЯ МОБИЛЬНЫХ */
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 1rem;
+}
+
 @media (max-width: 768px) {
   body {
     padding: 10px;
@@ -667,10 +711,6 @@ input[type="number"]:focus {
     display: flex;
   }
 
-  .action-controls button {
-    width: 100%;
-  }
-
   .calendar-wrapper {
     width: 100%;
     min-width: 0;
@@ -688,7 +728,6 @@ input[type="number"]:focus {
     overflow-y: auto;
   }
 
-  /* Идеальные мобильные карточки */
   .event-card {
     padding: 4px 3px !important;
     border-radius: 4px !important;
@@ -701,7 +740,6 @@ input[type="number"]:focus {
 
   .event-body {
     flex-direction: column !important;
-    /* Строго друг под другом */
     align-items: flex-start !important;
     justify-content: flex-start !important;
     gap: 3px !important;
@@ -712,30 +750,21 @@ input[type="number"]:focus {
     font-size: 9px !important;
     line-height: 1.2 !important;
     white-space: normal !important;
-    /* Разрешаем перенос строк! */
     overflow: visible !important;
-    /* Отключаем скрытие текста */
     text-overflow: clip !important;
-    /* Убиваем многоточие (...) */
     word-break: break-word !important;
-    /* Переносим длинные слова */
     width: 100% !important;
     flex: none !important;
-    /* Запрещаем сжатие */
   }
 
   .event-price-tag {
     padding: 2px 4px !important;
     align-self: flex-start !important;
-    /* Прижимаем цену к левому краю */
     text-align: left !important;
     background: rgba(0, 0, 0, 0.15) !important;
-    /* Сделал фон чуть заметнее */
     border-radius: 4px !important;
     margin-top: auto !important;
-    /* Толкает цену в самый низ карточки */
     width: fit-content !important;
-    /* Цена занимает только ширину своих цифр */
   }
 
   .price-rub {
