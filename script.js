@@ -7,6 +7,7 @@ const API_URL = 'https://lessons-mqy0.onrender.com/api/schedule';
 let currentWeekMonday = getMonday(new Date());
 
 const BYN_RATE = 0.0387; // Курс RUB к BYN
+const ITCOMPOT_RATE = 190; // Ставка за одного ученика в ITCompot
 const HOUR_HEIGHT = 80;
 const START_HOUR = 8;
 const END_HOUR = 23;
@@ -27,6 +28,7 @@ let scheduleData = JSON.parse(localStorage.getItem('cachedSchedule')) || [];
 let loadedStartStr = localStorage.getItem('loadedStartStr') || "";
 let loadedEndStr = localStorage.getItem('loadedEndStr') || "";
 let isFetching = false;
+let currentEditingLesson = null; // Глобальная переменная для редактируемого урока
 
 let priceBook = JSON.parse(localStorage.getItem('lessonPrices')) || {};
 let oldPriceBook = JSON.parse(localStorage.getItem('lessonPrices')) || {};
@@ -97,6 +99,12 @@ function timeToPixels(timeStr) {
   return ((hours - START_HOUR) + minutes / 60) * HOUR_HEIGHT;
 }
 
+function updateModalTotals(price) {
+  const byn = (price * BYN_RATE).toFixed(2);
+  document.getElementById('lm-total-rub').textContent = `${price} ₽`;
+  document.getElementById('lm-total-byn').textContent = `(≈ ${byn} Br)`;
+}
+
 // ==========================================
 // СЕТЕВАЯ ЛОГИКА (УМНАЯ ЗАГРУЗКА И КЭШ)
 // ==========================================
@@ -110,11 +118,9 @@ async function fetchLessons(forceSync = false) {
       const veTime = viewEnd.getTime();
       const lsTime = new Date(loadedStartStr).getTime();
       const leTime = new Date(loadedEndStr).getTime();
-      // Если требуемая неделя находится внутри загруженного окна - рисуем мгновенно
       if (vsTime >= lsTime && veTime <= leTime) hasCacheForThisWeek = true;
   }
 
-  // МГНОВЕННЫЙ РЕНДЕР ИЗ КЭША (Если есть и мы не нажали кнопку 🔄)
   if (hasCacheForThisWeek && !forceSync) {
       initCalendar();
       return; 
@@ -130,7 +136,6 @@ async function fetchLessons(forceSync = false) {
   if (rangeDisplay && !hasCacheForThisWeek) rangeDisplay.style.opacity = '0.5';
 
   try {
-    // Широкий фетч: качаем сразу 4 недели (прошлую, текущую и 2 вперед)
     const reqStart = addDays(currentWeekMonday, -7);
     const reqEnd = addDays(currentWeekMonday, 21);
     const startStr = formatDateToString(reqStart);
@@ -149,7 +154,6 @@ async function fetchLessons(forceSync = false) {
 
       scheduleData = validEvents;
       
-      // Обновляем память и LocalStorage
       localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       localStorage.setItem('loadedStartStr', startStr);
       localStorage.setItem('loadedEndStr', endStr);
@@ -168,12 +172,58 @@ async function fetchLessons(forceSync = false) {
     }
   } catch (error) { 
     console.error('Ошибка загрузки данных:', error); 
-    if (scheduleData.length > 0) initCalendar(); // Откат к кэшу при сбое
+    if (scheduleData.length > 0) initCalendar(); 
   } finally { 
     isFetching = false; 
     if (btnRefresh) btnRefresh.innerHTML = '🔄';
     if (rangeDisplay) rangeDisplay.style.opacity = '1';
   }
+}
+
+// ==========================================
+// ЛОГИКА МОДАЛКИ ДЕТАЛЕЙ УРОКА
+// ==========================================
+function openLessonModal(event, dayName) {
+  currentEditingLesson = { event, dayName };
+  
+  document.getElementById('lm-school').textContent = event.school || 'Неизвестно';
+  
+  const [, month, day] = event.date.split('-');
+  document.getElementById('lm-time').textContent = `${day}.${month} | ${event.startTime} - ${event.endTime}`;
+  document.getElementById('lm-name').textContent = event.title;
+  
+  const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
+  const currentPrice = parseFloat(priceBook[lessonKey]) || 0;
+  
+  const priceZone = document.getElementById('lm-price-zone');
+  
+  // Умный выбор поля ввода в зависимости от школы
+  if (event.school === 'ITCompot') {
+    const currentStudents = currentPrice > 0 ? Math.round(currentPrice / ITCOMPOT_RATE) : 0;
+    priceZone.innerHTML = `
+      <label>Количество учеников (по ${ITCOMPOT_RATE} ₽):</label>
+      <input type="number" id="lm-input-price" value="${currentStudents}" min="0" step="1">
+    `;
+    updateModalTotals(currentStudents * ITCOMPOT_RATE);
+  } else {
+    priceZone.innerHTML = `
+      <label>Стоимость урока (₽):</label>
+      <input type="number" id="lm-input-price" value="${currentPrice}" min="0" step="50">
+    `;
+    updateModalTotals(currentPrice);
+  }
+
+  // Вешаем слушатель на созданный инпут
+  document.getElementById('lm-input-price').addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value) || 0;
+    if (event.school === 'ITCompot') {
+      updateModalTotals(val * ITCOMPOT_RATE);
+    } else {
+      updateModalTotals(val);
+    }
+  });
+
+  document.getElementById('lesson-modal').classList.add('active');
 }
 
 // ==========================================
@@ -229,7 +279,6 @@ function initCalendar() {
     if (columnDateStr === realTodayStr) dayCol.classList.add('today');
     if (index === 1 || index === 2) dayCol.classList.add('day-off');
 
-    // Фильтруем общую пачку данных под конкретный рисуемый день
     const events = scheduleData.filter(e => e.date === columnDateStr);
 
     events.forEach(event => {
@@ -263,9 +312,9 @@ function initCalendar() {
         </div>
       `;
 
+      // НОВОЕ: Открываем карточку урока вместо прямой ссылки в CRM
       eventDiv.addEventListener('click', () => {
-        const link = LINKS[event.school];
-        if (link) window.open(link, '_blank');
+        openLessonModal(event, dayName);
       });
 
       dayCol.appendChild(eventDiv);
@@ -369,7 +418,7 @@ function calcSalary() {
 }
 
 // ==========================================
-// ПОИСК СВОБОДНЫХ ОКОШЕК (УМНОЕ УПЛОТНЕНИЕ + ГРАНИЦЫ)
+// ПОИСК СВОБОДНЫХ ОКОШЕК
 // ==========================================
 function findFreeSlots() {
   const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
@@ -496,24 +545,16 @@ function findFreeSlots() {
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
   
-  // Если у нас уже есть закэшированные данные - МГНОВЕННО рисуем их без ожидания сервера
-  if (scheduleData.length > 0) {
-    initCalendar();
-  }
-  
-  // В фоне (тихо) качаем свежие данные за месяц
+  if (scheduleData.length > 0) initCalendar();
   fetchLessons(true); 
 
   document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
   
-  // Кнопки навигации теперь просто дергают умную функцию (если внутри месяца - всё произойдет моментально)
   document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); fetchLessons(); });
   document.getElementById('btn-next').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, 7); fetchLessons(); });
   document.getElementById('btn-today').addEventListener('click', () => { currentWeekMonday = getMonday(new Date()); fetchLessons(); });
   
-  // Новая кнопка принудительного обновления
   document.getElementById('btn-refresh').addEventListener('click', () => { fetchLessons(true); });
-
   document.getElementById('btn-wife').addEventListener('click', () => { window.location.href = 'wife.html'; });
 
   document.getElementById('btn-stats').addEventListener('click', openStats);
@@ -526,6 +567,42 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-slots-cancel').addEventListener('click', () => { document.getElementById('slots-modal').classList.remove('active'); });
   document.getElementById('btn-slots-search').addEventListener('click', findFreeSlots);
+
+  // КНОПКИ НОВОЙ МОДАЛКИ ДЕТАЛЕЙ УРОКА
+  document.getElementById('btn-lesson-close').addEventListener('click', () => {
+    document.getElementById('lesson-modal').classList.remove('active');
+  });
+
+  document.getElementById('btn-lm-crm').addEventListener('click', () => {
+    if (currentEditingLesson && currentEditingLesson.event.school) {
+       const link = LINKS[currentEditingLesson.event.school];
+       if (link) window.open(link, '_blank');
+    }
+  });
+
+  document.getElementById('btn-lm-save').addEventListener('click', () => {
+    if (!currentEditingLesson) return;
+    
+    let finalPrice = 0;
+    const inputVal = parseFloat(document.getElementById('lm-input-price').value) || 0;
+
+    if (currentEditingLesson.event.school === 'ITCompot') {
+      finalPrice = inputVal * ITCOMPOT_RATE;
+    } else {
+      finalPrice = inputVal;
+    }
+
+    const { event, dayName } = currentEditingLesson;
+    const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
+    
+    priceBook[lessonKey] = finalPrice;
+    localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
+    
+    calcSalary();
+    initCalendar(); // Обновляет ценник прямо на карточке
+    
+    document.getElementById('lesson-modal').classList.remove('active');
+  });
 
   // Скриншот
   document.getElementById('btn-export').addEventListener('click', async () => {

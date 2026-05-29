@@ -311,9 +311,11 @@ button {
   border-right: none;
 }
 
+
 /* =======================================
    НОВЫЙ ДИЗАЙН КАРТОЧЕК УРОКОВ (FLEXBOX)
    ======================================= */
+/* КАРТОЧКИ УРОКОВ */
 .event-card {
   position: absolute;
   left: 2px;
@@ -327,9 +329,12 @@ button {
   transition: all 0.2s;
   display: flex;
   flex-direction: column;
+  /* Время строго сверху */
   justify-content: flex-start;
   align-items: flex-start;
+  /* Выравнивание контента по левому краю */
   gap: 2px;
+  /* Минимальный аккуратный отступ */
   border: 1px solid transparent;
 }
 
@@ -344,16 +349,20 @@ button {
   font-size: 0.65rem;
   opacity: 0.8;
   width: 100%;
+  /* Время на всю ширину сверху */
 }
 
+/* Контейнер: Название слева, Цена справа (ДЛЯ ПК) */
 .event-body {
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
+  /* Центрируем название и цену по вертикали */
   width: 100%;
   gap: 6px;
   flex: 1;
+  /* Занимает всё оставшееся место в карточке */
   overflow: hidden;
 }
 
@@ -362,11 +371,14 @@ button {
   font-size: 0.7rem;
   line-height: 1.1;
   white-space: nowrap;
+  /* На ПК держим в одну строку */
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Красивое многоточие на ПК */
   flex: 1;
 }
 
+/* Блок цены: фиксированная плашка справа */
 .event-price-tag {
   display: flex;
   flex-direction: column;
@@ -375,6 +387,7 @@ button {
   padding: 2px 4px;
   border-radius: 4px;
   flex-shrink: 0;
+  /* Цена никогда не сожмется */
   text-align: right;
 }
 
@@ -394,11 +407,40 @@ button {
   margin-top: 1px;
 }
 
-.theme-blue { background: var(--theme-blue-bg); color: var(--theme-blue-text); border-left: 4px solid var(--theme-blue-border); border-color: var(--theme-blue-stroke); }
-.theme-green { background: var(--theme-green-bg); color: var(--theme-green-text); border-left: 4px solid var(--theme-green-border); border-color: var(--theme-green-stroke); }
-.theme-purple { background: var(--theme-purple-bg); color: var(--theme-purple-text); border-left: 4px solid var(--theme-purple-border); border-color: var(--theme-purple-stroke); }
-.theme-grey { background: var(--theme-grey-bg); color: var(--theme-grey-text); border-left: 4px solid var(--theme-grey-border); border-color: var(--theme-grey-stroke); }
-.theme-red { background: var(--theme-red-bg); color: var(--theme-red-text); border-left: 4px solid var(--theme-red-border); border-color: var(--theme-red-stroke); }
+.theme-blue {
+  background: var(--theme-blue-bg);
+  color: var(--theme-blue-text);
+  border-left: 4px solid var(--theme-blue-border);
+  border-color: var(--theme-blue-stroke);
+}
+
+.theme-green {
+  background: var(--theme-green-bg);
+  color: var(--theme-green-text);
+  border-left: 4px solid var(--theme-green-border);
+  border-color: var(--theme-green-stroke);
+}
+
+.theme-purple {
+  background: var(--theme-purple-bg);
+  color: var(--theme-purple-text);
+  border-left: 4px solid var(--theme-purple-border);
+  border-color: var(--theme-purple-stroke);
+}
+
+.theme-grey {
+  background: var(--theme-grey-bg);
+  color: var(--theme-grey-text);
+  border-left: 4px solid var(--theme-grey-border);
+  border-color: var(--theme-grey-stroke);
+}
+
+.theme-red {
+  background: var(--theme-red-bg);
+  color: var(--theme-red-text);
+  border-left: 4px solid var(--theme-red-border);
+  border-color: var(--theme-red-stroke);
+}
 
 /* МОДАЛЬНЫЕ ОКНА И СТАТИСТИКА */
 .modal-overlay {
@@ -452,7 +494,8 @@ label {
   margin-bottom: 5px;
 }
 
-input[type="number"], select {
+input[type="number"],
+select {
   width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--input-border);
@@ -658,6 +701,7 @@ input[type="number"]:focus {
 
   .event-body {
     flex-direction: column !important;
+    /* Строго друг под другом */
     align-items: flex-start !important;
     justify-content: flex-start !important;
     gap: 3px !important;
@@ -668,21 +712,30 @@ input[type="number"]:focus {
     font-size: 9px !important;
     line-height: 1.2 !important;
     white-space: normal !important;
+    /* Разрешаем перенос строк! */
     overflow: visible !important;
+    /* Отключаем скрытие текста */
     text-overflow: clip !important;
+    /* Убиваем многоточие (...) */
     word-break: break-word !important;
+    /* Переносим длинные слова */
     width: 100% !important;
     flex: none !important;
+    /* Запрещаем сжатие */
   }
 
   .event-price-tag {
     padding: 2px 4px !important;
     align-self: flex-start !important;
+    /* Прижимаем цену к левому краю */
     text-align: left !important;
     background: rgba(0, 0, 0, 0.15) !important;
+    /* Сделал фон чуть заметнее */
     border-radius: 4px !important;
     margin-top: auto !important;
+    /* Толкает цену в самый низ карточки */
     width: fit-content !important;
+    /* Цена занимает только ширину своих цифр */
   }
 
   .price-rub {
