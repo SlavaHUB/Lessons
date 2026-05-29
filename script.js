@@ -97,7 +97,7 @@ async function fetchLessons(forceSync = false) {
 
   try {
     const reqStart = addDays(currentWeekMonday, -7);
-    const reqEnd = addDays(currentWeekMonday, 21);
+    const reqEnd = addDays(currentWeekMonday, 28); // Увеличено до 4 полных недель вперед для фантомов
     const startStr = formatDateToString(reqStart);
     const endStr = formatDateToString(reqEnd);
 
@@ -177,7 +177,6 @@ function openLessonModal(event, dayName) {
       else if (currentStatus === 'noshow') {
         if (event.school === 'Zerocoder' && duration === 45) newPrice = 135;
         else if (event.school === 'Zerocoder' && duration === 30) newPrice = 90;
-        // Matrius и ITCompot остаются по умолчанию (или то, что ввел юзер)
         else newPrice = isNaN(parseFloat(priceBook[lessonKey])) ? getStandardPrice(event.school, duration) : currentPrice;
       } else {
         newPrice = getStandardPrice(event.school, duration);
@@ -213,7 +212,7 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
 });
 
 // ==========================================
-// ОТРИСОВКА КАЛЕНДАРЯ
+// ОТРИСОВКА КАЛЕНДАРЯ И ФАНТОМОВ
 // ==========================================
 function initCalendar() {
   const header = document.getElementById('calendar-header');
@@ -248,32 +247,70 @@ function initCalendar() {
     if (columnDateStr === realTodayStr) dayCol.classList.add('today');
     if (index === 1 || index === 2) dayCol.classList.add('day-off');
 
-    const events = scheduleData.filter(e => e.date === columnDateStr);
+    // 1. Получаем реальные уроки на эту дату
+    const realEvents = scheduleData.filter(e => e.date === columnDateStr).map(e => ({ ...e, isPhantom: false }));
 
-    events.forEach(event => {
+    // 2. Ищем фантомы на 4 недели вперед
+    const futureDates = [
+      formatDateToString(addDays(currentWeekDates[index], 7)),
+      formatDateToString(addDays(currentWeekDates[index], 14)),
+      formatDateToString(addDays(currentWeekDates[index], 21)),
+      formatDateToString(addDays(currentWeekDates[index], 28))
+    ];
+    const futureEvents = scheduleData.filter(e => futureDates.includes(e.date));
+    const phantomMap = new Map();
+
+    futureEvents.forEach(fe => {
+      // Исключаем, если этот же урок (с таким же названием и временем) уже есть СЕГОДНЯ
+      const isSameRecurring = realEvents.some(ce => ce.startTime === fe.startTime && ce.title === fe.title);
+      if (!isSameRecurring) {
+        const key = `${fe.startTime}_${fe.title}`;
+        if (!phantomMap.has(key)) phantomMap.set(key, { ...fe, isPhantom: true });
+      }
+    });
+
+    const allEventsToDraw = [...realEvents, ...Array.from(phantomMap.values())];
+
+    allEventsToDraw.forEach(event => {
       const topPx = timeToPixels(event.startTime);
       const heightPx = Math.max(timeToPixels(event.endTime) - topPx, (45 / 60) * HOUR_HEIGHT);
       const eventDiv = document.createElement('div');
 
       const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
-      const status = statusBook[lessonKey] || 'done';
-
       eventDiv.className = `event-card ${getTheme(event.school, dayName)}`;
-      if (status === 'canceled') eventDiv.classList.add('status-canceled');
-      if (status === 'noshow') eventDiv.classList.add('status-noshow');
+
+      let priceHtml = '';
+      let pinHtml = '';
+      let titlePrefix = '';
+
+      if (event.isPhantom) {
+        eventDiv.classList.add('phantom-event');
+        const [, m, d] = event.date.split('-');
+        pinHtml = `<div class="event-note-pin" title="Будущий урок (${d}.${m})">👻</div>`;
+        titlePrefix = `[${d}.${m}] `;
+
+        eventDiv.addEventListener('click', () => {
+          alert(`👻 Это фантомный урок!\n\nШкола: ${event.school}\nУченик: ${event.title}\nОн запланирован на ${d}.${m}\n\nПожалуйста, не занимайте этот слот новыми учениками.`);
+        });
+      } else {
+        const status = statusBook[lessonKey] || 'done';
+        if (status === 'canceled') eventDiv.classList.add('status-canceled');
+        if (status === 'noshow') eventDiv.classList.add('status-noshow');
+
+        const price = parseFloat(priceBook[lessonKey]) || 0;
+        priceHtml = price > 0 ? `<div class="event-price-tag"><span class="price-rub">${price} ₽</span><span class="price-byn">≈ ${(price * BYN_RATE).toFixed(2)} Br</span></div>` : '';
+        pinHtml = notesBook[lessonKey] ? `<div class="event-note-pin" title="${notesBook[lessonKey]}">📌</div>` : '';
+
+        eventDiv.addEventListener('click', () => openLessonModal(event, dayName));
+      }
 
       eventDiv.style.top = `${topPx}px`; eventDiv.style.height = `${heightPx}px`;
-
-      const price = parseFloat(priceBook[lessonKey]) || 0;
-      const priceHtml = price > 0 ? `<div class="event-price-tag"><span class="price-rub">${price} ₽</span><span class="price-byn">≈ ${(price * BYN_RATE).toFixed(2)} Br</span></div>` : '';
-      const pinHtml = notesBook[lessonKey] ? `<div class="event-note-pin" title="${notesBook[lessonKey]}">📌</div>` : '';
 
       eventDiv.innerHTML = `
         ${pinHtml}
         <div class="event-time">${event.startTime} - ${event.endTime}</div>
-        <div class="event-body"><div class="event-title">${event.title}</div>${priceHtml}</div>
+        <div class="event-body"><div class="event-title">${titlePrefix}${event.title}</div>${priceHtml}</div>
       `;
-      eventDiv.addEventListener('click', () => openLessonModal(event, dayName));
       dayCol.appendChild(eventDiv);
     });
     daysGrid.appendChild(dayCol);
@@ -382,14 +419,12 @@ function findFreeSlots() {
     const dayName = daysOfWeek[index];
     if (index === 1 || index === 2) { smsLines.push(`▪️ ${dayName}: выходной`); return; }
 
-    // МАГИЯ ФАНТОМНЫХ УРОКОВ: Ищем уроки за весь месяц, которые выпадают на этот день недели
-    const targetDayIndex = index === 6 ? 0 : index + 1; // JS Date.getDay() (Вс=0, Пн=1...)
+    const targetDayIndex = index === 6 ? 0 : index + 1;
     const phantomEvents = scheduleData.filter(e => {
       const [y, m, d] = e.date.split('-');
       return new Date(y, m - 1, d).getDay() === targetDayIndex;
     });
 
-    // Сливаем пересекающиеся интервалы в единый монолит
     let merged = phantomEvents.map(ev => ({ start: timeToMins(ev.startTime), end: timeToMins(ev.endTime) })).sort((a, b) => a.start - b.start);
     let consolidated = [];
     if (merged.length > 0) {

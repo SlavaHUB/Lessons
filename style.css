@@ -349,6 +349,28 @@ button {
   background-image: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05) 5px, transparent 5px, transparent 10px);
 }
 
+/* ФАНТОМНЫЕ УРОКИ (Проекции из будущего) */
+.phantom-event {
+  opacity: 0.55;
+  background: transparent !important;
+  border: 1px dashed var(--text-muted) !important;
+  background-image: repeating-linear-gradient(-45deg, transparent, transparent 5px, rgba(156, 163, 175, 0.1) 5px, rgba(156, 163, 175, 0.1) 10px) !important;
+  z-index: 5 !important;
+  box-shadow: none !important;
+}
+
+.phantom-event .event-time,
+.phantom-event .event-title {
+  color: var(--text-muted) !important;
+}
+
+.phantom-event:hover {
+  opacity: 1;
+  z-index: 20 !important;
+  background: var(--bg-container) !important;
+  border: 1px solid var(--text-muted) !important;
+}
+
 .event-note-pin {
   position: absolute;
   top: 2px;
