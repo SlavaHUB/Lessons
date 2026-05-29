@@ -28,7 +28,7 @@ let scheduleData = JSON.parse(localStorage.getItem('cachedSchedule')) || [];
 let loadedStartStr = localStorage.getItem('loadedStartStr') || "";
 let loadedEndStr = localStorage.getItem('loadedEndStr') || "";
 let isFetching = false;
-let currentEditingLesson = null; // Глобальная переменная для редактируемого урока
+let currentEditingLesson = null;
 
 let priceBook = JSON.parse(localStorage.getItem('lessonPrices')) || {};
 let oldPriceBook = JSON.parse(localStorage.getItem('lessonPrices')) || {};
@@ -111,19 +111,19 @@ function updateModalTotals(price) {
 async function fetchLessons(forceSync = false) {
   const viewStart = currentWeekMonday;
   const viewEnd = addDays(currentWeekMonday, 6);
-
+  
   let hasCacheForThisWeek = false;
   if (loadedStartStr && loadedEndStr) {
-    const vsTime = viewStart.getTime();
-    const veTime = viewEnd.getTime();
-    const lsTime = new Date(loadedStartStr).getTime();
-    const leTime = new Date(loadedEndStr).getTime();
-    if (vsTime >= lsTime && veTime <= leTime) hasCacheForThisWeek = true;
+      const vsTime = viewStart.getTime();
+      const veTime = viewEnd.getTime();
+      const lsTime = new Date(loadedStartStr).getTime();
+      const leTime = new Date(loadedEndStr).getTime();
+      if (vsTime >= lsTime && veTime <= leTime) hasCacheForThisWeek = true;
   }
 
   if (hasCacheForThisWeek && !forceSync) {
-    initCalendar();
-    return;
+      initCalendar();
+      return; 
   }
 
   if (isFetching) return;
@@ -131,7 +131,7 @@ async function fetchLessons(forceSync = false) {
 
   const btnRefresh = document.getElementById('btn-refresh');
   const rangeDisplay = document.getElementById('week-range-display');
-
+  
   if (btnRefresh && forceSync) btnRefresh.innerHTML = '⏳';
   if (rangeDisplay && !hasCacheForThisWeek) rangeDisplay.style.opacity = '0.5';
 
@@ -153,7 +153,7 @@ async function fetchLessons(forceSync = false) {
       });
 
       scheduleData = validEvents;
-
+      
       localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       localStorage.setItem('loadedStartStr', startStr);
       localStorage.setItem('loadedEndStr', endStr);
@@ -170,11 +170,11 @@ async function fetchLessons(forceSync = false) {
 
       initCalendar();
     }
-  } catch (error) {
-    console.error('Ошибка загрузки данных:', error);
-    if (scheduleData.length > 0) initCalendar();
-  } finally {
-    isFetching = false;
+  } catch (error) { 
+    console.error('Ошибка загрузки данных:', error); 
+    if (scheduleData.length > 0) initCalendar(); 
+  } finally { 
+    isFetching = false; 
     if (btnRefresh) btnRefresh.innerHTML = '🔄';
     if (rangeDisplay) rangeDisplay.style.opacity = '1';
   }
@@ -183,39 +183,32 @@ async function fetchLessons(forceSync = false) {
 // ==========================================
 // ЛОГИКА МОДАЛКИ ДЕТАЛЕЙ УРОКА
 // ==========================================
-// ==========================================
-// ЛОГИКА МОДАЛКИ ДЕТАЛЕЙ УРОКА
-// ==========================================
 function openLessonModal(event, dayName) {
   currentEditingLesson = { event, dayName };
-
+  
   document.getElementById('lm-school').textContent = event.school || 'Неизвестно';
-
+  
   const [, month, day] = event.date.split('-');
   document.getElementById('lm-time').textContent = `${day}.${month} | ${event.startTime} - ${event.endTime}`;
   document.getElementById('lm-name').textContent = event.title;
-
+  
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
   let currentPrice = parseFloat(priceBook[lessonKey]);
 
-  // Считаем длительность урока в минутах
   const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
-
-  // Включаем "режим учеников" ТОЛЬКО для ITCompot от 90 минут
   const isPerStudent = (event.school === 'ITCompot' && duration >= 90);
-  currentEditingLesson.isPerStudent = isPerStudent; // Сохраняем флаг для кнопки "Сохранить"
+  currentEditingLesson.isPerStudent = isPerStudent; 
 
-  // Авто-подстановка цен по твоим правилам, если цена еще не сохранена
   if (isNaN(currentPrice)) {
     if (event.school === 'ITCompot' && duration === 45) currentPrice = 390;
     else if (event.school === 'Zerocoder' && duration === 45) currentPrice = 450;
     else if (event.school === 'Zerocoder' && duration === 30) currentPrice = 300;
     else if (event.school === 'Matrius' && duration === 90) currentPrice = 645;
-    else currentPrice = 0; // Сюда попадет ITCompot 90 мин, пока не впишешь число учеников
+    else currentPrice = 0; 
   }
-
+  
   const priceZone = document.getElementById('lm-price-zone');
-
+  
   if (isPerStudent) {
     const currentStudents = currentPrice > 0 ? Math.round(currentPrice / ITCOMPOT_RATE) : 0;
     priceZone.innerHTML = `
@@ -329,7 +322,6 @@ function initCalendar() {
         </div>
       `;
 
-      // НОВОЕ: Открываем карточку урока вместо прямой ссылки в CRM
       eventDiv.addEventListener('click', () => {
         openLessonModal(event, dayName);
       });
@@ -435,7 +427,7 @@ function calcSalary() {
 }
 
 // ==========================================
-// ПОИСК СВОБОДНЫХ ОКОШЕК
+// ПОИСК СВОБОДНЫХ ОКОШЕК (УМНОЕ УПЛОТНЕНИЕ + ГРАНИЦЫ)
 // ==========================================
 function findFreeSlots() {
   const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
@@ -446,6 +438,7 @@ function findFreeSlots() {
   const baseSearchStartMins = timeToMins(document.getElementById('search-time-start').value || "08:00");
   const baseSearchEndMins = timeToMins(document.getElementById('search-time-end').value || "22:00");
 
+  // Даем менеджеру возможность маневра на 30 минут от их запроса
   const globalSearchStartMins = Math.max(START_HOUR * 60, baseSearchStartMins - 30);
   const globalSearchEndMins = Math.min(END_HOUR * 60, baseSearchEndMins + 30);
 
@@ -491,11 +484,14 @@ function findFreeSlots() {
         let ideal2 = freeEnd - duration;
         let recs = new Set();
 
-        if (i > 0) {
-          if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1);
+        // Не предлагаем самое начало дня, если только менеджер сам об этом не просил
+        if (i > 0 || (ideal1 >= baseSearchStartMins - 30)) {
+            if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1);
         }
+        
         if (ideal2 >= globalSearchStartMins && (ideal2 + duration) <= globalSearchEndMins) recs.add(ideal2);
 
+        // Если идеальные точки (прижатые к урокам) не влезли в границы, но окно в целом есть - берем края окна
         if (recs.size === 0) {
           recs.add(effStart);
           if (effEnd - duration !== effStart) recs.add(effEnd - duration);
@@ -532,7 +528,7 @@ function findFreeSlots() {
 
   let smsText = '';
   if (allDaysFull) {
-    smsText = `К сожалению, в предложенное время предложить ничего не могу.`;
+    smsText = `К сожалению, в предложенное время ничего не могу предложить.`;
   } else {
     smsText = `Готов взять ученика (${duration} мин).\n\nМои окошки в рамках вашего запроса:\n${smsLines.join('\n')}\n\n*С учетом того, что предложенное вами время я могу двигать на 30 мин. Какое бронируем?`;
   }
@@ -561,16 +557,16 @@ function findFreeSlots() {
 // СЛУШАТЕЛИ СОБЫТИЙ UI И ЗАПУСК
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-
+  
   if (scheduleData.length > 0) initCalendar();
-  fetchLessons(true);
+  fetchLessons(true); 
 
   document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
-
+  
   document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); fetchLessons(); });
   document.getElementById('btn-next').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, 7); fetchLessons(); });
   document.getElementById('btn-today').addEventListener('click', () => { currentWeekMonday = getMonday(new Date()); fetchLessons(); });
-
+  
   document.getElementById('btn-refresh').addEventListener('click', () => { fetchLessons(true); });
   document.getElementById('btn-wife').addEventListener('click', () => { window.location.href = 'wife.html'; });
 
@@ -592,18 +588,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-lm-crm').addEventListener('click', () => {
     if (currentEditingLesson && currentEditingLesson.event.school) {
-      const link = LINKS[currentEditingLesson.event.school];
-      if (link) window.open(link, '_blank');
+       const link = LINKS[currentEditingLesson.event.school];
+       if (link) window.open(link, '_blank');
     }
   });
 
   document.getElementById('btn-lm-save').addEventListener('click', () => {
     if (!currentEditingLesson) return;
-
+    
     let finalPrice = 0;
     const inputVal = parseFloat(document.getElementById('lm-input-price').value) || 0;
 
-    // Если это урок "по ученикам" (ITCompot 90 мин) - умножаем, иначе берем фикс
     if (currentEditingLesson.isPerStudent) {
       finalPrice = inputVal * ITCOMPOT_RATE;
     } else {
@@ -612,13 +607,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const { event, dayName } = currentEditingLesson;
     const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
-
+    
     priceBook[lessonKey] = finalPrice;
     localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
-
+    
     calcSalary();
-    initCalendar(); // Обновляет ценник прямо на карточке
-
+    initCalendar(); 
+    
     document.getElementById('lesson-modal').classList.remove('active');
   });
 
@@ -702,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Автозаполнение СМС
+  // ИДЕАЛЬНЫЙ АНАЛИЗАТОР СМС
   document.getElementById('manager-text-input').addEventListener('input', function (e) {
     const text = e.target.value.toLowerCase();
     if (!text.trim()) return;
@@ -744,48 +739,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!foundDays) dayChecks.forEach(cb => cb.checked = true);
 
-    let st = "08:00";
-    let et = "22:00";
+    // Новая бронебойная логика вычисления времени
+    let stMins = 8 * 60;
+    let etMins = 22 * 60;
 
+    // Вытаскиваем все точные форматы HH:MM
+    const times = [...text.matchAll(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/g)].map(m => parseInt(m[1]) * 60 + parseInt(m[2]));
+    
+    const matchFrom = text.match(/(?:с|от|начиная с)\s*(\d{1,2})(?:[:.](\d{2}))?/);
+    const matchTo = text.match(/(?:до|по)\s*(\d{1,2})(?:[:.](\d{2}))?/);
     const matchRange = text.match(/(\d{1,2})(?:[:.](\d{2}))?\s*(?:-|–|—)\s*(\d{1,2})(?:[:.](\d{2}))?/);
+
     if (matchRange) {
       let h1 = parseInt(matchRange[1]);
-      let m1 = matchRange[2] || "00";
+      let m1 = parseInt(matchRange[2] || 0);
       let h2 = parseInt(matchRange[3]);
-      let m2 = matchRange[4] || "00";
+      let m2 = parseInt(matchRange[4] || 0);
       if (h1 < 8 && h1 > 0) h1 += 12;
       if (h2 <= 8 && h2 > 0) h2 += 12;
-      st = `${h1.toString().padStart(2, '0')}:${m1}`;
-      et = `${h2.toString().padStart(2, '0')}:${m2}`;
+      stMins = h1 * 60 + m1;
+      etMins = h2 * 60 + m2;
     } else {
-      const matchFrom = text.match(/(?:с|от)\s*(\d{1,2})(?:[:.](\d{2}))?/);
       if (matchFrom) {
         let h = parseInt(matchFrom[1]);
-        let m = matchFrom[2] || "00";
+        let m = parseInt(matchFrom[2] || 0);
         if (h < 8 && h > 0) h += 12;
-        st = `${h.toString().padStart(2, '0')}:${m}`;
+        stMins = h * 60 + m;
+      } else if (times.length > 0) {
+        stMins = Math.min(...times) - 60; // Даем запас в 1 час перед самым ранним временем
       }
-      const matchTo = text.match(/(?:до|по)\s*(\d{1,2})(?:[:.](\d{2}))?/);
+
       if (matchTo) {
         let h = parseInt(matchTo[1]);
-        let m = matchTo[2] || "00";
+        let m = parseInt(matchTo[2] || 0);
         if (h <= 8 && h > 0) h += 12;
-        et = `${h.toString().padStart(2, '0')}:${m}`;
-      }
-      const matchAt = text.match(/(?:в|на)\s*(\d{1,2})(?:[:.](\d{2}))?/);
-      if (matchAt && !matchFrom && !matchTo) {
-        let h = parseInt(matchAt[1]);
-        let m = matchAt[2] || "00";
-        if (h < 8 && h > 0) h += 12;
-        let startH = Math.max(8, h - 1);
-        let endH = Math.min(22, h + 2);
-        st = `${startH.toString().padStart(2, '0')}:${m}`;
-        et = `${endH.toString().padStart(2, '0')}:${m}`;
+        etMins = h * 60 + m;
+      } else if (times.length > 0 && !matchFrom) {
+        etMins = Math.max(...times) + 120; // Даем запас в 2 часа после самого позднего времени
+      } else if (times.length > 0 && matchFrom) {
+        etMins = 22 * 60; // Если сказали "с 18:00", то до конца дня
       }
     }
 
-    document.getElementById('search-time-start').value = st;
-    document.getElementById('search-time-end').value = et;
+    // Защита от выхода за пределы рабочего дня
+    stMins = Math.max(8 * 60, Math.min(22 * 60, stMins));
+    etMins = Math.max(8 * 60, Math.min(22 * 60, etMins));
+
+    document.getElementById('search-time-start').value = minsToTime(stMins);
+    document.getElementById('search-time-end').value = minsToTime(etMins);
   });
 
   document.getElementById('btn-clear-sms').addEventListener('click', () => {
