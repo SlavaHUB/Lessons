@@ -138,7 +138,8 @@ function openLessonModal(event, dayName) {
 
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
   let currentPrice = parseFloat(priceBook[lessonKey]);
-  let currentStatus = statusBook[lessonKey] || 'done';
+  const exactLessonKey = `${event.date}_${event.startTime}_${event.title}`;
+  let currentStatus = statusBook[exactLessonKey] || 'done';
   const currentNote = notesBook[lessonKey] || '';
 
   const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
@@ -202,7 +203,8 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
 
   priceBook[lessonKey] = finalPrice;
-  statusBook[lessonKey] = document.querySelector('.status-btn.active').dataset.status;
+  const exactLessonKey = `${event.date}_${event.startTime}_${event.title}`;
+  statusBook[exactLessonKey] = document.querySelector('.status-btn.active').dataset.status;
   notesBook[lessonKey] = document.getElementById('lm-notes').value.trim();
 
   localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
@@ -404,10 +406,7 @@ function calcSalary() {
 }
 
 // ==========================================
-// ПОИСК СВОБОДНЫХ ОКОШЕК (С ФАНТОМНЫМИ УРОКАМИ)
-// ==========================================
-// ==========================================
-// ПОИСК СВОБОДНЫХ ОКОШЕК (С ФАНТОМНЫМИ УРОКАМИ)
+// ПОИСК СВОБОДНЫХ ОКОШЕК (С УЧЕТОМ ДАТ ПРИ ОТМЕНЕ)
 // ==========================================
 function findFreeSlots() {
   const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
@@ -430,12 +429,14 @@ function findFreeSlots() {
 
     const targetDayIndex = index === 6 ? 0 : index + 1;
 
+    // Сканируем будущие уроки. Отмена проверяется СТРОГО по конкретной дате урока!
     const phantomEvents = scheduleData.filter(e => {
       const [y, m, d] = e.date.split('-');
       if (new Date(y, m - 1, d).getDay() !== targetDayIndex) return false;
 
-      const lessonKey = `${dayName}_${e.startTime}_${e.title}`;
-      if (statusBook[lessonKey] === 'canceled') return false;
+      // НОВОЕ: Проверяем статус отмены по точной дате конкретного будущего урока
+      const exactLessonKey = `${e.date}_${e.startTime}_${e.title}`;
+      if (statusBook[exactLessonKey] === 'canceled') return false;
 
       return true;
     });
@@ -480,13 +481,12 @@ function findFreeSlots() {
     } else smsLines.push(`▪️ ${dayName}: нет окошек`);
   });
 
-  // НОВОЕ: Оставляем только строчки со временем, без лишних приветствий и сносок
+  // ЧИСТЫЙ ВЫВОД: Только строчки с днями и временем, без лишних приветствий
   let smsText = allDaysFull ? `К сожалению, в предложенное время ничего не могу предложить.` : smsLines.join('\n');
 
   resultsContainer.innerHTML = `<textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-modal); color: var(--text-main); font-family: inherit; font-size: 0.85rem; resize: none; outline: none; line-height: 1.5;">${smsText}</textarea><button id="btn-copy-sms" class="btn-primary" style="width: 100%; margin-top: 10px; background: #10b981;">📋 Скопировать</button>`;
   document.getElementById('btn-copy-sms').addEventListener('click', function () { document.getElementById('sms-output').select(); document.execCommand('copy'); this.textContent = '✅ Скопировано!'; setTimeout(() => this.textContent = '📋 Скопировать', 2000); });
 }
-
 // ==========================================
 // СЛУШАТЕЛИ СОБЫТИЙ UI
 // ==========================================
