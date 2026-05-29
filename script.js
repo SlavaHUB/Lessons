@@ -102,7 +102,7 @@ async function fetchLessons(forceSync = false) {
 
   try {
     const reqStart = addDays(currentWeekMonday, -7);
-    const reqEnd = addDays(currentWeekMonday, 45); // Качаем 6 недель, чтобы фантомы были всегда
+    const reqEnd = addDays(currentWeekMonday, 45); // Качаем с запасом 45 дней!
     const startStr = formatDateToString(reqStart);
     const endStr = formatDateToString(reqEnd);
 
@@ -167,7 +167,6 @@ function openLessonModal(event, dayName) {
   renderPriceInput(currentPrice);
   document.getElementById('lm-notes').value = currentNote;
 
-  // Логика кнопок статуса
   document.querySelectorAll('.status-btn').forEach(btn => {
     if (btn.dataset.status === currentStatus) btn.classList.add('active');
     else btn.classList.remove('active');
@@ -202,7 +201,6 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
   const { event, dayName } = currentEditingLesson;
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
 
-  // Сохраняем цену, статус и метки
   priceBook[lessonKey] = finalPrice;
   statusBook[lessonKey] = document.querySelector('.status-btn.active').dataset.status;
   notesBook[lessonKey] = document.getElementById('lm-notes').value.trim();
@@ -254,10 +252,9 @@ function initCalendar() {
 
     const realEvents = scheduleData.filter(e => e.date === columnDateStr).map(e => ({ ...e, isPhantom: false }));
 
-    // Берем ВООБЩЕ ВСЕ будущие события для этого дня недели
     const targetDayIndex = index === 6 ? 0 : index + 1;
     const allFutureEvents = scheduleData.filter(e => {
-      if (e.date <= columnDateStr) return false; // Оставляем только строго будущее
+      if (e.date <= columnDateStr) return false;
       const [y, m, d] = e.date.split('-');
       return new Date(y, m - 1, d).getDay() === targetDayIndex;
     });
@@ -265,11 +262,13 @@ function initCalendar() {
     const phantomMap = new Map();
     allFutureEvents.forEach(fe => {
       const lessonKey = `${dayName}_${fe.startTime}_${fe.title}`;
-      if (statusBook[lessonKey] === 'canceled') return; // Игнорим отмененные фантомы
+      if (statusBook[lessonKey] === 'canceled') return;
 
       const isSameRecurring = realEvents.some(ce => ce.startTime === fe.startTime && ce.title === fe.title);
       if (!isSameRecurring) {
+        // Ключ строго по времени и названию, чтобы они НЕ дублировались лесенкой
         const key = `${fe.startTime}_${fe.title}`;
+        // Сохраняем самый ближайший будущий фантом
         if (!phantomMap.has(key)) phantomMap.set(key, { ...fe, isPhantom: true });
       }
     });
@@ -392,7 +391,6 @@ function calcSalary() {
 
   scheduleData.filter(e => currentWeekDates.includes(e.date)).forEach(ev => {
     const lessonKey = `${daysOfWeek[new Date(ev.date).getDay() === 0 ? 6 : new Date(ev.date).getDay() - 1]}_${ev.startTime}_${ev.title}`;
-    // Игнорируем в статистике отмененные
     if (statusBook[lessonKey] === 'canceled') return;
 
     const price = parseFloat(priceBook[lessonKey]) || 0;
@@ -429,7 +427,7 @@ function findFreeSlots() {
 
     const targetDayIndex = index === 6 ? 0 : index + 1;
 
-    // БРОНЕБОЙНЫЙ ФИЛЬТР: Берем ВСЕ будущие уроки для этого дня недели, КРОМЕ отмененных!
+    // БРОНЕБОЙНЫЙ ФИЛЬТР
     const phantomEvents = scheduleData.filter(e => {
       const [y, m, d] = e.date.split('-');
       if (new Date(y, m - 1, d).getDay() !== targetDayIndex) return false;
@@ -490,7 +488,7 @@ function findFreeSlots() {
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
   if (scheduleData.length > 0) initCalendar();
-  fetchLessons(true); // Запускаем фоновую синхронизацию сразу при загрузке
+  fetchLessons(true);
 
   document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
   document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); fetchLessons(); });

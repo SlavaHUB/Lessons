@@ -49,14 +49,15 @@ app.get('/api/schedule', async (req, res) => {
         if (!start || !end) return res.status(400).json({ error: 'Нужны параметры start и end' });
 
         const unixStart = Math.floor(new Date(start).getTime() / 1000);
+        // Берем честный конец горизонта из запроса фронтенда
         const endObj = new Date(end);
         endObj.setHours(23, 59, 59);
         const unixEnd = Math.floor(endObj.getTime() / 1000);
-
+        
         const datesArray = getDatesArray(start, end);
         let finalSchedule = [];
 
-        // 1. ПАРСЕР ITCompot (ИСПРАВЛЕНО ВРЕМЯ НА UTC+3)
+        // 1. ПАРСЕР ITCompot (ИСПРАВЛЕН: берем честное время напрямую из строки API)
         const fetchITC = async () => {
             let events = [];
             try {
@@ -74,17 +75,11 @@ app.get('/api/schedule', async (req, res) => {
                     if (data && data.Events) {
                         data.Events.forEach(ev => {
                             if (ev.title && !ev.title.includes('Занят(а)')) {
-                                // Сервер Render работает в UTC. Жестко прибавляем 3 часа для Минска/Москвы.
-                                const startDate = new Date(ev.start);
-                                const endDate = new Date(ev.end);
-                                const startMsk = new Date(startDate.getTime() + (3 * 60 * 60 * 1000));
-                                const endMsk = new Date(endDate.getTime() + (3 * 60 * 60 * 1000));
-
                                 events.push({
                                     id: `itc_${ev.id}`,
-                                    date: startMsk.toISOString().split('T')[0],
-                                    startTime: startMsk.toISOString().split('T')[1].substring(0, 5),
-                                    endTime: endMsk.toISOString().split('T')[1].substring(0, 5),
+                                    date: ev.start.split('T')[0],
+                                    startTime: ev.start.split('T')[1].substring(0, 5),
+                                    endTime: ev.end.split('T')[1].substring(0, 5),
                                     title: ev.title.split('\r\n')[0].replace(' (Web-программирование (1 ступень frontend))', '').replace(' (Web-программирование (2 ступень backend))', ''),
                                     school: 'ITCompot'
                                 });
@@ -159,7 +154,7 @@ app.get('/api/schedule', async (req, res) => {
         };
 
         const [itcEvents, zeroEvents, matEvents] = await Promise.all([fetchITC(), fetchZero(), fetchMat()]);
-
+        
         finalSchedule.push(...itcEvents, ...zeroEvents, ...matEvents);
         res.json(finalSchedule);
 
