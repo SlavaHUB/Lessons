@@ -181,6 +181,11 @@ function openLessonModal(event, dayName) {
   };
   // ----------------------------------
 
+  // --- ЖЕЛЕЗОБЕТОННОЕ ЗАКРЫТИЕ КРЕСТИКОМ ---
+  document.getElementById('btn-lesson-close').onclick = () => {
+    document.getElementById('lesson-modal').classList.remove('active');
+  };
+
   const dateKey = `${event.date}_${event.startTime}_${event.title}`;
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
 
@@ -641,4 +646,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const orig = this.textContent; this.textContent = '✅ Успешно!'; setTimeout(() => { this.textContent = orig; document.getElementById('stats-modal').classList.remove('active'); }, 1500);
     } catch (e) { alert('Ошибка данных!'); }
   });
+});
+
+// Закрытие ЛЮБОЙ модалки по клику на темный фон вокруг нее
+window.addEventListener('click', (e) => {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('active');
+  }
 });
