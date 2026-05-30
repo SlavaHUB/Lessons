@@ -171,6 +171,16 @@ function openLessonModal(event, dayName) {
   document.getElementById('lm-time').textContent = `${day}.${month} | ${event.startTime} - ${event.endTime}`;
   document.getElementById('lm-name').textContent = event.title;
 
+  // --- НОВАЯ ЛОГИКА ВХОДА В КЛАСС ---
+  document.getElementById('btn-lm-enter-class').onclick = () => {
+    if (event.school === 'ITCompot') {
+      window.open('https://us02web.zoom.us/j/9514811985', '_blank');
+    } else {
+      window.open('https://matrius.ktalk.ru/hpb5rfegc1tl', '_blank');
+    }
+  };
+  // ----------------------------------
+
   const dateKey = `${event.date}_${event.startTime}_${event.title}`;
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
 
