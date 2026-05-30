@@ -35,14 +35,11 @@ function formatDateToString(date) {
   const adjustedDate = new Date(date.getTime() - (offset * 60 * 1000));
   return adjustedDate.toISOString().split('T')[0];
 }
-
-// НОВОЕ: Мгновенный вычислитель дня недели, чтобы не убивать процессор в циклах
 function getCustomDayIndex(dateStr) {
   const [y, m, d] = dateStr.split('-');
   const jsDay = new Date(y, m - 1, d).getDay();
-  return jsDay === 0 ? 6 : jsDay - 1; // Возвращает 0 для Пн, 6 для Вс
+  return jsDay === 0 ? 6 : jsDay - 1;
 }
-
 function getTheme(school, dayName) {
   if (dayName === 'Вт' || dayName === 'Ср') return 'theme-red';
   switch (school) {
@@ -73,7 +70,6 @@ function getStandardPrice(school, duration) {
 // КЭШ И УМНЫЕ ДАННЫЕ
 // ==========================================
 let scheduleData = JSON.parse(localStorage.getItem('cachedSchedule')) || [];
-// Сразу индексируем уроки из кэша для турбо-скорости
 scheduleData.forEach(e => { e.customDayIndex = getCustomDayIndex(e.date); });
 
 let loadedStartStr = localStorage.getItem('loadedStartStr') || "";
@@ -131,7 +127,6 @@ async function fetchLessons(forceSync = false) {
   const calendarWrap = document.querySelector('.calendar-wrapper');
 
   if (btnRefresh && forceSync) btnRefresh.innerHTML = '⏳';
-  // Включаем визуальный лоадер затемнения, если данные реально качаются
   if (calendarWrap && (!hasCacheForThisWeek || forceSync)) calendarWrap.classList.add('loading');
 
   try {
@@ -146,7 +141,6 @@ async function fetchLessons(forceSync = false) {
       const validEvents = [];
       rawData.forEach(item => {
         if (!item.isError) {
-          // Мгновенная индексация новых данных
           item.customDayIndex = getCustomDayIndex(item.date);
           validEvents.push(item);
         }
@@ -269,7 +263,7 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
 });
 
 // ==========================================
-// ОТРИСОВКА КАЛЕНДАРЯ И ФАНТОМОВ
+// ОТРИСОВКА КАЛЕНДАРЯ
 // ==========================================
 function initCalendar() {
   const header = document.getElementById('calendar-header');
@@ -293,20 +287,26 @@ function initCalendar() {
     const dateForDay = addDays(currentWeekMonday, i);
     currentWeekDates.push(dateForDay);
     const todayClass = formatDateToString(dateForDay) === realTodayStr ? ' today' : '';
-    header.innerHTML += `<div class="day-header${todayClass}">${daysOfWeek[i]} <span>${dateForDay.getDate()}.${dateForDay.getMonth() + 1}</span></div>`;
+    // НОВОЕ: Скрываем Вт(1) и Ср(2) на мобилке
+    const hideClass = (i === 1 || i === 2) ? ' mobile-hide' : '';
+    header.innerHTML += `<div class="day-header${todayClass}${hideClass}">${daysOfWeek[i]} <span>${dateForDay.getDate()}.${dateForDay.getMonth() + 1}</span></div>`;
   }
 
   for (let i = START_HOUR; i <= END_HOUR; i++) timeLabels.innerHTML += `<div class="time-slot">${i.toString().padStart(2, '0') + ':00'}</div>`;
 
   daysOfWeek.forEach((dayName, index) => {
     const dayCol = document.createElement('div'); dayCol.className = 'day-column';
+
+    // НОВОЕ: Скрываем колонки Вт(1) и Ср(2) на мобилке
+    if (index === 1 || index === 2) dayCol.classList.add('mobile-hide');
+
     const columnDateStr = formatDateToString(currentWeekDates[index]);
     if (columnDateStr === realTodayStr) dayCol.classList.add('today');
     if (index === 1 || index === 2) dayCol.classList.add('day-off');
 
     const realEvents = scheduleData.filter(e => e.date === columnDateStr).map(e => ({ ...e, isPhantom: false }));
 
-    // ТУРБО-ФИЛЬТР БЕЗ new Date(): Используем готовый customDayIndex
+    const targetDayIndex = index === 6 ? 0 : index + 1;
     const allFutureEvents = scheduleData.filter(e => e.customDayIndex === index && e.date > columnDateStr);
 
     const phantomMap = new Map();
@@ -479,7 +479,6 @@ function findFreeSlots() {
 
     const targetDateStr = formatDateToString(addDays(currentWeekMonday, index));
 
-    // ТУРБО-ФИЛЬТР С ИНДЕКСАМИ
     const phantomEvents = scheduleData.filter(e => {
       if (e.customDayIndex !== index) return false;
       if (e.date < targetDateStr) return false;
@@ -585,7 +584,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { btnExport.innerHTML = originalText; }
   });
 
-  // Автозаполнение СМС
   document.getElementById('manager-text-input').addEventListener('input', function (e) {
     const text = e.target.value.toLowerCase(); if (!text.trim()) return;
     const dayChecks = document.querySelectorAll('#slot-days-container input');
