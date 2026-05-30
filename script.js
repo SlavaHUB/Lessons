@@ -599,31 +599,74 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { btnExport.innerHTML = originalText; }
   });
 
+  // Автозаполнение СМС
   document.getElementById('manager-text-input').addEventListener('input', function (e) {
     const text = e.target.value.toLowerCase(); if (!text.trim()) return;
+
     const dayChecks = document.querySelectorAll('#slot-days-container input');
     dayChecks.forEach(cb => cb.checked = false);
     let foundDays = false;
     const patterns = [{ id: 0, r: /пн|понедельник/ }, { id: 1, r: /вт|вторник/ }, { id: 2, r: /ср|сред[ау]/ }, { id: 3, r: /чт|четверг/ }, { id: 4, r: /пт|пятниц[ау]/ }, { id: 5, r: /сб|суббот[ау]/ }, { id: 6, r: /вс|воскресень[ея]|вскр/ }];
-    if (text.includes('все дни') || text.includes('любой день')) { dayChecks.forEach(cb => cb.checked = true); foundDays = true; }
-    else { patterns.forEach(p => { if (p.r.test(text)) { document.querySelector(`#slot-days-container input[value="${p.id}"]`).checked = true; foundDays = true; } }); }
-    if (text.includes('кроме')) { const parts = text.split('кроме'); if (parts.length > 1) { patterns.forEach(p => { if (p.r.test(parts[1])) document.querySelector(`#slot-days-container input[value="${p.id}"]`).checked = false; }); } }
+
+    if (text.includes('все дни') || text.includes('любой день')) {
+      dayChecks.forEach(cb => cb.checked = true); foundDays = true;
+    } else {
+      patterns.forEach(p => {
+        if (p.r.test(text)) { document.querySelector(`#slot-days-container input[value="${p.id}"]`).checked = true; foundDays = true; }
+      });
+    }
+
+    if (text.includes('кроме')) {
+      const parts = text.split('кроме');
+      if (parts.length > 1) {
+        patterns.forEach(p => {
+          if (p.r.test(parts[1])) document.querySelector(`#slot-days-container input[value="${p.id}"]`).checked = false;
+        });
+      }
+    }
+
     if (!foundDays) dayChecks.forEach(cb => cb.checked = true);
 
     let stMins = 8 * 60; let etMins = 22 * 60;
     const times = [...text.matchAll(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/g)].map(m => parseInt(m[1]) * 60 + parseInt(m[2]));
-    const matchFrom = text.match(/(?:с|от|начиная с)\s*(\d{1,2})(?:[:.](\d{2}))?/); const matchTo = text.match(/(?:до|по)\s*(\d{1,2})(?:[:.](\d{2}))?/);
+
+    // ИСПРАВЛЕНИЕ: Добавлены слова "после", "не раньше", "не позже" с защитой от обрезки слов
     const matchRange = text.match(/(\d{1,2})(?:[:.](\d{2}))?\s*(?:-|–|—)\s*(\d{1,2})(?:[:.](\d{2}))?/);
+    const matchFrom = text.match(/(?:^|[^а-яёa-z])(?:с|от|начиная с|после|не раньше)\s*(\d{1,2})(?:[:.](\d{2}))?/i);
+    const matchTo = text.match(/(?:^|[^а-яёa-z])(?:до|по|не позже|раньше)\s*(\d{1,2})(?:[:.](\d{2}))?/i);
+
     if (matchRange) {
       let h1 = parseInt(matchRange[1]); let h2 = parseInt(matchRange[3]);
       if (h1 < 8 && h1 > 0) h1 += 12; if (h2 <= 8 && h2 > 0) h2 += 12;
-      stMins = h1 * 60 + parseInt(matchRange[2] || 0); etMins = h2 * 60 + parseInt(matchRange[4] || 0);
+      stMins = h1 * 60 + parseInt(matchRange[2] || 0);
+      etMins = h2 * 60 + parseInt(matchRange[4] || 0);
     } else {
-      if (matchFrom) { let h = parseInt(matchFrom[1]); if (h < 8 && h > 0) h += 12; stMins = h * 60 + parseInt(matchFrom[2] || 0); } else if (times.length > 0) stMins = Math.min(...times) - 60;
-      if (matchTo) { let h = parseInt(matchTo[1]); if (h <= 8 && h > 0) h += 12; etMins = h * 60 + parseInt(matchTo[2] || 0); } else if (times.length > 0 && !matchFrom) etMins = Math.max(...times) + 120; else if (times.length > 0 && matchFrom) etMins = 22 * 60;
+      if (matchFrom) {
+        let h = parseInt(matchFrom[1]);
+        if (h < 8 && h > 0) h += 12;
+        stMins = h * 60 + parseInt(matchFrom[2] || 0);
+      } else if (matchTo) {
+        stMins = 8 * 60; // Если указано только "до", ищем с самого утра
+      } else if (times.length > 0) {
+        stMins = Math.min(...times) - 60;
+      }
+
+      if (matchTo) {
+        let h = parseInt(matchTo[1]);
+        if (h <= 8 && h > 0) h += 12;
+        etMins = h * 60 + parseInt(matchTo[2] || 0);
+      } else if (matchFrom) {
+        etMins = 22 * 60; // Если указано только "после/с", ищем до конца дня
+      } else if (times.length > 0) {
+        etMins = Math.max(...times) + 120;
+      }
     }
-    stMins = Math.max(8 * 60, Math.min(22 * 60, stMins)); etMins = Math.max(8 * 60, Math.min(22 * 60, etMins));
-    document.getElementById('search-time-start').value = minsToTime(stMins); document.getElementById('search-time-end').value = minsToTime(etMins);
+
+    stMins = Math.max(8 * 60, Math.min(22 * 60, stMins));
+    etMins = Math.max(8 * 60, Math.min(22 * 60, etMins));
+
+    document.getElementById('search-time-start').value = minsToTime(stMins);
+    document.getElementById('search-time-end').value = minsToTime(etMins);
   });
 
   document.getElementById('btn-clear-sms').addEventListener('click', () => {
