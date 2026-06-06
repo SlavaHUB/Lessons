@@ -211,11 +211,12 @@ function openLessonModal(event, dayName) {
   document.getElementById('lm-time').textContent = `${day}.${month} | ${event.startTime} - ${event.endTime}`;
   document.getElementById('lm-name').textContent = event.title;
 
+  // БЫСТРЫЙ ВХОД В КЛАСС
   document.getElementById('btn-lm-enter-class').onclick = () => {
     if (event.school === 'ITCompot') {
-      window.open('https://us02web.zoom.us/j/9514811985', '_blank');
+      window.open('https://us02web.zoom.us/j/9514811985', '_blank'); // Зум
     } else {
-      window.open('https://crm.genius-school.online/#/lessons', '_blank'); // Или куда ведет Зерокодер
+      window.open('https://matrius.ktalk.ru/hpb5rfegc1tl', '_blank'); // Толк
     }
   };
 
