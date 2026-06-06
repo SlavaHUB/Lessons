@@ -124,11 +124,27 @@
             border-bottom: none;
         }
 
+        /* ПОДСВЕТКА СЕГОДНЯШНЕГО ДНЯ */
+        .day-cell.today-highlight {
+            background-color: rgba(59, 130, 246, 0.08);
+            border: 2px solid #3b82f6;
+            z-index: 2;
+        }
+
         .day-number {
             font-weight: 700;
             font-size: 0.85rem;
             color: var(--text-muted);
             margin-bottom: 4px;
+            display: inline-block;
+            align-self: flex-start;
+        }
+
+        .today-highlight .day-number {
+            color: #ffffff;
+            background-color: #3b82f6;
+            padding: 1px 6px;
+            border-radius: 4px;
         }
 
         /* Карточка смены */
@@ -191,6 +207,10 @@
                 padding: 3px;
             }
 
+            .day-cell.today-highlight {
+                border-width: 1px;
+            }
+
             .day-number {
                 font-size: 0.7rem;
                 margin-bottom: 2px;
@@ -215,9 +235,8 @@
 
     <div class="toolbar">
         <button onclick="window.location.href='index.html'">← Моё расписание</button>
-        <div class="title-month">👩 Расписание Жены — Июнь 2026</div>
-        <div style="width: 140px;"></div>
-    </div>
+        <div class="title-month">👩 Расписание Кати — Июнь 2026</div>
+        <div style="width: 140px;"></div> </div>
 
     <div class="calendar-wrapper">
         <div class="week-header">
@@ -231,7 +250,7 @@
         </div>
 
         <div class="month-grid" id="month-grid-container">
-        </div>
+            </div>
     </div>
 
     <script>
@@ -252,11 +271,22 @@
         };
 
         const container = document.getElementById('month-grid-container');
+        
+        // Получаем сегодняшнюю дату для умной подсветки
+        const realToday = new Date();
+        const currentDay = realToday.getDate();
+        const currentMonth = realToday.getMonth(); // Месяцы в JS начинаются с 0, июнь - это 5
+        const currentYear = realToday.getFullYear();
 
         // Отрисовываем 30 дней июня
         for (let day = 1; day <= 30; day++) {
             const dayCell = document.createElement('div');
             dayCell.className = 'day-cell';
+            
+            // Если сегодня июнь 2026 года и день совпадает — вешаем подсветку
+            if (day === currentDay && currentMonth === 5 && currentYear === 2026) {
+                dayCell.classList.add('today-highlight');
+            }
 
             const dayNumDiv = document.createElement('div');
             dayNumDiv.className = 'day-number';
