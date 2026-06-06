@@ -49,7 +49,6 @@ app.get('/api/schedule', async (req, res) => {
         if (!start || !end) return res.status(400).json({ error: 'Нужны параметры start и end' });
 
         const unixStart = Math.floor(new Date(start).getTime() / 1000);
-        // Берем честный конец горизонта из запроса фронтенда
         const endObj = new Date(end);
         endObj.setHours(23, 59, 59);
         const unixEnd = Math.floor(endObj.getTime() / 1000);
@@ -57,7 +56,7 @@ app.get('/api/schedule', async (req, res) => {
         const datesArray = getDatesArray(start, end);
         let finalSchedule = [];
 
-        // 1. ПАРСЕР ITCompot (ИСПРАВЛЕН: берем честное время напрямую из строки API)
+        // 1. ПАРСЕР ITCompot
         const fetchITC = async () => {
             let events = [];
             try {
@@ -122,40 +121,10 @@ app.get('/api/schedule', async (req, res) => {
             return events;
         };
 
-        // 3. ПАРСЕР Matrius
-        const fetchMat = async () => {
-            let events = [];
-            try {
-                const res = await fetch('https://crm.genius-school.online/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-OCTOBER-REQUEST-HANDLER': 'onGetFilteredLessonsByDate', 'X-Requested-With': 'XMLHttpRequest', 'Cookie': process.env.MATRIUS_COOKIE },
-                    body: JSON.stringify({ dates: datesArray, teacher_id: 51282, is_extra: false })
-                });
-                if (res.headers.get("content-type")?.includes("application/json")) {
-                    const data = await res.json();
-                    Object.values(data).forEach(dayArray => {
-                        if (Array.isArray(dayArray)) {
-                            dayArray.forEach(ev => {
-                                if (ev.is_empty_slot) return;
-                                events.push({
-                                    id: `mat_${ev.id}`,
-                                    date: ev.date,
-                                    startTime: ev.time.substring(0, 5),
-                                    endTime: addMinutesToTime(ev.time.substring(0, 5), ev.duration),
-                                    title: buildLessonTitle(ev),
-                                    school: 'Matrius'
-                                });
-                            });
-                        }
-                    });
-                } else events.push({ isError: true, school: 'Matrius' });
-            } catch (e) { events.push({ isError: true, school: 'Matrius' }); }
-            return events;
-        };
-
-        const [itcEvents, zeroEvents, matEvents] = await Promise.all([fetchITC(), fetchZero(), fetchMat()]);
+        // Запрашиваем только 2 школы
+        const [itcEvents, zeroEvents] = await Promise.all([fetchITC(), fetchZero()]);
         
-        finalSchedule.push(...itcEvents, ...zeroEvents, ...matEvents);
+        finalSchedule.push(...itcEvents, ...zeroEvents);
         res.json(finalSchedule);
 
     } catch (error) { res.status(500).json({ error: 'Ошибка' }); }
