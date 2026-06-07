@@ -1,16 +1,17 @@
-/// ==========================================
+// ==========================================
 // НАСТРОЙКИ СЕРВЕРА И ТЕМЫ
 // ==========================================
 const API_URL = 'https://lessons-mqy0.onrender.com/api/schedule';
 let currentWeekMonday = getMonday(new Date());
 
-const BYN_RATE = 0.0387;
-const ITCOMPOT_RATE = 190;
+const BYN_RATE = 0.0387; 
+const ITCOMPOT_RATE = 190; 
 const HOUR_HEIGHT = 80;
 const START_HOUR = 8;
 const END_HOUR = 23;
 const daysOfWeek = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const monthsRu = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+const monthsNominative = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
 const LINKS = {
   ITCompot: 'https://it-school.t8s.ru/Interactive/12445?TeacherId=12445&TrialLessonsOnly=False&StudyRequestsMode=False&ClassroomsColumnsMode=True&DefaultView=agendaWeek&ExpandableFormClosed=False&Submitted=False',
@@ -21,11 +22,10 @@ const LINKS = {
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И ИНДЕКСАЦИЯ
 // ==========================================
 
-// Очистка от технического мусора Зерокодера (NTk04, NKn03 и т.д.)
 function cleanTrashCodes(str) {
   if (!str) return str;
   let cleaned = str.replace(/\s*-\s*N[TK][a-zA-Z]\d{2,}\b/ig, '');
-  cleaned = cleaned.replace(/\s*-\s*-\s*/g, ' - ');
+  cleaned = cleaned.replace(/\s*-\s*-\s*/g, ' - '); 
   return cleaned;
 }
 
@@ -46,7 +46,7 @@ function formatDateToString(date) {
 function getCustomDayIndex(dateStr) {
   const [y, m, d] = dateStr.split('-');
   const jsDay = new Date(y, m - 1, d).getDay();
-  return jsDay === 0 ? 6 : jsDay - 1;
+  return jsDay === 0 ? 6 : jsDay - 1; 
 }
 function getTheme(school, dayName) {
   if (dayName === 'Вт' || dayName === 'Ср') return 'theme-red';
@@ -90,17 +90,16 @@ function loadAndMigrate(bookName) {
 }
 
 let scheduleData = JSON.parse(localStorage.getItem('cachedSchedule')) || [];
-scheduleData.forEach(e => {
-  e.customDayIndex = getCustomDayIndex(e.date);
-  e.title = cleanTrashCodes(e.title); // Очищаем старый кэш
+scheduleData.forEach(e => { 
+  e.customDayIndex = getCustomDayIndex(e.date); 
+  e.title = cleanTrashCodes(e.title); 
 });
 
 let loadedStartStr = localStorage.getItem('loadedStartStr') || "";
 let loadedEndStr = localStorage.getItem('loadedEndStr') || "";
 let isFetching = false;
-let currentEditingLesson = null;
+let currentEditingLesson = null; 
 
-// Загружаем базы с автоматической очисткой старых мусорных названий
 let priceBook = loadAndMigrate('lessonPrices_v2');
 let statusBook = loadAndMigrate('lessonStatuses');
 let notesBook = loadAndMigrate('lessonNotes');
@@ -121,44 +120,41 @@ function getEffectivePrice(event, dayName) {
   if (isNaN(basePrice)) basePrice = getStandardPrice(event.school, duration);
 
   if (status === 'noshow') {
-    if (event.school === 'Zerocoder' && duration === 45) return 135;
-    if (event.school === 'Zerocoder' && duration === 30) return 90;
+      if (event.school === 'Zerocoder' && duration === 45) return 135;
+      if (event.school === 'Zerocoder' && duration === 30) return 90;
   }
   return basePrice;
 }
 
 // ==========================================
-// СЕТЕВАЯ ЛОГИКА (С ТУРБО-КЭШЕМ)
+// СЕТЕВАЯ ЛОГИКА
 // ==========================================
 async function fetchLessons(forceSync = false) {
   const viewStart = currentWeekMonday;
-  // Запас для фантомов на 6 недель (42 дня)
-  const requiredEndForPhantoms = addDays(currentWeekMonday, 42);
-
+  const requiredEndForPhantoms = addDays(currentWeekMonday, 42); 
+  
   let hasCacheForThisWeek = false;
   if (loadedStartStr && loadedEndStr) {
-    const vsTime = viewStart.getTime();
-    const reqEndTime = requiredEndForPhantoms.getTime();
-    const lsTime = new Date(loadedStartStr).getTime();
-    const leTime = new Date(loadedEndStr).getTime();
-    if (vsTime >= lsTime && reqEndTime <= leTime) hasCacheForThisWeek = true;
+      const vsTime = viewStart.getTime(); 
+      const reqEndTime = requiredEndForPhantoms.getTime();
+      const lsTime = new Date(loadedStartStr).getTime(); 
+      const leTime = new Date(loadedEndStr).getTime();
+      if (vsTime >= lsTime && reqEndTime <= leTime) hasCacheForThisWeek = true;
   }
-
+  
   if (hasCacheForThisWeek && !forceSync) { initCalendar(); return; }
   if (isFetching) return;
   isFetching = true;
 
   const btnRefresh = document.getElementById('btn-refresh');
   const calendarWrap = document.querySelector('.calendar-wrapper');
-
+  
   if (btnRefresh && forceSync) btnRefresh.innerHTML = '⏳';
   if (calendarWrap && (!hasCacheForThisWeek || forceSync)) calendarWrap.classList.add('loading');
 
   try {
-    // 🚀 ГЛАВНОЕ УСКОРЕНИЕ: Качаем сразу 120 дней! (30 назад, 90 вперед)
-    // Теперь при листании недель кэш не будет "промахиваться"
     const reqStart = addDays(currentWeekMonday, -30);
-    const reqEnd = addDays(currentWeekMonday, 90);
+    const reqEnd = addDays(currentWeekMonday, 90); 
     const startStr = formatDateToString(reqStart);
     const endStr = formatDateToString(reqEnd);
 
@@ -168,13 +164,13 @@ async function fetchLessons(forceSync = false) {
       const validEvents = [];
       const brokenCookies = new Set();
 
-      rawData.forEach(item => {
+      rawData.forEach(item => { 
         if (item.isError) {
           brokenCookies.add(item.school);
         } else {
           item.customDayIndex = getCustomDayIndex(item.date);
           item.title = cleanTrashCodes(item.title);
-          validEvents.push(item);
+          validEvents.push(item); 
         }
       });
 
@@ -192,15 +188,14 @@ async function fetchLessons(forceSync = false) {
       localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       localStorage.setItem('loadedStartStr', startStr);
       localStorage.setItem('loadedEndStr', endStr);
-      // НОВОЕ: Запоминаем точное время успешной синхронизации
       localStorage.setItem('lastSyncTime', Date.now().toString());
       loadedStartStr = startStr; loadedEndStr = endStr;
       initCalendar();
     }
-  } catch (error) {
-    if (scheduleData.length > 0) initCalendar();
-  } finally {
-    isFetching = false;
+  } catch (error) { 
+    if (scheduleData.length > 0) initCalendar(); 
+  } finally { 
+    isFetching = false; 
     if (btnRefresh) btnRefresh.innerHTML = '🔄';
     if (calendarWrap) calendarWrap.classList.remove('loading');
   }
@@ -215,19 +210,18 @@ function openLessonModal(event, dayName) {
   const [, month, day] = event.date.split('-');
   document.getElementById('lm-time').textContent = `${day}.${month} | ${event.startTime} - ${event.endTime}`;
   document.getElementById('lm-name').textContent = event.title;
-
-  // БЫСТРЫЙ ВХОД В КЛАСС
+  
   document.getElementById('btn-lm-enter-class').onclick = () => {
     if (event.school === 'ITCompot') {
-      window.open('https://us02web.zoom.us/j/9514811985', '_blank'); // Зум
+      window.open('https://us02web.zoom.us/j/9514811985', '_blank'); 
     } else {
-      window.open('https://matrius.ktalk.ru/hpb5rfegc1tl', '_blank'); // Толк
+      window.open('https://matrius.ktalk.ru/hpb5rfegc1tl', '_blank'); 
     }
   };
-
+  
   const dateKey = `${event.date}_${event.startTime}_${event.title}`;
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
-
+  
   let currentStatus = statusBook[dateKey] || 'done';
 
   let currentNote = notesBook[lessonKey];
@@ -237,24 +231,24 @@ function openLessonModal(event, dayName) {
 
   const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
   const isPerStudent = (event.school === 'ITCompot' && duration >= 90);
-  currentEditingLesson.isPerStudent = isPerStudent;
+  currentEditingLesson.isPerStudent = isPerStudent; 
 
   const computePrice = (status) => {
-    if (status === 'canceled') return 0;
-    if (overridePriceBook[dateKey] !== undefined && status === currentStatus) return overridePriceBook[dateKey];
-
-    let base = parseFloat(priceBook[lessonKey]);
-    if (isNaN(base)) base = getStandardPrice(event.school, duration);
-    if (status === 'noshow') {
-      if (event.school === 'Zerocoder' && duration === 45) return 135;
-      if (event.school === 'Zerocoder' && duration === 30) return 90;
-    }
-    return base;
+     if (status === 'canceled') return 0;
+     if (overridePriceBook[dateKey] !== undefined && status === currentStatus) return overridePriceBook[dateKey];
+     
+     let base = parseFloat(priceBook[lessonKey]);
+     if (isNaN(base)) base = getStandardPrice(event.school, duration);
+     if (status === 'noshow') {
+        if (event.school === 'Zerocoder' && duration === 45) return 135;
+        if (event.school === 'Zerocoder' && duration === 30) return 90;
+     }
+     return base;
   };
 
   let currentPrice = computePrice(currentStatus);
   const priceZone = document.getElementById('lm-price-zone');
-
+  
   function renderPriceInput(price) {
     if (isPerStudent) {
       const students = price > 0 ? Math.round(price / ITCOMPOT_RATE) : 0;
@@ -274,14 +268,14 @@ function openLessonModal(event, dayName) {
   document.getElementById('lm-notes').value = currentNote;
 
   document.querySelectorAll('.status-btn').forEach(btn => {
-    if (btn.dataset.status === currentStatus) btn.classList.add('active');
+    if(btn.dataset.status === currentStatus) btn.classList.add('active');
     else btn.classList.remove('active');
 
     btn.onclick = (e) => {
       document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
       e.target.classList.add('active');
       currentStatus = e.target.dataset.status;
-
+      
       currentPrice = computePrice(currentStatus);
       renderPriceInput(currentPrice);
     };
@@ -294,12 +288,12 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
   if (!currentEditingLesson) return;
   const inputVal = parseFloat(document.getElementById('lm-input-price').value) || 0;
   const finalPrice = currentEditingLesson.isPerStudent ? inputVal * ITCOMPOT_RATE : inputVal;
-
+  
   const { event, dayName } = currentEditingLesson;
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
   const dateKey = `${event.date}_${event.startTime}_${event.title}`;
   const newStatus = document.querySelector('.status-btn.active').dataset.status;
-
+  
   statusBook[dateKey] = newStatus;
   notesBook[lessonKey] = document.getElementById('lm-notes').value;
 
@@ -314,9 +308,9 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
   localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
   localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
   localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
-
+  
   calcSalary();
-  initCalendar();
+  initCalendar(); 
   document.getElementById('lesson-modal').classList.remove('active');
 });
 
@@ -354,7 +348,7 @@ function initCalendar() {
   daysOfWeek.forEach((dayName, index) => {
     const dayCol = document.createElement('div'); dayCol.className = 'day-column';
     if (index === 1 || index === 2) dayCol.classList.add('mobile-hide');
-
+    
     const columnDateStr = formatDateToString(currentWeekDates[index]);
     if (columnDateStr === realTodayStr) dayCol.classList.add('today');
     if (index === 1 || index === 2) dayCol.classList.add('day-off');
@@ -367,7 +361,7 @@ function initCalendar() {
     const phantomMap = new Map();
     allFutureEvents.forEach(fe => {
       const dateKey = `${fe.date}_${fe.startTime}_${fe.title}`;
-      if (statusBook[dateKey] === 'canceled') return;
+      if (statusBook[dateKey] === 'canceled') return; 
 
       const isSameRecurring = realEvents.some(ce => ce.startTime === fe.startTime && ce.title === fe.title);
       if (!isSameRecurring) {
@@ -382,11 +376,11 @@ function initCalendar() {
       const topPx = timeToPixels(event.startTime);
       const heightPx = Math.max(timeToPixels(event.endTime) - topPx, (45 / 60) * HOUR_HEIGHT);
       const eventDiv = document.createElement('div');
-
+      
       const dateKey = `${event.date}_${event.startTime}_${event.title}`;
       const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
       eventDiv.className = `event-card ${getTheme(event.school, dayName)}`;
-
+      
       let priceHtml = '';
       let pinHtml = '';
       let titlePrefix = '';
@@ -406,7 +400,7 @@ function initCalendar() {
 
         const price = getEffectivePrice(event, dayName);
         priceHtml = price > 0 ? `<div class="event-price-tag"><span class="price-rub">${price} ₽</span><span class="price-byn">≈ ${(price * BYN_RATE).toFixed(2)} Br</span></div>` : '';
-
+        
         pinHtml = notesBook[lessonKey] ? `<div class="event-note-pin" title="${notesBook[lessonKey]}">📌</div>` : '';
 
         eventDiv.addEventListener('click', () => openLessonModal(event, dayName));
@@ -426,7 +420,7 @@ function initCalendar() {
 }
 
 // ==========================================
-// СТАТИСТИКА И РАСЧЕТ ЗАРПЛАТЫ
+// СТАТИСТИКА И РАСЧЕТ ЗАРПЛАТЫ (МАТЕМАТИКА EXCEL)
 // ==========================================
 const historicalData = [
   { month: 'Март 2026', sum: 56520 },
@@ -446,7 +440,7 @@ document.getElementById('tab-history').onclick = () => {
   document.getElementById('stats-history-view').style.display = 'block';
   document.getElementById('tab-history').className = 'btn-primary';
   document.getElementById('tab-current').className = 'btn-secondary';
-
+  
   let html = '<h4 style="margin: 0 0 15px 0;">Данные из Excel:</h4>';
   historicalData.forEach(d => {
     html += `<div class="history-row"><strong>${d.month}</strong><span>${d.sum} ₽ <span style="font-size:0.8rem; color:var(--text-muted);">(≈ ${(d.sum * BYN_RATE).toFixed(2)} Br)</span></span></div>`;
@@ -469,8 +463,8 @@ function openStats() {
       const lessonKey = `${daysOfWeek[index]}_${ev.startTime}_${ev.title}`;
       let cPrice = priceBook[lessonKey];
       if (cPrice === undefined) {
-        const dur = timeToMins(ev.endTime) - timeToMins(ev.startTime);
-        cPrice = getStandardPrice(ev.school, dur) || '';
+         const dur = timeToMins(ev.endTime) - timeToMins(ev.startTime);
+         cPrice = getStandardPrice(ev.school, dur) || '';
       }
       dayHtml += `<div class="price-row"><span class="price-title">${ev.startTime} - ${ev.title}</span><input type="number" class="price-input" data-key="${lessonKey}" value="${cPrice}"></div>`;
     });
@@ -488,25 +482,70 @@ function openStats() {
   document.getElementById('stats-modal').classList.add('active');
 }
 
+// УМНЫЙ EXCEL-РАСЧЕТ ВНУТРИ КАЛЕНДАРЯ
 function calcSalary() {
   let todaySum = 0; let weekSum = 0;
-  const realTodayStr = formatDateToString(new Date());
-  const currentWeekDates = []; for (let i = 0; i < 7; i++) currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
+  const realToday = new Date();
+  const realTodayStr = formatDateToString(realToday);
+  
+  // Определяем границы текущего календарного месяца
+  const curMonthIndex = realToday.getMonth();
+  const curYear = realToday.getFullYear();
+  
+  document.getElementById('stat-month-title').textContent = `Аналитика за ${monthsNominative[curMonthIndex]}`;
 
+  const currentWeekDates = []; 
+  for (let i = 0; i < 7; i++) currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
+
+  // 1. Считаем оперативные показатели (День и Неделя) как раньше
   scheduleData.filter(e => currentWeekDates.includes(e.date)).forEach(ev => {
     const dayName = daysOfWeek[ev.customDayIndex];
     const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
-
-    if (statusBook[dateKey] === 'canceled') return;
-
+    if (statusBook[dateKey] === 'canceled') return; 
+    
     const price = getEffectivePrice(ev, dayName);
-    weekSum += price; if (ev.date === realTodayStr) todaySum += price;
+    weekSum += price; 
+    if (ev.date === realTodayStr) todaySum += price;
   });
 
-  const monthProjectSum = Math.round(weekSum * 4.33);
   document.getElementById('stat-today').innerHTML = `${todaySum} ₽ <span class="byn-text">(${(todaySum * BYN_RATE).toFixed(2)} Br)</span>`;
   document.getElementById('stat-week').innerHTML = `${weekSum} ₽ <span style="font-size: 0.8rem; color: var(--text-muted);">(${(weekSum * BYN_RATE).toFixed(2)} Br)</span>`;
-  document.getElementById('stat-month-project').innerHTML = `${monthProjectSum} ₽ <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(${(monthProjectSum * BYN_RATE).toFixed(2)} Br)</span>`;
+
+  // 2. 🚀 ИННОВАЦИЯ: Считаем полный текущий календарный месяц по правилам твоей таблицы!
+  let monthItcBase = 0;
+  let monthZeroTotal = 0;
+
+  // Отбираем все уроки, принадлежащие текущему месяцу
+  scheduleData.forEach(ev => {
+    const [y, m] = ev.date.split('-').map(Number);
+    if (y !== curYear || (m - 1) !== curMonthIndex) return; // Пропускаем чужие месяцы
+
+    const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
+    if (statusBook[dateKey] === 'canceled') return; // Отмененные не считаем
+
+    const dayName = daysOfWeek[ev.customDayIndex];
+    const price = getEffectivePrice(ev, dayName);
+
+    if (ev.school === 'ITCompot') {
+      monthItcBase += price;
+    } else if (ev.school === 'Zerocoder') {
+      monthZeroTotal += price;
+    }
+  });
+
+  // Магические формулы твоей Excel-таблицы:
+  const monthItcPremium = Math.round(monthItcBase * 0.20); // Премия ровно 20%
+  const monthItcTotal = monthItcBase + monthItcPremium;    // Сложение двух
+  const grandTotal = monthItcTotal + monthZeroTotal;       // Общий итог месяца
+
+  // Выводим данные на экран
+  document.getElementById('m-stat-itc-base').textContent = `${monthItcBase} ₽`;
+  document.getElementById('m-stat-itc-premium').textContent = `+ ${monthItcPremium} ₽`;
+  document.getElementById('m-stat-itc-total').textContent = `${monthItcTotal} ₽`;
+  document.getElementById('m-stat-zero-total').textContent = `${monthZeroTotal} ₽`;
+  
+  document.getElementById('m-stat-grand-total').textContent = `${grandTotal} ₽`;
+  document.getElementById('m-stat-grand-total-byn').textContent = `≈ ${(grandTotal * BYN_RATE).toFixed(2)} Br`;
 }
 
 // ==========================================
@@ -603,23 +642,17 @@ function findFreeSlots() {
 // ==========================================
 // СЛУШАТЕЛИ СОБЫТИЙ UI
 // ==========================================
-// ==========================================
-// СЛУШАТЕЛИ СОБЫТИЙ UI
-// ==========================================
 document.addEventListener('DOMContentLoaded', () => {
   if (scheduleData.length > 0) initCalendar();
-
-  // УМНОЕ АВТООБНОВЛЕНИЕ
+  
+  // Умный запуск: если прошел час, подтягиваем свежак тихо в фоне
   const lastSync = parseInt(localStorage.getItem('lastSyncTime')) || 0;
-  const oneHour = 60 * 60 * 1000; // 1 час в миллисекундах
-
+  const oneHour = 60 * 60 * 1000; 
   if (Date.now() - lastSync > oneHour) {
-    fetchLessons(true); // Если прошел час — качаем свежак тихо в фоне
+    fetchLessons(true); 
   } else {
-    fetchLessons(); // Иначе просто открываем из памяти
+    fetchLessons(); 
   }
-
-  // Если вкладка висит открытой, обновляем сами каждый час
   setInterval(() => { fetchLessons(true); }, oneHour);
 
   document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
@@ -641,7 +674,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-lesson-close').addEventListener('click', () => { document.getElementById('lesson-modal').classList.remove('active'); });
   document.getElementById('btn-lm-crm').addEventListener('click', () => { if (currentEditingLesson?.event?.school) window.open(LINKS[currentEditingLesson.event.school], '_blank'); });
 
-  // КНОПКА БЫСТРОГО КОПИРОВАНИЯ ОТЧЕТА ДЛЯ МЕНЕДЖЕРОВ
   document.getElementById('btn-copy-notes').addEventListener('click', function (e) {
     e.preventDefault();
     const textarea = document.getElementById('lm-notes');
@@ -730,7 +762,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// Закрытие ЛЮБОЙ модалки по клику на темный фон вокруг нее
 window.addEventListener('click', (e) => {
   if (e.target.classList.contains('modal-overlay')) {
     e.target.classList.remove('active');

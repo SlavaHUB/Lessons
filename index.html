@@ -4,9 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Интерактивное расписание</title>
+  <title>Interactive Schedule</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📅</text></svg>">
-  <link rel="stylesheet" href="style.css?v=5.8">
+  <link rel="stylesheet" href="style.css?v=6.0">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 
@@ -45,24 +45,50 @@
   <div class="modal-overlay" id="stats-modal">
     <div class="modal-content" style="max-width: 450px;">
       <div id="stats-tabs" style="display: flex; gap: 10px; margin-bottom: 15px;">
-        <button id="tab-current" class="btn-primary" style="flex: 1;">Текущая неделя</button>
-        <button id="tab-history" class="btn-secondary" style="flex: 1;">История (Excel)</button>
+        <button id="tab-current" class="btn-primary" style="flex: 1;">Текущий месяц</button>
+        <button id="tab-history" class="btn-secondary" style="flex: 1;">История месяцев</button>
       </div>
 
       <div id="stats-current-view">
-        <div style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 5px;">
+        <div style="display: flex; justify-content: space-between; font-size: 1rem; margin-bottom: 5px;">
           <span>За сегодня:</span><strong id="stat-today" style="color: #2563eb;">0 ₽</strong>
         </div>
-        <div style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 5px;">
+        <div style="display: flex; justify-content: space-between; font-size: 1rem; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color);">
           <span>За эту неделю:</span><strong id="stat-week" style="color: #2563eb;">0 ₽</strong>
         </div>
-        <div style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color);">
-          <span>Прогноз на месяц:</span><strong id="stat-month-project" style="color: #10b981;">0 ₽</strong>
+
+        <h4 id="stat-month-title" style="margin: 0 0 10px 0; font-size: 1.05rem; color: var(--text-main); border-bottom: 1px dashed var(--border-color); padding-bottom: 5px;">Аналитика за месяц</h4>
+        
+        <div style="background: var(--bg-main); padding: 12px; border-radius: 8px; font-size: 0.9rem; display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; border: 1px solid var(--border-color);">
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: #22c55e;">💻 ITCompot (база):</span>
+            <span id="m-stat-itc-base" style="font-weight: 700;">0 ₽</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding-bottom: 6px; border-bottom: 1px solid var(--border-color);">
+            <span style="color: #a855f7;">🎁 Премия ITCompot (20%):</span>
+            <span id="m-stat-itc-premium" style="font-weight: 700; color: #a855f7;">0 ₽</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 4px;">
+            <span>Итого по Компоту:</span>
+            <span id="m-stat-itc-total">0 ₽</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding-bottom: 6px; border-bottom: 1px solid var(--border-color);">
+            <span style="color: #3b82f6;">🚀 Zerocoder (итог):</span>
+            <span id="m-stat-zero-total" style="font-weight: 700;">0 ₽</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 800; margin-top: 4px; color: #10b981;">
+            <span>ОБЩИЙ ИТОГ (Прогноз):</span>
+            <div style="text-align: right; display: flex; flex-direction: column;">
+              <span id="m-stat-grand-total">0 ₽</span>
+              <span id="m-stat-grand-total-byn" style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">0 Br</span>
+            </div>
+          </div>
         </div>
-        <div id="price-settings-list" style="max-height: 250px; overflow-y: auto; padding-right: 5px;"></div>
+
+        <div id="price-settings-list" style="max-height: 180px; overflow-y: auto; padding-right: 5px;"></div>
         
         <div style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
-          <label style="display: block; margin-bottom: 8px;">🔄 Синхронизация</label>
+          <label style="display: block; margin-bottom: 8px;">🔄 Синхронизация цен</label>
           <textarea id="sync-data-input" placeholder="Вставь код..." style="width: 100%; height: 50px; font-size: 0.7rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); margin-bottom: 10px; resize: none;"></textarea>
           <div style="display: flex; gap: 10px;">
             <button id="btn-export-prices" class="btn-secondary" style="flex: 1;">📋 Копировать</button>
@@ -165,6 +191,6 @@
     </div>
   </div>
 
-  <script src="script.js?v=6.0"></script>
+  <script src="script.js?v=6.1"></script>
 </body>
 </html>
