@@ -17,7 +17,36 @@ const LINKS = {
   ITCompot: 'https://it-school.t8s.ru/Interactive/12445?TeacherId=12445&TrialLessonsOnly=False&StudyRequestsMode=False&ClassroomsColumnsMode=True&DefaultView=agendaWeek&ExpandableFormClosed=False&Submitted=False',
   Zerocoder: 'https://crm.genius-school.online/#/lessons'
 };
+async function loadPriceBook() {
+  try {
+    const res = await fetch(`${API_URL.replace('/schedule', '')}/prices`);
+    priceBook = await res.json();
+  } catch (e) { priceBook = {}; }
+}
 
+async function savePriceBook(newPrices) {
+  try {
+    await fetch(`${API_URL.replace('/schedule', '')}/prices`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newPrices)
+    });
+    priceBook = newPrices;
+  } catch (e) { alert('Ошибка сохранения цен'); }
+}
+
+async function loadLessonStates() {
+  try {
+    const res = await fetch(`${API_URL.replace('/schedule', '')}/lessons/states`);
+    return await res.json();
+  } catch (e) { return []; }
+}
+
+async function saveLessonState(lessonData) {
+  try {
+    await fetch(`${API_URL.replace('/schedule', '')}/lessons/states`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lessonData)
+    });
+  } catch (e) { console.error('Ошибка сохранения'); }
+}
 // ==========================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И ИНДЕКСАЦИЯ
 // ==========================================
@@ -799,16 +828,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('#slot-days-container input').forEach(cb => cb.checked = false); document.getElementById('slots-results').innerHTML = '';
   });
 
-  document.getElementById('btn-export-prices').addEventListener('click', function () {
+  document.getElementById('btn-export-prices').addEventListener('click', async function () {
     const input = document.getElementById('sync-data-input');
-    input.value = localStorage.getItem('lessonPrices_v2') || '{}';
+    input.value = JSON.stringify(priceBook || {});
     input.select(); document.execCommand('copy');
     const orig = this.textContent; this.textContent = '📋 Скопировано!'; setTimeout(() => this.textContent = orig, 2000);
   });
-  document.getElementById('btn-import-prices').addEventListener('click', function () {
+
+  document.getElementById('btn-import-prices').addEventListener('click', async function () {
     try {
-      priceBook = JSON.parse(document.getElementById('sync-data-input').value.trim());
-      localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
+      const rawData = JSON.parse(document.getElementById('sync-data-input').value.trim());
+      await savePriceBook(rawData);
       calcSalary(); initCalendar();
       document.getElementById('sync-data-input').value = '';
       const orig = this.textContent; this.textContent = '📥 Успешно!'; setTimeout(() => { this.textContent = orig; document.getElementById('stats-modal').classList.remove('active'); }, 1500);

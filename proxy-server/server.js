@@ -7,6 +7,53 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const mongoose = require('mongoose');
+
+mongoose.connect(process.env.MONGODB_URI)
+    .then(() => console.log('MongoDB connected'))
+    .catch(err => console.error('MongoDB connection error:', err));
+
+const LessonState = mongoose.model('LessonState', new mongoose.Schema({
+    lessonId: { type: String, unique: true, required: true },
+    status: String, notes: String, price: Number, date: String,
+    monthYear: String // добавили для хранения по месяцам
+}));
+
+const PriceBook = mongoose.model('PriceBook', new mongoose.Schema({
+    configId: { type: String, default: 'main_config', unique: true },
+    prices: { type: Map, of: mongoose.Schema.Types.Mixed }
+}));
+
+app.get('/api/lessons/states', async (req, res) => {
+    try { res.json(await LessonState.find({})); }
+    catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.post('/api/lessons/states', async (req, res) => {
+    try {
+        const { lessonId, status, notes, price, date } = req.body;
+        const monthYear = date ? date.substring(0, 7) : '';
+        const updated = await LessonState.findOneAndUpdate(
+            { lessonId }, { status, notes, price, date, monthYear }, { upsert: true, new: true }
+        );
+        res.json(updated);
+    } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.get('/api/prices', async (req, res) => {
+    try {
+        let config = await PriceBook.findOne({ configId: 'main_config' }) || await PriceBook.create({ configId: 'main_config', prices: {} });
+        res.json(config.prices || {});
+    } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
+app.post('/api/prices', async (req, res) => {
+    try {
+        const config = await PriceBook.findOneAndUpdate({ configId: 'main_config' }, { prices: req.body }, { upsert: true, new: true });
+        res.json(config.prices);
+    } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+});
+
 function addMinutesToTime(timeStr, minsToAdd) {
     const [hours, minutes] = timeStr.split(':').map(Number);
     const date = new Date(2000, 0, 1, hours, minutes + minsToAdd);
@@ -52,7 +99,7 @@ app.get('/api/schedule', async (req, res) => {
         const endObj = new Date(end);
         endObj.setHours(23, 59, 59);
         const unixEnd = Math.floor(endObj.getTime() / 1000);
-        
+
         const datesArray = getDatesArray(start, end);
         let finalSchedule = [];
 
@@ -123,7 +170,7 @@ app.get('/api/schedule', async (req, res) => {
 
         // Запрашиваем только 2 школы
         const [itcEvents, zeroEvents] = await Promise.all([fetchITC(), fetchZero()]);
-        
+
         finalSchedule.push(...itcEvents, ...zeroEvents);
         res.json(finalSchedule);
 
