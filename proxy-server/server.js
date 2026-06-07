@@ -8,53 +8,68 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- ПОДКЛЮЧЕНИЕ К MONGODB ---
-// Теперь сервер понимает любое название переменной, включая твое MONGODB_URL
-const mongoString = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGODB_URL;
+// --- 1. ПОДКЛЮЧЕНИЕ К БАЗЕ ---
+// Вставляем твою ссылку напрямую как запасной вариант + указываем базу lessons_db
+const fallbackURI = "mongodb+srv://slavalevch32_db_user:k6mKiJtYy7cMwe9L@cluster0.9s71api.mongodb.net/lessons_db?retryWrites=true&w=majority";
+const mongoString = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGODB_URL || fallbackURI;
 
-if (!mongoString) {
-    console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Переменная базы данных не найдена в Render!');
-} else {
-    mongoose.connect(mongoString)
-        .then(() => console.log('✅ MongoDB успешно подключена'))
-        .catch(err => console.error('❌ Ошибка подключения к MongoDB:', err));
-}
+mongoose.connect(mongoString)
+    .then(() => console.log('✅ MongoDB успешно подключена!'))
+    .catch(err => console.error('❌ Ошибка подключения к MongoDB:', err));
 
-// Схема хранения наших данных (Цены, Статусы, Метки, Ручные переопределения)
-const AppDataSchema = new mongoose.Schema({
+// --- 2. СХЕМЫ ДАННЫХ ---
+const AppData = mongoose.model('AppData', new mongoose.Schema({
     id: { type: String, default: 'main' },
     priceBook: { type: Object, default: {} },
     statusBook: { type: Object, default: {} },
     notesBook: { type: Object, default: {} },
     overridePriceBook: { type: Object, default: {} }
-}, { minimize: false });
+}, { minimize: false }));
 
-const AppData = mongoose.model('AppData', AppDataSchema);
+const PriceBook = mongoose.model('PriceBook', new mongoose.Schema({
+    configId: { type: String, default: 'main_config' },
+    prices: { type: Map, of: mongoose.Schema.Types.Mixed }
+}));
 
-// --- ЭНДПОИНТЫ ДЛЯ РАБОТЫ С БД ---
-// 1. Получить данные из облака
+// --- 3. ЭНДПОИНТЫ ДЛЯ БД (Универсальные) ---
+
+// Для новой версии скрипта
 app.get('/api/data', async (req, res) => {
     try {
         let data = await AppData.findOne({ id: 'main' });
         if (!data) data = await AppData.create({ id: 'main' });
         res.json(data);
-    } catch (e) { res.status(500).json({ error: 'Ошибка загрузки БД' }); }
+    } catch (e) {
+        console.error('Ошибка GET /api/data:', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
-// 2. Сохранить изменения в облако
 app.post('/api/data', async (req, res) => {
     try {
         const { priceBook, statusBook, notesBook, overridePriceBook } = req.body;
-        await AppData.findOneAndUpdate(
-            { id: 'main' },
-            { priceBook, statusBook, notesBook, overridePriceBook },
-            { upsert: true, new: true }
-        );
+        await AppData.findOneAndUpdate({ id: 'main' }, { priceBook, statusBook, notesBook, overridePriceBook }, { upsert: true });
         res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: 'Ошибка сохранения в БД' }); }
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- СТАРЫЙ КОД ДЛЯ CRM ---
+// Для старой версии скрипта
+app.get('/api/prices', async (req, res) => {
+    try {
+        let config = await PriceBook.findOne({ configId: 'main_config' });
+        if (!config) config = await PriceBook.create({ configId: 'main_config', prices: {} });
+        res.json(config.prices || {});
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/prices', async (req, res) => {
+    try {
+        const config = await PriceBook.findOneAndUpdate({ configId: 'main_config' }, { prices: req.body }, { upsert: true, new: true });
+        res.json(config.prices);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- 4. ПАРСЕРЫ CRM ---
 function addMinutesToTime(timeStr, minsToAdd) {
     const [hours, minutes] = timeStr.split(':').map(Number);
     const date = new Date(2000, 0, 1, hours, minutes + minsToAdd);
@@ -70,16 +85,15 @@ function getDatesArray(startStr, endStr) {
 function buildLessonTitle(ev) {
     let parts = [];
     if (ev.group && ev.group.title) {
-        const groupCodeMatch = ev.group.title.match(/[a-zA-Z]+\d+/);
-        if (groupCodeMatch) parts.push(groupCodeMatch[0]);
+        const match = ev.group.title.match(/[a-zA-Z]+\d+/);
+        if (match) parts.push(match[0]);
     }
     if (ev.description) {
         const firstWord = ev.description.split(/[\s.()]/)[0];
-        if (firstWord && /[a-zA-Z]/.test(firstWord)) { if (!parts.includes(firstWord)) parts.push(firstWord); }
+        if (firstWord && /[a-zA-Z]/.test(firstWord) && !parts.includes(firstWord)) parts.push(firstWord);
     }
     if (ev.subscribes && ev.subscribes.length > 0 && ev.subscribes[0].child_name) { parts.push(ev.subscribes[0].child_name); }
-    if (parts.length > 0) return parts.join(' - ');
-    return ev.subject ? ev.subject.title : 'Урок';
+    return parts.length > 0 ? parts.join(' - ') : (ev.subject ? ev.subject.title : 'Урок');
 }
 
 app.get('/api/schedule', async (req, res) => {
@@ -90,9 +104,7 @@ app.get('/api/schedule', async (req, res) => {
         const unixStart = Math.floor(new Date(start).getTime() / 1000);
         const endObj = new Date(end); endObj.setHours(23, 59, 59);
         const unixEnd = Math.floor(endObj.getTime() / 1000);
-        
         const datesArray = getDatesArray(start, end);
-        let finalSchedule = [];
 
         const fetchITC = async () => {
             let events = [];
@@ -133,10 +145,7 @@ app.get('/api/schedule', async (req, res) => {
                         if (Array.isArray(dayArray)) {
                             dayArray.forEach(ev => {
                                 if (ev.is_empty_slot) return;
-                                events.push({
-                                    id: `zero_${ev.id}`, date: ev.date, startTime: ev.time.substring(0, 5), endTime: addMinutesToTime(ev.time.substring(0, 5), ev.duration),
-                                    title: buildLessonTitle(ev), school: 'Zerocoder'
-                                });
+                                events.push({ id: `zero_${ev.id}`, date: ev.date, startTime: ev.time.substring(0, 5), endTime: addMinutesToTime(ev.time.substring(0, 5), ev.duration), title: buildLessonTitle(ev), school: 'Zerocoder' });
                             });
                         }
                     });
@@ -146,8 +155,7 @@ app.get('/api/schedule', async (req, res) => {
         };
 
         const [itcEvents, zeroEvents] = await Promise.all([fetchITC(), fetchZero()]);
-        finalSchedule.push(...itcEvents, ...zeroEvents);
-        res.json(finalSchedule);
+        res.json([...itcEvents, ...zeroEvents]);
     } catch (error) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
