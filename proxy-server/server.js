@@ -1,59 +1,55 @@
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
+const mongoose = require('mongoose');
 require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const mongoose = require('mongoose');
+// --- ПОДКЛЮЧЕНИЕ К MONGODB ---
+// Читаем любой из ключей, чтобы точно подключиться
+const mongoString = process.env.MONGO_URI || process.env.MONGODB_URI;
+mongoose.connect(mongoString)
+    .then(() => console.log('✅ MongoDB успешно подключена'))
+    .catch(err => console.error('❌ Ошибка подключения к MongoDB:', err));
 
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('MongoDB connected'))
-    .catch(err => console.error('MongoDB connection error:', err));
+// Схема хранения наших данных (Цены, Статусы, Метки, Ручные переопределения)
+const AppDataSchema = new mongoose.Schema({
+    id: { type: String, default: 'main' },
+    priceBook: { type: Object, default: {} },
+    statusBook: { type: Object, default: {} },
+    notesBook: { type: Object, default: {} },
+    overridePriceBook: { type: Object, default: {} }
+}, { minimize: false });
 
-const LessonState = mongoose.model('LessonState', new mongoose.Schema({
-    lessonId: { type: String, unique: true, required: true },
-    status: String, notes: String, price: Number, date: String,
-    monthYear: String // добавили для хранения по месяцам
-}));
+const AppData = mongoose.model('AppData', AppDataSchema);
 
-const PriceBook = mongoose.model('PriceBook', new mongoose.Schema({
-    configId: { type: String, default: 'main_config', unique: true },
-    prices: { type: Map, of: mongoose.Schema.Types.Mixed }
-}));
-
-app.get('/api/lessons/states', async (req, res) => {
-    try { res.json(await LessonState.find({})); }
-    catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+// --- ЭНДПОИНТЫ ДЛЯ РАБОТЫ С БД ---
+// 1. Получить данные из облака
+app.get('/api/data', async (req, res) => {
+    try {
+        let data = await AppData.findOne({ id: 'main' });
+        if (!data) data = await AppData.create({ id: 'main' });
+        res.json(data);
+    } catch (e) { res.status(500).json({ error: 'Ошибка загрузки БД' }); }
 });
 
-app.post('/api/lessons/states', async (req, res) => {
+// 2. Сохранить изменения в облако
+app.post('/api/data', async (req, res) => {
     try {
-        const { lessonId, status, notes, price, date } = req.body;
-        const monthYear = date ? date.substring(0, 7) : '';
-        const updated = await LessonState.findOneAndUpdate(
-            { lessonId }, { status, notes, price, date, monthYear }, { upsert: true, new: true }
+        const { priceBook, statusBook, notesBook, overridePriceBook } = req.body;
+        await AppData.findOneAndUpdate(
+            { id: 'main' },
+            { priceBook, statusBook, notesBook, overridePriceBook },
+            { upsert: true, new: true }
         );
-        res.json(updated);
-    } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: 'Ошибка сохранения в БД' }); }
 });
 
-app.get('/api/prices', async (req, res) => {
-    try {
-        let config = await PriceBook.findOne({ configId: 'main_config' }) || await PriceBook.create({ configId: 'main_config', prices: {} });
-        res.json(config.prices || {});
-    } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
-});
-
-app.post('/api/prices', async (req, res) => {
-    try {
-        const config = await PriceBook.findOneAndUpdate({ configId: 'main_config' }, { prices: req.body }, { upsert: true, new: true });
-        res.json(config.prices);
-    } catch (e) { res.status(500).json({ error: 'Ошибка' }); }
-});
-
+// --- СТАРЫЙ КОД ДЛЯ CRM ---
 function addMinutesToTime(timeStr, minsToAdd) {
     const [hours, minutes] = timeStr.split(':').map(Number);
     const date = new Date(2000, 0, 1, hours, minutes + minsToAdd);
@@ -61,13 +57,8 @@ function addMinutesToTime(timeStr, minsToAdd) {
 }
 
 function getDatesArray(startStr, endStr) {
-    const dates = [];
-    let curr = new Date(startStr);
-    const end = new Date(endStr);
-    while (curr <= end) {
-        dates.push(curr.toISOString().split('T')[0]);
-        curr.setDate(curr.getDate() + 1);
-    }
+    const dates = []; let curr = new Date(startStr); const end = new Date(endStr);
+    while (curr <= end) { dates.push(curr.toISOString().split('T')[0]); curr.setDate(curr.getDate() + 1); }
     return dates;
 }
 
@@ -79,13 +70,9 @@ function buildLessonTitle(ev) {
     }
     if (ev.description) {
         const firstWord = ev.description.split(/[\s.()]/)[0];
-        if (firstWord && /[a-zA-Z]/.test(firstWord)) {
-            if (!parts.includes(firstWord)) parts.push(firstWord);
-        }
+        if (firstWord && /[a-zA-Z]/.test(firstWord)) { if (!parts.includes(firstWord)) parts.push(firstWord); }
     }
-    if (ev.subscribes && ev.subscribes.length > 0 && ev.subscribes[0].child_name) {
-        parts.push(ev.subscribes[0].child_name);
-    }
+    if (ev.subscribes && ev.subscribes.length > 0 && ev.subscribes[0].child_name) { parts.push(ev.subscribes[0].child_name); }
     if (parts.length > 0) return parts.join(' - ');
     return ev.subject ? ev.subject.title : 'Урок';
 }
@@ -96,25 +83,19 @@ app.get('/api/schedule', async (req, res) => {
         if (!start || !end) return res.status(400).json({ error: 'Нужны параметры start и end' });
 
         const unixStart = Math.floor(new Date(start).getTime() / 1000);
-        const endObj = new Date(end);
-        endObj.setHours(23, 59, 59);
+        const endObj = new Date(end); endObj.setHours(23, 59, 59);
         const unixEnd = Math.floor(endObj.getTime() / 1000);
-
+        
         const datesArray = getDatesArray(start, end);
         let finalSchedule = [];
 
-        // 1. ПАРСЕР ITCompot
         const fetchITC = async () => {
             let events = [];
             try {
                 const res = await fetch('https://it-school.t8s.ru/Interactive/GetSchedulesEvents', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cookie': process.env.ITC_COOKIE, 'X-Requested-With': 'XMLHttpRequest' },
-                    body: JSON.stringify({
-                        start: unixStart,
-                        end: unixEnd,
-                        model: { TeacherId: 12445, TrialLessonsOnly: false, StudyRequestsMode: false, SplitByClassrooms: true, DefaultView: "agendaWeek", ExpandableFormClosed: false, Submitted: false }
-                    })
+                    body: JSON.stringify({ start: unixStart, end: unixEnd, model: { TeacherId: 12445, TrialLessonsOnly: false, StudyRequestsMode: false, SplitByClassrooms: true, DefaultView: "agendaWeek", ExpandableFormClosed: false, Submitted: false } })
                 });
                 if (res.headers.get("content-type")?.includes("application/json")) {
                     const data = await res.json();
@@ -122,12 +103,8 @@ app.get('/api/schedule', async (req, res) => {
                         data.Events.forEach(ev => {
                             if (ev.title && !ev.title.includes('Занят(а)')) {
                                 events.push({
-                                    id: `itc_${ev.id}`,
-                                    date: ev.start.split('T')[0],
-                                    startTime: ev.start.split('T')[1].substring(0, 5),
-                                    endTime: ev.end.split('T')[1].substring(0, 5),
-                                    title: ev.title.split('\r\n')[0].replace(' (Web-программирование (1 ступень frontend))', '').replace(' (Web-программирование (2 ступень backend))', ''),
-                                    school: 'ITCompot'
+                                    id: `itc_${ev.id}`, date: ev.start.split('T')[0], startTime: ev.start.split('T')[1].substring(0, 5), endTime: ev.end.split('T')[1].substring(0, 5),
+                                    title: ev.title.split('\r\n')[0].replace(' (Web-программирование (1 ступень frontend))', '').replace(' (Web-программирование (2 ступень backend))', ''), school: 'ITCompot'
                                 });
                             }
                         });
@@ -137,7 +114,6 @@ app.get('/api/schedule', async (req, res) => {
             return events;
         };
 
-        // 2. ПАРСЕР Zerocoder
         const fetchZero = async () => {
             let events = [];
             try {
@@ -153,12 +129,8 @@ app.get('/api/schedule', async (req, res) => {
                             dayArray.forEach(ev => {
                                 if (ev.is_empty_slot) return;
                                 events.push({
-                                    id: `zero_${ev.id}`,
-                                    date: ev.date,
-                                    startTime: ev.time.substring(0, 5),
-                                    endTime: addMinutesToTime(ev.time.substring(0, 5), ev.duration),
-                                    title: buildLessonTitle(ev),
-                                    school: 'Zerocoder'
+                                    id: `zero_${ev.id}`, date: ev.date, startTime: ev.time.substring(0, 5), endTime: addMinutesToTime(ev.time.substring(0, 5), ev.duration),
+                                    title: buildLessonTitle(ev), school: 'Zerocoder'
                                 });
                             });
                         }
@@ -168,12 +140,9 @@ app.get('/api/schedule', async (req, res) => {
             return events;
         };
 
-        // Запрашиваем только 2 школы
         const [itcEvents, zeroEvents] = await Promise.all([fetchITC(), fetchZero()]);
-
         finalSchedule.push(...itcEvents, ...zeroEvents);
         res.json(finalSchedule);
-
     } catch (error) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
