@@ -127,7 +127,25 @@ let loadedEndStr = localStorage.getItem('loadedEndStr') || "";
 let isFetching = false;
 let currentEditingLesson = null;
 
-let priceBook = loadAndMigrate('lessonPrices_v2');
+let priceBook = {}; // Теперь данные будут приходить из базы
+
+async function loadPriceBook() {
+  try {
+    const res = await fetch('https://lessons-mqy0.onrender.com/api/prices');
+    if (res.ok) priceBook = await res.json();
+  } catch (e) { console.error('Ошибка загрузки цен с сервера:', e); }
+}
+
+async function savePriceBook(data) {
+  try {
+    await fetch('https://lessons-mqy0.onrender.com/api/prices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    priceBook = data;
+  } catch (e) { alert('Ошибка сохранения цен на сервер'); }
+}
 let statusBook = loadAndMigrate('lessonStatuses');
 let notesBook = loadAndMigrate('lessonNotes');
 let overridePriceBook = loadAndMigrate('lessonOverrides');
@@ -324,6 +342,7 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
   }
 
   localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
+  savePriceBook(priceBook); // <-- Отправляем обновленный список в базу данных
   localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
   localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
   localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
@@ -719,7 +738,8 @@ function findFreeSlots() {
 // ==========================================
 // СЛУШАТЕЛИ СОБЫТИЙ UI
 // ==========================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadPriceBook(); // <-- Ждем загрузку цен из MongoDB Atlas
   if (scheduleData.length > 0) initCalendar();
 
   const lastSync = parseInt(localStorage.getItem('lastSyncTime')) || 0;
@@ -828,7 +848,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('#slot-days-container input').forEach(cb => cb.checked = false); document.getElementById('slots-results').innerHTML = '';
   });
 
-  document.getElementById('btn-export-prices').addEventListener('click', async function () {
+  document.getElementById('btn-export-prices').addEventListener('click', function () {
     const input = document.getElementById('sync-data-input');
     input.value = JSON.stringify(priceBook || {});
     input.select(); document.execCommand('copy');
@@ -851,3 +871,4 @@ window.addEventListener('click', (e) => {
     e.target.classList.remove('active');
   }
 });
+
