@@ -128,11 +128,12 @@ function getEffectivePrice(event, dayName) {
 }
 
 // ==========================================
-// СЕТЕВАЯ ЛОГИКА
+// СЕТЕВАЯ ЛОГИКА (С ТУРБО-КЭШЕМ)
 // ==========================================
 async function fetchLessons(forceSync = false) {
   const viewStart = currentWeekMonday;
-  const requiredEndForPhantoms = addDays(currentWeekMonday, 40);
+  // Запас для фантомов на 6 недель (42 дня)
+  const requiredEndForPhantoms = addDays(currentWeekMonday, 42);
 
   let hasCacheForThisWeek = false;
   if (loadedStartStr && loadedEndStr) {
@@ -154,8 +155,10 @@ async function fetchLessons(forceSync = false) {
   if (calendarWrap && (!hasCacheForThisWeek || forceSync)) calendarWrap.classList.add('loading');
 
   try {
-    const reqStart = addDays(currentWeekMonday, -7);
-    const reqEnd = addDays(currentWeekMonday, 45);
+    // 🚀 ГЛАВНОЕ УСКОРЕНИЕ: Качаем сразу 120 дней! (30 назад, 90 вперед)
+    // Теперь при листании недель кэш не будет "промахиваться"
+    const reqStart = addDays(currentWeekMonday, -30);
+    const reqEnd = addDays(currentWeekMonday, 90);
     const startStr = formatDateToString(reqStart);
     const endStr = formatDateToString(reqEnd);
 
@@ -170,7 +173,7 @@ async function fetchLessons(forceSync = false) {
           brokenCookies.add(item.school);
         } else {
           item.customDayIndex = getCustomDayIndex(item.date);
-          item.title = cleanTrashCodes(item.title); // ОЧИСТКА МУСОРА ЗДЕСЬ
+          item.title = cleanTrashCodes(item.title);
           validEvents.push(item);
         }
       });
