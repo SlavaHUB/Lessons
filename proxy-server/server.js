@@ -9,11 +9,16 @@ app.use(cors());
 app.use(express.json());
 
 // --- ПОДКЛЮЧЕНИЕ К MONGODB ---
-// Читаем любой из ключей, чтобы точно подключиться
-const mongoString = process.env.MONGO_URI || process.env.MONGODB_URI;
-mongoose.connect(mongoString)
-    .then(() => console.log('✅ MongoDB успешно подключена'))
-    .catch(err => console.error('❌ Ошибка подключения к MongoDB:', err));
+// Теперь сервер понимает любое название переменной, включая твое MONGODB_URL
+const mongoString = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGODB_URL;
+
+if (!mongoString) {
+    console.error('❌ КРИТИЧЕСКАЯ ОШИБКА: Переменная базы данных не найдена в Render!');
+} else {
+    mongoose.connect(mongoString)
+        .then(() => console.log('✅ MongoDB успешно подключена'))
+        .catch(err => console.error('❌ Ошибка подключения к MongoDB:', err));
+}
 
 // Схема хранения наших данных (Цены, Статусы, Метки, Ручные переопределения)
 const AppDataSchema = new mongoose.Schema({
