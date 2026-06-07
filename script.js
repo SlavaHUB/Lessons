@@ -4,8 +4,8 @@
 const API_URL = 'https://lessons-mqy0.onrender.com/api/schedule';
 let currentWeekMonday = getMonday(new Date());
 
-const BYN_RATE = 0.0387; 
-const ITCOMPOT_RATE = 190; 
+const BYN_RATE = 0.0387;
+const ITCOMPOT_RATE = 190;
 const HOUR_HEIGHT = 80;
 const START_HOUR = 8;
 const END_HOUR = 23;
@@ -24,7 +24,7 @@ const LINKS = {
 function cleanTrashCodes(str) {
   if (!str) return str;
   let cleaned = str.replace(/\s*-\s*N[TK][a-zA-Z]\d{2,}\b/ig, '');
-  cleaned = cleaned.replace(/\s*-\s*-\s*/g, ' - '); 
+  cleaned = cleaned.replace(/\s*-\s*-\s*/g, ' - ');
   return cleaned;
 }
 
@@ -45,7 +45,7 @@ function formatDateToString(date) {
 function getCustomDayIndex(dateStr) {
   const [y, m, d] = dateStr.split('-');
   const jsDay = new Date(y, m - 1, d).getDay();
-  return jsDay === 0 ? 6 : jsDay - 1; 
+  return jsDay === 0 ? 6 : jsDay - 1;
 }
 function getTheme(school, dayName) {
   if (dayName === 'Вт' || dayName === 'Ср') return 'theme-red';
@@ -88,15 +88,15 @@ function loadAndMigrate(bookName) {
 }
 
 let scheduleData = JSON.parse(localStorage.getItem('cachedSchedule')) || [];
-scheduleData.forEach(e => { 
-  e.customDayIndex = getCustomDayIndex(e.date); 
-  e.title = cleanTrashCodes(e.title); 
+scheduleData.forEach(e => {
+  e.customDayIndex = getCustomDayIndex(e.date);
+  e.title = cleanTrashCodes(e.title);
 });
 
 let loadedStartStr = localStorage.getItem('loadedStartStr') || "";
 let loadedEndStr = localStorage.getItem('loadedEndStr') || "";
 let isFetching = false;
-let currentEditingLesson = null; 
+let currentEditingLesson = null;
 
 let priceBook = loadAndMigrate('lessonPrices_v2');
 let statusBook = loadAndMigrate('lessonStatuses');
@@ -129,30 +129,30 @@ function getEffectivePrice(event, dayName) {
 // ==========================================
 async function fetchLessons(forceSync = false) {
   const viewStart = currentWeekMonday;
-  const requiredEndForPhantoms = addDays(currentWeekMonday, 42); 
-  
+  const requiredEndForPhantoms = addDays(currentWeekMonday, 42);
+
   let hasCacheForThisWeek = false;
   if (loadedStartStr && loadedEndStr) {
-      const vsTime = viewStart.getTime(); 
-      const reqEndTime = requiredEndForPhantoms.getTime();
-      const lsTime = new Date(loadedStartStr).getTime(); 
-      const leTime = new Date(loadedEndStr).getTime();
-      if (vsTime >= lsTime && reqEndTime <= leTime) hasCacheForThisWeek = true;
+    const vsTime = viewStart.getTime();
+    const reqEndTime = requiredEndForPhantoms.getTime();
+    const lsTime = new Date(loadedStartStr).getTime();
+    const leTime = new Date(loadedEndStr).getTime();
+    if (vsTime >= lsTime && reqEndTime <= leTime) hasCacheForThisWeek = true;
   }
-  
+
   if (hasCacheForThisWeek && !forceSync) { initCalendar(); return; }
   if (isFetching) return;
   isFetching = true;
 
   const btnRefresh = document.getElementById('btn-refresh');
   const calendarWrap = document.querySelector('.calendar-wrapper');
-  
+
   if (btnRefresh && forceSync) btnRefresh.innerHTML = '⏳';
   if (calendarWrap && (!hasCacheForThisWeek || forceSync)) calendarWrap.classList.add('loading');
 
   try {
     const reqStart = addDays(currentWeekMonday, -30);
-    const reqEnd = addDays(currentWeekMonday, 90); 
+    const reqEnd = addDays(currentWeekMonday, 90);
     const startStr = formatDateToString(reqStart);
     const endStr = formatDateToString(reqEnd);
 
@@ -162,13 +162,13 @@ async function fetchLessons(forceSync = false) {
       const validEvents = [];
       const brokenCookies = new Set();
 
-      rawData.forEach(item => { 
+      rawData.forEach(item => {
         if (item.isError) {
           brokenCookies.add(item.school);
         } else {
           item.customDayIndex = getCustomDayIndex(item.date);
           item.title = cleanTrashCodes(item.title);
-          validEvents.push(item); 
+          validEvents.push(item);
         }
       });
 
@@ -190,10 +190,10 @@ async function fetchLessons(forceSync = false) {
       loadedStartStr = startStr; loadedEndStr = endStr;
       initCalendar();
     }
-  } catch (error) { 
-    if (scheduleData.length > 0) initCalendar(); 
-  } finally { 
-    isFetching = false; 
+  } catch (error) {
+    if (scheduleData.length > 0) initCalendar();
+  } finally {
+    isFetching = false;
     if (btnRefresh) btnRefresh.innerHTML = '🔄';
     if (calendarWrap) calendarWrap.classList.remove('loading');
   }
@@ -208,38 +208,38 @@ function openLessonModal(event, dayName) {
   const [, month, day] = event.date.split('-');
   document.getElementById('lm-time').textContent = `${day}.${month} | ${event.startTime} - ${event.endTime}`;
   document.getElementById('lm-name').textContent = event.title;
-  
+
   document.getElementById('btn-lm-enter-class').onclick = () => {
-    if (event.school === 'ITCompot') window.open('https://us02web.zoom.us/j/9514811985', '_blank'); 
-    else window.open('https://matrius.ktalk.ru/hpb5rfegc1tl', '_blank'); 
+    if (event.school === 'ITCompot') window.open('https://us02web.zoom.us/j/9514811985', '_blank');
+    else window.open('https://matrius.ktalk.ru/hpb5rfegc1tl', '_blank');
   };
-  
+
   const dateKey = `${event.date}_${event.startTime}_${event.title}`;
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
-  
+
   let currentStatus = statusBook[dateKey] || 'done';
   let currentNote = notesBook[lessonKey];
   if (!currentNote) currentNote = `${event.title}\nАлсу @Alsushenka1985 - Елена @ElenaLCastellano\n\nНе на уроке.`;
 
   const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
   const isPerStudent = (event.school === 'ITCompot' && duration >= 90);
-  currentEditingLesson.isPerStudent = isPerStudent; 
+  currentEditingLesson.isPerStudent = isPerStudent;
 
   const computePrice = (status) => {
-     if (status === 'canceled') return 0;
-     if (overridePriceBook[dateKey] !== undefined && status === currentStatus) return overridePriceBook[dateKey];
-     let base = parseFloat(priceBook[lessonKey]);
-     if (isNaN(base)) base = getStandardPrice(event.school, duration);
-     if (status === 'noshow') {
-        if (event.school === 'Zerocoder' && duration === 45) return 135;
-        if (event.school === 'Zerocoder' && duration === 30) return 90;
-     }
-     return base;
+    if (status === 'canceled') return 0;
+    if (overridePriceBook[dateKey] !== undefined && status === currentStatus) return overridePriceBook[dateKey];
+    let base = parseFloat(priceBook[lessonKey]);
+    if (isNaN(base)) base = getStandardPrice(event.school, duration);
+    if (status === 'noshow') {
+      if (event.school === 'Zerocoder' && duration === 45) return 135;
+      if (event.school === 'Zerocoder' && duration === 30) return 90;
+    }
+    return base;
   };
 
   let currentPrice = computePrice(currentStatus);
   const priceZone = document.getElementById('lm-price-zone');
-  
+
   function renderPriceInput(price) {
     if (isPerStudent) {
       const students = price > 0 ? Math.round(price / ITCOMPOT_RATE) : 0;
@@ -259,7 +259,7 @@ function openLessonModal(event, dayName) {
   document.getElementById('lm-notes').value = currentNote;
 
   document.querySelectorAll('.status-btn').forEach(btn => {
-    if(btn.dataset.status === currentStatus) btn.classList.add('active');
+    if (btn.dataset.status === currentStatus) btn.classList.add('active');
     else btn.classList.remove('active');
 
     btn.onclick = (e) => {
@@ -278,12 +278,12 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
   if (!currentEditingLesson) return;
   const inputVal = parseFloat(document.getElementById('lm-input-price').value) || 0;
   const finalPrice = currentEditingLesson.isPerStudent ? inputVal * ITCOMPOT_RATE : inputVal;
-  
+
   const { event, dayName } = currentEditingLesson;
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
   const dateKey = `${event.date}_${event.startTime}_${event.title}`;
   const newStatus = document.querySelector('.status-btn.active').dataset.status;
-  
+
   statusBook[dateKey] = newStatus;
   notesBook[lessonKey] = document.getElementById('lm-notes').value;
 
@@ -298,9 +298,9 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
   localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
   localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
   localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
-  
+
   calcSalary();
-  initCalendar(); 
+  initCalendar();
   document.getElementById('lesson-modal').classList.remove('active');
 });
 
@@ -338,7 +338,7 @@ function initCalendar() {
   daysOfWeek.forEach((dayName, index) => {
     const dayCol = document.createElement('div'); dayCol.className = 'day-column';
     if (index === 1 || index === 2) dayCol.classList.add('mobile-hide');
-    
+
     const columnDateStr = formatDateToString(currentWeekDates[index]);
     if (columnDateStr === realTodayStr) dayCol.classList.add('today');
     if (index === 1 || index === 2) dayCol.classList.add('day-off');
@@ -349,7 +349,7 @@ function initCalendar() {
     const phantomMap = new Map();
     allFutureEvents.forEach(fe => {
       const dateKey = `${fe.date}_${fe.startTime}_${fe.title}`;
-      if (statusBook[dateKey] === 'canceled') return; 
+      if (statusBook[dateKey] === 'canceled') return;
       const isSameRecurring = realEvents.some(ce => ce.startTime === fe.startTime && ce.title === fe.title);
       if (!isSameRecurring) {
         const key = `${fe.startTime}_${fe.title}`;
@@ -363,11 +363,11 @@ function initCalendar() {
       const topPx = timeToPixels(event.startTime);
       const heightPx = Math.max(timeToPixels(event.endTime) - topPx, (45 / 60) * HOUR_HEIGHT);
       const eventDiv = document.createElement('div');
-      
+
       const dateKey = `${event.date}_${event.startTime}_${event.title}`;
       const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
       eventDiv.className = `event-card ${getTheme(event.school, dayName)}`;
-      
+
       let priceHtml = ''; let pinHtml = ''; let titlePrefix = '';
 
       if (event.isPhantom) {
@@ -416,7 +416,7 @@ document.getElementById('tab-history').onclick = () => {
   document.getElementById('stats-history-view').style.display = 'block';
   document.getElementById('tab-history').className = 'btn-primary';
   document.getElementById('tab-current').className = 'btn-secondary';
-  
+
   let html = '';
   historicalData.forEach(d => {
     html += `
@@ -454,8 +454,8 @@ function openStats() {
       const lessonKey = `${daysOfWeek[index]}_${ev.startTime}_${ev.title}`;
       let cPrice = priceBook[lessonKey];
       if (cPrice === undefined) {
-         const dur = timeToMins(ev.endTime) - timeToMins(ev.startTime);
-         cPrice = getStandardPrice(ev.school, dur) || '';
+        const dur = timeToMins(ev.endTime) - timeToMins(ev.startTime);
+        cPrice = getStandardPrice(ev.school, dur) || '';
       }
       dayHtml += `<div class="price-row"><span class="price-title">${ev.startTime} - ${ev.title}</span><input type="number" class="price-input" data-key="${lessonKey}" value="${cPrice}"></div>`;
     });
@@ -469,7 +469,7 @@ function openStats() {
       calcSalary(); initCalendar();
     });
   });
-  
+
   calcSalary();
   document.getElementById('stats-modal').classList.add('active');
 }
@@ -478,53 +478,52 @@ function openStats() {
 function calcSalary() {
   let todaySum = 0; let weekSum = 0;
   const realTodayStr = formatDateToString(new Date());
-  
+
   const curMonthIndex = new Date().getMonth();
   const curYear = new Date().getFullYear();
 
-  const currentWeekDates = []; 
+  const currentWeekDates = [];
   for (let i = 0; i < 7; i++) currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
 
   scheduleData.filter(e => currentWeekDates.includes(e.date)).forEach(ev => {
     const dayName = daysOfWeek[ev.customDayIndex];
     const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
-    if (statusBook[dateKey] === 'canceled') return; 
-    
+    if (statusBook[dateKey] === 'canceled') return;
+
     const price = getEffectivePrice(ev, dayName);
-    weekSum += price; 
+    weekSum += price;
     if (ev.date === realTodayStr) todaySum += price;
   });
 
   document.getElementById('stat-today').innerHTML = `${todaySum} ₽ <span class="byn-text">(${(todaySum * BYN_RATE).toFixed(2)} Br)</span>`;
   document.getElementById('stat-week').innerHTML = `${weekSum} ₽ <span style="font-size: 0.8rem; color: var(--text-muted);">(${(weekSum * BYN_RATE).toFixed(2)} Br)</span>`;
 
-  // Считаем точный прогноз на месяц с учетом отмен для главной модалки
   let monthItcBase = 0;
   let monthZeroTotal = 0;
   scheduleData.forEach(ev => {
     const [y, m] = ev.date.split('-').map(Number);
-    if (y !== curYear || (m - 1) !== curMonthIndex) return; 
+    if (y !== curYear || (m - 1) !== curMonthIndex) return;
     const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
-    if (statusBook[dateKey] === 'canceled') return; 
-    
+    if (statusBook[dateKey] === 'canceled') return;
+
     const dayName = daysOfWeek[ev.customDayIndex];
     const price = getEffectivePrice(ev, dayName);
     if (ev.school === 'ITCompot') monthItcBase += price;
     else if (ev.school === 'Zerocoder') monthZeroTotal += price;
   });
 
-  const grandTotal = monthItcBase + Math.round(monthItcBase * 0.20) + monthZeroTotal;       
+  const grandTotal = monthItcBase + Math.round(monthItcBase * 0.20) + monthZeroTotal;
   document.getElementById('stat-month-project').innerHTML = `${grandTotal} ₽ <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(${(grandTotal * BYN_RATE).toFixed(2)} Br)</span>`;
 }
 
 // ==========================================
-// НОВОЕ: ДЕТАЛИЗАЦИЯ EXCEL
+// НОВОЕ: ДЕТАЛИЗАЦИЯ EXCEL (С РАЗБИВКОЙ ФАКТА)
 // ==========================================
 function openDetailedExcel() {
   const realTodayStr = formatDateToString(new Date());
   const curMonthIndex = new Date().getMonth();
   const curYear = new Date().getFullYear();
-  
+
   document.getElementById('excel-month-name').textContent = `${monthsNominative[curMonthIndex]} ${curYear}`;
 
   let monthEvents = scheduleData.filter(ev => {
@@ -536,8 +535,8 @@ function openDetailedExcel() {
   let expectedItc = 0, expectedZero = 0;
   let todaySum = 0, weekSum = 0;
   let tableRowsHtml = '';
-  
-  const currentWeekDates = []; 
+
+  const currentWeekDates = [];
   for (let i = 0; i < 7; i++) currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
 
   monthEvents.forEach(ev => {
@@ -582,14 +581,20 @@ function openDetailedExcel() {
 
   document.getElementById('detailed-excel-tbody').innerHTML = tableRowsHtml;
 
+  // Расчет фактического дохода (до сегодняшнего дня)
   const earnedItcPrem = Math.round(earnedItc * 0.20);
-  const earnedGrand = earnedItc + earnedItcPrem + earnedZero;
-  
+  const earnedItcTotal = earnedItc + earnedItcPrem;
+  const earnedGrand = earnedItcTotal + earnedZero;
+
+  // Расчет ожидаемого дохода (весь месяц)
   const expectedItcPrem = Math.round(expectedItc * 0.20);
   const expectedGrand = expectedItc + expectedItcPrem + expectedZero;
 
   document.getElementById('ex-today').textContent = `${todaySum} ₽`;
   document.getElementById('ex-earned').textContent = `${earnedGrand} ₽`;
+  document.getElementById('ex-earned-itc').textContent = `${earnedItcTotal} ₽`;
+  document.getElementById('ex-earned-zero').textContent = `${earnedZero} ₽`;
+
   document.getElementById('ex-week').textContent = `${weekSum} ₽`;
   document.getElementById('ex-expected').textContent = `${expectedGrand} ₽`;
 
@@ -687,9 +692,9 @@ function findFreeSlots() {
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
   if (scheduleData.length > 0) initCalendar();
-  
+
   const lastSync = parseInt(localStorage.getItem('lastSyncTime')) || 0;
-  const oneHour = 60 * 60 * 1000; 
+  const oneHour = 60 * 60 * 1000;
   if (Date.now() - lastSync > oneHour) { fetchLessons(true); } else { fetchLessons(); }
   setInterval(() => { fetchLessons(true); }, oneHour);
 
@@ -714,12 +719,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-export-csv').addEventListener('click', () => {
     let csv = '\uFEFF'; // Кодировка для русского языка в Excel
     csv += 'Дата;Статус;Урок/Группа;Школа;Сумма\n';
-    
+
     const rows = document.querySelectorAll('#detailed-excel-tbody tr');
     rows.forEach(row => {
-        const cols = row.querySelectorAll('td');
-        const rowData = Array.from(cols).map(c => c.innerText.replace(' ₽', '').trim()).join(';');
-        csv += rowData + '\n';
+      const cols = row.querySelectorAll('td');
+      const rowData = Array.from(cols).map(c => c.innerText.replace(' ₽', '').trim()).join(';');
+      csv += rowData + '\n';
     });
 
     csv += '\n; ; ;Ожидаемый Итог:;' + document.getElementById('ex-expected').innerText.replace(' ₽', '') + '\n';

@@ -478,8 +478,8 @@ button {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(4px);
+  /* УБРАЛИ BLUR ЧТОБЫ УБРАТЬ ЛАГИ СКРОЛЛА */
+  background: rgba(15, 23, 42, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -501,7 +501,7 @@ button {
   border-radius: 12px;
   width: 100%;
   max-width: 450px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
   transform: translateY(20px);
   transition: transform 0.2s ease;
 }
@@ -686,14 +686,14 @@ input[type="text"]:focus {
 .excel-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-family: inherit;
 }
 
 .excel-table th,
 .excel-table td {
   border: 1px solid var(--border-color);
-  padding: 6px 8px;
+  padding: 8px 10px;
   color: var(--text-main);
 }
 
@@ -705,6 +705,7 @@ input[type="text"]:focus {
   top: 0;
   z-index: 2;
   text-align: left;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .excel-table tr:nth-child(even) {
@@ -718,7 +719,7 @@ input[type="text"]:focus {
 .excel-table td.num {
   text-align: right;
   font-family: monospace;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
 }
 
 /* Стили для строк таблицы в зависимости от статуса */
