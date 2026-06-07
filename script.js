@@ -4,8 +4,8 @@
 const API_URL = 'https://lessons-mqy0.onrender.com/api/schedule';
 let currentWeekMonday = getMonday(new Date());
 
-const BYN_RATE = 0.0387;
-const ITCOMPOT_RATE = 190;
+const BYN_RATE = 0.0387; 
+const ITCOMPOT_RATE = 190; 
 const HOUR_HEIGHT = 80;
 const START_HOUR = 8;
 const END_HOUR = 23;
@@ -24,7 +24,7 @@ const LINKS = {
 function cleanTrashCodes(str) {
   if (!str) return str;
   let cleaned = str.replace(/\s*-\s*N[TK][a-zA-Z]\d{2,}\b/ig, '');
-  cleaned = cleaned.replace(/\s*-\s*-\s*/g, ' - ');
+  cleaned = cleaned.replace(/\s*-\s*-\s*/g, ' - '); 
   return cleaned;
 }
 
@@ -45,7 +45,7 @@ function formatDateToString(date) {
 function getCustomDayIndex(dateStr) {
   const [y, m, d] = dateStr.split('-');
   const jsDay = new Date(y, m - 1, d).getDay();
-  return jsDay === 0 ? 6 : jsDay - 1;
+  return jsDay === 0 ? 6 : jsDay - 1; 
 }
 function getTheme(school, dayName) {
   if (dayName === 'Вт' || dayName === 'Ср') return 'theme-red';
@@ -88,15 +88,15 @@ function loadAndMigrate(bookName) {
 }
 
 let scheduleData = JSON.parse(localStorage.getItem('cachedSchedule')) || [];
-scheduleData.forEach(e => {
-  e.customDayIndex = getCustomDayIndex(e.date);
-  e.title = cleanTrashCodes(e.title);
+scheduleData.forEach(e => { 
+  e.customDayIndex = getCustomDayIndex(e.date); 
+  e.title = cleanTrashCodes(e.title); 
 });
 
 let loadedStartStr = localStorage.getItem('loadedStartStr') || "";
 let loadedEndStr = localStorage.getItem('loadedEndStr') || "";
 let isFetching = false;
-let currentEditingLesson = null;
+let currentEditingLesson = null; 
 
 let priceBook = loadAndMigrate('lessonPrices_v2');
 let statusBook = loadAndMigrate('lessonStatuses');
@@ -129,30 +129,30 @@ function getEffectivePrice(event, dayName) {
 // ==========================================
 async function fetchLessons(forceSync = false) {
   const viewStart = currentWeekMonday;
-  const requiredEndForPhantoms = addDays(currentWeekMonday, 42);
-
+  const requiredEndForPhantoms = addDays(currentWeekMonday, 42); 
+  
   let hasCacheForThisWeek = false;
   if (loadedStartStr && loadedEndStr) {
-    const vsTime = viewStart.getTime();
-    const reqEndTime = requiredEndForPhantoms.getTime();
-    const lsTime = new Date(loadedStartStr).getTime();
-    const leTime = new Date(loadedEndStr).getTime();
-    if (vsTime >= lsTime && reqEndTime <= leTime) hasCacheForThisWeek = true;
+      const vsTime = viewStart.getTime(); 
+      const reqEndTime = requiredEndForPhantoms.getTime();
+      const lsTime = new Date(loadedStartStr).getTime(); 
+      const leTime = new Date(loadedEndStr).getTime();
+      if (vsTime >= lsTime && reqEndTime <= leTime) hasCacheForThisWeek = true;
   }
-
+  
   if (hasCacheForThisWeek && !forceSync) { initCalendar(); return; }
   if (isFetching) return;
   isFetching = true;
 
   const btnRefresh = document.getElementById('btn-refresh');
   const calendarWrap = document.querySelector('.calendar-wrapper');
-
+  
   if (btnRefresh && forceSync) btnRefresh.innerHTML = '⏳';
   if (calendarWrap && (!hasCacheForThisWeek || forceSync)) calendarWrap.classList.add('loading');
 
   try {
     const reqStart = addDays(currentWeekMonday, -30);
-    const reqEnd = addDays(currentWeekMonday, 90);
+    const reqEnd = addDays(currentWeekMonday, 90); 
     const startStr = formatDateToString(reqStart);
     const endStr = formatDateToString(reqEnd);
 
@@ -162,13 +162,13 @@ async function fetchLessons(forceSync = false) {
       const validEvents = [];
       const brokenCookies = new Set();
 
-      rawData.forEach(item => {
+      rawData.forEach(item => { 
         if (item.isError) {
           brokenCookies.add(item.school);
         } else {
           item.customDayIndex = getCustomDayIndex(item.date);
           item.title = cleanTrashCodes(item.title);
-          validEvents.push(item);
+          validEvents.push(item); 
         }
       });
 
@@ -190,10 +190,10 @@ async function fetchLessons(forceSync = false) {
       loadedStartStr = startStr; loadedEndStr = endStr;
       initCalendar();
     }
-  } catch (error) {
-    if (scheduleData.length > 0) initCalendar();
-  } finally {
-    isFetching = false;
+  } catch (error) { 
+    if (scheduleData.length > 0) initCalendar(); 
+  } finally { 
+    isFetching = false; 
     if (btnRefresh) btnRefresh.innerHTML = '🔄';
     if (calendarWrap) calendarWrap.classList.remove('loading');
   }
@@ -208,45 +208,38 @@ function openLessonModal(event, dayName) {
   const [, month, day] = event.date.split('-');
   document.getElementById('lm-time').textContent = `${day}.${month} | ${event.startTime} - ${event.endTime}`;
   document.getElementById('lm-name').textContent = event.title;
-
+  
   document.getElementById('btn-lm-enter-class').onclick = () => {
-    if (event.school === 'ITCompot') {
-      window.open('https://us02web.zoom.us/j/9514811985', '_blank');
-    } else {
-      window.open('https://matrius.ktalk.ru/hpb5rfegc1tl', '_blank');
-    }
+    if (event.school === 'ITCompot') window.open('https://us02web.zoom.us/j/9514811985', '_blank'); 
+    else window.open('https://matrius.ktalk.ru/hpb5rfegc1tl', '_blank'); 
   };
-
+  
   const dateKey = `${event.date}_${event.startTime}_${event.title}`;
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
-
+  
   let currentStatus = statusBook[dateKey] || 'done';
-
   let currentNote = notesBook[lessonKey];
-  if (!currentNote) {
-    currentNote = `${event.title}\nАлсу @Alsushenka1985 - Елена @ElenaLCastellano\n\nНе на уроке.`;
-  }
+  if (!currentNote) currentNote = `${event.title}\nАлсу @Alsushenka1985 - Елена @ElenaLCastellano\n\nНе на уроке.`;
 
   const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
   const isPerStudent = (event.school === 'ITCompot' && duration >= 90);
-  currentEditingLesson.isPerStudent = isPerStudent;
+  currentEditingLesson.isPerStudent = isPerStudent; 
 
   const computePrice = (status) => {
-    if (status === 'canceled') return 0;
-    if (overridePriceBook[dateKey] !== undefined && status === currentStatus) return overridePriceBook[dateKey];
-
-    let base = parseFloat(priceBook[lessonKey]);
-    if (isNaN(base)) base = getStandardPrice(event.school, duration);
-    if (status === 'noshow') {
-      if (event.school === 'Zerocoder' && duration === 45) return 135;
-      if (event.school === 'Zerocoder' && duration === 30) return 90;
-    }
-    return base;
+     if (status === 'canceled') return 0;
+     if (overridePriceBook[dateKey] !== undefined && status === currentStatus) return overridePriceBook[dateKey];
+     let base = parseFloat(priceBook[lessonKey]);
+     if (isNaN(base)) base = getStandardPrice(event.school, duration);
+     if (status === 'noshow') {
+        if (event.school === 'Zerocoder' && duration === 45) return 135;
+        if (event.school === 'Zerocoder' && duration === 30) return 90;
+     }
+     return base;
   };
 
   let currentPrice = computePrice(currentStatus);
   const priceZone = document.getElementById('lm-price-zone');
-
+  
   function renderPriceInput(price) {
     if (isPerStudent) {
       const students = price > 0 ? Math.round(price / ITCOMPOT_RATE) : 0;
@@ -266,14 +259,13 @@ function openLessonModal(event, dayName) {
   document.getElementById('lm-notes').value = currentNote;
 
   document.querySelectorAll('.status-btn').forEach(btn => {
-    if (btn.dataset.status === currentStatus) btn.classList.add('active');
+    if(btn.dataset.status === currentStatus) btn.classList.add('active');
     else btn.classList.remove('active');
 
     btn.onclick = (e) => {
       document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
       e.target.classList.add('active');
       currentStatus = e.target.dataset.status;
-
       currentPrice = computePrice(currentStatus);
       renderPriceInput(currentPrice);
     };
@@ -286,12 +278,12 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
   if (!currentEditingLesson) return;
   const inputVal = parseFloat(document.getElementById('lm-input-price').value) || 0;
   const finalPrice = currentEditingLesson.isPerStudent ? inputVal * ITCOMPOT_RATE : inputVal;
-
+  
   const { event, dayName } = currentEditingLesson;
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
   const dateKey = `${event.date}_${event.startTime}_${event.title}`;
   const newStatus = document.querySelector('.status-btn.active').dataset.status;
-
+  
   statusBook[dateKey] = newStatus;
   notesBook[lessonKey] = document.getElementById('lm-notes').value;
 
@@ -306,9 +298,9 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
   localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
   localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
   localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
-
+  
   calcSalary();
-  initCalendar();
+  initCalendar(); 
   document.getElementById('lesson-modal').classList.remove('active');
 });
 
@@ -346,21 +338,18 @@ function initCalendar() {
   daysOfWeek.forEach((dayName, index) => {
     const dayCol = document.createElement('div'); dayCol.className = 'day-column';
     if (index === 1 || index === 2) dayCol.classList.add('mobile-hide');
-
+    
     const columnDateStr = formatDateToString(currentWeekDates[index]);
     if (columnDateStr === realTodayStr) dayCol.classList.add('today');
     if (index === 1 || index === 2) dayCol.classList.add('day-off');
 
     const realEvents = scheduleData.filter(e => e.date === columnDateStr).map(e => ({ ...e, isPhantom: false }));
-
-    const targetDayIndex = index === 6 ? 0 : index + 1;
     const allFutureEvents = scheduleData.filter(e => e.customDayIndex === index && e.date > columnDateStr);
 
     const phantomMap = new Map();
     allFutureEvents.forEach(fe => {
       const dateKey = `${fe.date}_${fe.startTime}_${fe.title}`;
-      if (statusBook[dateKey] === 'canceled') return;
-
+      if (statusBook[dateKey] === 'canceled') return; 
       const isSameRecurring = realEvents.some(ce => ce.startTime === fe.startTime && ce.title === fe.title);
       if (!isSameRecurring) {
         const key = `${fe.startTime}_${fe.title}`;
@@ -374,23 +363,19 @@ function initCalendar() {
       const topPx = timeToPixels(event.startTime);
       const heightPx = Math.max(timeToPixels(event.endTime) - topPx, (45 / 60) * HOUR_HEIGHT);
       const eventDiv = document.createElement('div');
-
+      
       const dateKey = `${event.date}_${event.startTime}_${event.title}`;
       const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
       eventDiv.className = `event-card ${getTheme(event.school, dayName)}`;
-
-      let priceHtml = '';
-      let pinHtml = '';
-      let titlePrefix = '';
+      
+      let priceHtml = ''; let pinHtml = ''; let titlePrefix = '';
 
       if (event.isPhantom) {
         eventDiv.classList.add('phantom-event');
         const [, m, d] = event.date.split('-');
         pinHtml = `<div class="event-note-pin" title="Будущий урок (${d}.${m})">👻</div>`;
         titlePrefix = `[${d}.${m}] `;
-        eventDiv.addEventListener('click', () => {
-          alert(`👻 Это фантомный урок!\n\nШкола: ${event.school}\nУченик: ${event.title}\nОн запланирован на ${d}.${m}\n\nПожалуйста, не занимайте этот слот новыми учениками.`);
-        });
+        eventDiv.addEventListener('click', () => alert(`👻 Это фантомный урок!\n\nШкола: ${event.school}\nУченик: ${event.title}\nОн запланирован на ${d}.${m}`));
       } else {
         const status = statusBook[dateKey] || 'done';
         if (status === 'canceled') eventDiv.classList.add('status-canceled');
@@ -398,19 +383,12 @@ function initCalendar() {
 
         const price = getEffectivePrice(event, dayName);
         priceHtml = price > 0 ? `<div class="event-price-tag"><span class="price-rub">${price} ₽</span><span class="price-byn">≈ ${(price * BYN_RATE).toFixed(2)} Br</span></div>` : '';
-
         pinHtml = notesBook[lessonKey] ? `<div class="event-note-pin" title="${notesBook[lessonKey]}">📌</div>` : '';
-
         eventDiv.addEventListener('click', () => openLessonModal(event, dayName));
       }
 
       eventDiv.style.top = `${topPx}px`; eventDiv.style.height = `${heightPx}px`;
-
-      eventDiv.innerHTML = `
-        ${pinHtml}
-        <div class="event-time">${event.startTime} - ${event.endTime}</div>
-        <div class="event-body"><div class="event-title">${titlePrefix}${event.title}</div>${priceHtml}</div>
-      `;
+      eventDiv.innerHTML = `${pinHtml}<div class="event-time">${event.startTime} - ${event.endTime}</div><div class="event-body"><div class="event-title">${titlePrefix}${event.title}</div>${priceHtml}</div>`;
       dayCol.appendChild(eventDiv);
     });
     daysGrid.appendChild(dayCol);
@@ -418,9 +396,8 @@ function initCalendar() {
 }
 
 // ==========================================
-// СТАТИСТИКА И РАСЧЕТ ЗАРПЛАТЫ (МАТЕМАТИКА EXCEL)
+// СТАТИСТИКА И РАСЧЕТ ЗАРПЛАТЫ
 // ==========================================
-
 const historicalData = [
   { month: 'Март 2026', itcBase: 56520, premium: 11304, itcTotal: 67824, zeroTotal: 2310, grandTotal: 70134, byn: 2594.96 },
   { month: 'Апрель 2026', itcBase: 52800, premium: 10560, itcTotal: 63360, zeroTotal: 3810, grandTotal: 67170, byn: 2525.59 },
@@ -439,7 +416,7 @@ document.getElementById('tab-history').onclick = () => {
   document.getElementById('stats-history-view').style.display = 'block';
   document.getElementById('tab-history').className = 'btn-primary';
   document.getElementById('tab-current').className = 'btn-secondary';
-
+  
   let html = '';
   historicalData.forEach(d => {
     html += `
@@ -463,83 +440,164 @@ document.getElementById('tab-history').onclick = () => {
 };
 
 function openStats() {
+  const listContainer = document.getElementById('price-settings-list');
+  listContainer.innerHTML = '';
+  const currentWeekDates = []; for (let i = 0; i < 7; i++) currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
+
+  currentWeekDates.forEach((dateStr, index) => {
+    const dayEvents = scheduleData.filter(e => e.date === dateStr);
+    if (dayEvents.length === 0) return;
+    const [, month, day] = dateStr.split('-');
+    let dayHtml = `<div class="stat-day-header">${daysOfWeek[index]} (${day}.${month})</div>`;
+
+    dayEvents.forEach(ev => {
+      const lessonKey = `${daysOfWeek[index]}_${ev.startTime}_${ev.title}`;
+      let cPrice = priceBook[lessonKey];
+      if (cPrice === undefined) {
+         const dur = timeToMins(ev.endTime) - timeToMins(ev.startTime);
+         cPrice = getStandardPrice(ev.school, dur) || '';
+      }
+      dayHtml += `<div class="price-row"><span class="price-title">${ev.startTime} - ${ev.title}</span><input type="number" class="price-input" data-key="${lessonKey}" value="${cPrice}"></div>`;
+    });
+    listContainer.innerHTML += dayHtml;
+  });
+
+  document.querySelectorAll('.price-input').forEach(inp => {
+    inp.addEventListener('input', (e) => {
+      priceBook[e.target.dataset.key] = parseFloat(e.target.value) || 0;
+      localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
+      calcSalary(); initCalendar();
+    });
+  });
+  
   calcSalary();
   document.getElementById('stats-modal').classList.add('active');
 }
 
+// Простая статистика для главного окна
 function calcSalary() {
   let todaySum = 0; let weekSum = 0;
-  const realToday = new Date();
-  const realTodayStr = formatDateToString(realToday);
+  const realTodayStr = formatDateToString(new Date());
+  
+  const curMonthIndex = new Date().getMonth();
+  const curYear = new Date().getFullYear();
 
-  const curMonthIndex = realToday.getMonth();
-  const curYear = realToday.getFullYear();
-
-  document.getElementById('stat-month-title').textContent = `${monthsNominative[curMonthIndex]} ${curYear}`;
-
-  const currentWeekDates = [];
+  const currentWeekDates = []; 
   for (let i = 0; i < 7; i++) currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
 
   scheduleData.filter(e => currentWeekDates.includes(e.date)).forEach(ev => {
     const dayName = daysOfWeek[ev.customDayIndex];
     const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
-    if (statusBook[dateKey] === 'canceled') return;
-
+    if (statusBook[dateKey] === 'canceled') return; 
+    
     const price = getEffectivePrice(ev, dayName);
-    weekSum += price;
+    weekSum += price; 
     if (ev.date === realTodayStr) todaySum += price;
   });
 
   document.getElementById('stat-today').innerHTML = `${todaySum} ₽ <span class="byn-text">(${(todaySum * BYN_RATE).toFixed(2)} Br)</span>`;
   document.getElementById('stat-week').innerHTML = `${weekSum} ₽ <span style="font-size: 0.8rem; color: var(--text-muted);">(${(weekSum * BYN_RATE).toFixed(2)} Br)</span>`;
 
+  // Считаем точный прогноз на месяц с учетом отмен для главной модалки
   let monthItcBase = 0;
   let monthZeroTotal = 0;
-  let tableRowsHtml = '';
+  scheduleData.forEach(ev => {
+    const [y, m] = ev.date.split('-').map(Number);
+    if (y !== curYear || (m - 1) !== curMonthIndex) return; 
+    const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
+    if (statusBook[dateKey] === 'canceled') return; 
+    
+    const dayName = daysOfWeek[ev.customDayIndex];
+    const price = getEffectivePrice(ev, dayName);
+    if (ev.school === 'ITCompot') monthItcBase += price;
+    else if (ev.school === 'Zerocoder') monthZeroTotal += price;
+  });
 
-  // 🚀 ГЕНЕРАЦИЯ СТРОК EXCEL ТАБЛИЦЫ
-  // Отбираем уроки только за текущий месяц и сортируем их по дате и времени
+  const grandTotal = monthItcBase + Math.round(monthItcBase * 0.20) + monthZeroTotal;       
+  document.getElementById('stat-month-project').innerHTML = `${grandTotal} ₽ <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(${(grandTotal * BYN_RATE).toFixed(2)} Br)</span>`;
+}
+
+// ==========================================
+// НОВОЕ: ДЕТАЛИЗАЦИЯ EXCEL
+// ==========================================
+function openDetailedExcel() {
+  const realTodayStr = formatDateToString(new Date());
+  const curMonthIndex = new Date().getMonth();
+  const curYear = new Date().getFullYear();
+  
+  document.getElementById('excel-month-name').textContent = `${monthsNominative[curMonthIndex]} ${curYear}`;
+
   let monthEvents = scheduleData.filter(ev => {
     const [y, m] = ev.date.split('-').map(Number);
     return (y === curYear && (m - 1) === curMonthIndex);
   }).sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
 
+  let earnedItc = 0, earnedZero = 0;
+  let expectedItc = 0, expectedZero = 0;
+  let todaySum = 0, weekSum = 0;
+  let tableRowsHtml = '';
+  
+  const currentWeekDates = []; 
+  for (let i = 0; i < 7; i++) currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
+
   monthEvents.forEach(ev => {
     const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
-    if (statusBook[dateKey] === 'canceled') return;
-
     const dayName = daysOfWeek[ev.customDayIndex];
+    const status = statusBook[dateKey] || 'done';
     const price = getEffectivePrice(ev, dayName);
 
-    if (ev.school === 'ITCompot') monthItcBase += price;
-    else if (ev.school === 'Zerocoder') monthZeroTotal += price;
+    const isPastOrToday = ev.date <= realTodayStr;
+    const isToday = ev.date === realTodayStr;
+    const isFuture = ev.date > realTodayStr;
+    const isCanceled = status === 'canceled';
+    const isNoshow = status === 'noshow';
+
+    if (ev.school === 'ITCompot') {
+      expectedItc += price;
+      if (isPastOrToday) earnedItc += price;
+    } else {
+      expectedZero += price;
+      if (isPastOrToday) earnedZero += price;
+    }
+
+    if (isToday) todaySum += price;
+    if (currentWeekDates.includes(ev.date)) weekSum += price;
+
+    let trClass = ''; let statusText = '✅ Проведен';
+    if (isCanceled) { trClass = 'row-canceled'; statusText = '❌ Отменен'; }
+    else if (isNoshow) { trClass = 'row-noshow'; statusText = '⚠️ Прогул'; }
+    else if (isFuture) { trClass = 'row-future'; statusText = '⏳ Ожидается'; }
 
     const [, mm, dd] = ev.date.split('-');
     tableRowsHtml += `
-      <tr>
+      <tr class="${trClass}">
         <td>${dd}.${mm}</td>
+        <td>${statusText}</td>
         <td>${ev.title}</td>
         <td>${ev.school === 'ITCompot' ? 'ITC' : 'Zero'}</td>
-        <td class="num">${price}</td>
+        <td class="num">${price} ₽</td>
       </tr>
     `;
   });
 
-  // Вставляем сгенерированные строки в таблицу
-  document.getElementById('excel-month-tbody').innerHTML = tableRowsHtml;
+  document.getElementById('detailed-excel-tbody').innerHTML = tableRowsHtml;
 
-  // Математические формулы ведомости из твоего Excel
-  const monthItcPremium = Math.round(monthItcBase * 0.20);
-  const monthItcTotal = monthItcBase + monthItcPremium;
-  const grandTotal = monthItcTotal + monthZeroTotal;
+  const earnedItcPrem = Math.round(earnedItc * 0.20);
+  const earnedGrand = earnedItc + earnedItcPrem + earnedZero;
+  
+  const expectedItcPrem = Math.round(expectedItc * 0.20);
+  const expectedGrand = expectedItc + expectedItcPrem + expectedZero;
 
-  document.getElementById('m-stat-itc-base').textContent = `${monthItcBase} ₽`;
-  document.getElementById('m-stat-itc-premium').textContent = `+ ${monthItcPremium} ₽`;
-  document.getElementById('m-stat-itc-total').textContent = `${monthItcTotal} ₽`;
-  document.getElementById('m-stat-zero-total').textContent = `${monthZeroTotal} ₽`;
+  document.getElementById('ex-today').textContent = `${todaySum} ₽`;
+  document.getElementById('ex-earned').textContent = `${earnedGrand} ₽`;
+  document.getElementById('ex-week').textContent = `${weekSum} ₽`;
+  document.getElementById('ex-expected').textContent = `${expectedGrand} ₽`;
 
-  document.getElementById('m-stat-grand-total').textContent = `${grandTotal} ₽`;
-  document.getElementById('m-stat-grand-total-byn').textContent = `≈ ${(grandTotal * BYN_RATE).toFixed(2)} Br`;
+  document.getElementById('ex-itc-base').textContent = `${expectedItc} ₽`;
+  document.getElementById('ex-itc-prem').textContent = `${expectedItcPrem} ₽`;
+  document.getElementById('ex-zero').textContent = `${expectedZero} ₽`;
+
+  document.getElementById('detailed-excel-modal').classList.add('active');
 }
 
 // ==========================================
@@ -568,26 +626,19 @@ function findFreeSlots() {
     if (index === 1 || index === 2) { smsLines.push(`▪️ ${dayName}: выходной`); return; }
 
     const targetDateStr = formatDateToString(addDays(currentWeekMonday, index));
-
     const phantomEvents = scheduleData.filter(e => {
       if (e.customDayIndex !== index) return false;
       if (e.date < targetDateStr) return false;
-
       const exactLessonKey = `${e.date}_${e.startTime}_${e.title}`;
       if (statusBook[exactLessonKey] === 'canceled') return false;
-
       const startM = timeToMins(e.startTime);
       const endM = timeToMins(e.endTime);
       if (isNaN(startM) || isNaN(endM)) return false;
       if (endM - startM > 300 || endM - startM <= 0) return false;
-
       return true;
     });
 
-    let merged = phantomEvents
-      .map(ev => ({ start: timeToMins(ev.startTime), end: timeToMins(ev.endTime) }))
-      .sort((a, b) => a.start - b.start);
-
+    let merged = phantomEvents.map(ev => ({ start: timeToMins(ev.startTime), end: timeToMins(ev.endTime) })).sort((a, b) => a.start - b.start);
     let consolidated = [];
     if (merged.length > 0) {
       let curr = merged[0];
@@ -604,7 +655,6 @@ function findFreeSlots() {
     consolidated.forEach((interval, i) => {
       const freeStart = currentMins; const freeEnd = interval.start - GAP;
       const effStart = Math.max(freeStart, globalSearchStartMins); const effEnd = Math.min(freeEnd, globalSearchEndMins);
-
       if (effEnd - effStart >= duration) {
         let ideal1 = freeStart; let ideal2 = freeEnd - duration; let recs = new Set();
         if (i > 0 || (ideal1 >= baseSearchStartMins - 30)) { if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1); }
@@ -628,7 +678,6 @@ function findFreeSlots() {
   });
 
   let smsText = allDaysFull ? `К сожалению, в предложенное время ничего не могу предложить.` : smsLines.join('\n');
-
   resultsContainer.innerHTML = `<textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-modal); color: var(--text-main); font-family: inherit; font-size: 0.85rem; resize: none; outline: none; line-height: 1.5;">${smsText}</textarea><button id="btn-copy-sms" class="btn-primary" style="width: 100%; margin-top: 10px; background: #10b981;">📋 Скопировать</button>`;
   document.getElementById('btn-copy-sms').addEventListener('click', function () { document.getElementById('sms-output').select(); document.execCommand('copy'); this.textContent = '✅ Скопировано!'; setTimeout(() => this.textContent = '📋 Скопировать', 2000); });
 }
@@ -638,14 +687,10 @@ function findFreeSlots() {
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
   if (scheduleData.length > 0) initCalendar();
-
+  
   const lastSync = parseInt(localStorage.getItem('lastSyncTime')) || 0;
-  const oneHour = 60 * 60 * 1000;
-  if (Date.now() - lastSync > oneHour) {
-    fetchLessons(true);
-  } else {
-    fetchLessons();
-  }
+  const oneHour = 60 * 60 * 1000; 
+  if (Date.now() - lastSync > oneHour) { fetchLessons(true); } else { fetchLessons(); }
   setInterval(() => { fetchLessons(true); }, oneHour);
 
   document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
@@ -658,6 +703,35 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-stats').addEventListener('click', openStats);
   document.getElementById('btn-stats-close').addEventListener('click', () => { document.getElementById('stats-modal').classList.remove('active'); });
 
+  // КНОПКА ОТКРЫТИЯ ДЕТАЛЬНОГО EXCEL
+  document.getElementById('btn-open-excel').addEventListener('click', () => {
+    document.getElementById('stats-modal').classList.remove('active');
+    openDetailedExcel();
+  });
+  document.getElementById('btn-excel-close').addEventListener('click', () => { document.getElementById('detailed-excel-modal').classList.remove('active'); });
+
+  // ВЫГРУЗКА В CSV (ИДЕАЛЬНАЯ КОПИЯ ДЛЯ EXCEL)
+  document.getElementById('btn-export-csv').addEventListener('click', () => {
+    let csv = '\uFEFF'; // Кодировка для русского языка в Excel
+    csv += 'Дата;Статус;Урок/Группа;Школа;Сумма\n';
+    
+    const rows = document.querySelectorAll('#detailed-excel-tbody tr');
+    rows.forEach(row => {
+        const cols = row.querySelectorAll('td');
+        const rowData = Array.from(cols).map(c => c.innerText.replace(' ₽', '').trim()).join(';');
+        csv += rowData + '\n';
+    });
+
+    csv += '\n; ; ;Ожидаемый Итог:;' + document.getElementById('ex-expected').innerText.replace(' ₽', '') + '\n';
+    csv += '; ; ;Фактически заработано:;' + document.getElementById('ex-earned').innerText.replace(' ₽', '') + '\n';
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `Зарплата_${document.getElementById('excel-month-name').innerText}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  });
+
   document.getElementById('btn-find-slots').addEventListener('click', () => {
     document.getElementById('slots-results').innerHTML = ''; document.getElementById('slots-modal').classList.add('active'); document.getElementById('action-controls').classList.remove('open');
   });
@@ -668,26 +742,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-lm-crm').addEventListener('click', () => { if (currentEditingLesson?.event?.school) window.open(LINKS[currentEditingLesson.event.school], '_blank'); });
 
   document.getElementById('btn-copy-notes').addEventListener('click', function (e) {
-    e.preventDefault();
-    const textarea = document.getElementById('lm-notes');
-    textarea.select();
-    document.execCommand('copy');
-
-    const origText = this.textContent;
-    this.textContent = '✅ Скопировано!';
-    this.style.background = '#10b981';
-    this.style.color = '#ffffff';
-
-    setTimeout(() => {
-      this.textContent = origText;
-      this.style.background = '';
-      this.style.color = '';
-    }, 2000);
+    e.preventDefault(); const textarea = document.getElementById('lm-notes'); textarea.select(); document.execCommand('copy');
+    const origText = this.textContent; this.textContent = '✅ Скопировано!'; this.style.background = '#10b981'; this.style.color = '#ffffff';
+    setTimeout(() => { this.textContent = origText; this.style.background = ''; this.style.color = ''; }, 2000);
   });
 
   document.getElementById('btn-export').addEventListener('click', async () => {
-    document.getElementById('action-controls').classList.remove('open');
-    const btnExport = document.getElementById('btn-export');
+    document.getElementById('action-controls').classList.remove('open'); const btnExport = document.getElementById('btn-export');
     const originalText = btnExport.innerHTML; btnExport.innerHTML = '⏳ Создаю...';
     try {
       const canvas = await html2canvas(document.querySelector('.calendar-wrapper'), { scale: 2 });
@@ -702,9 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('manager-text-input').addEventListener('input', function (e) {
     const text = e.target.value.toLowerCase(); if (!text.trim()) return;
-    const dayChecks = document.querySelectorAll('#slot-days-container input');
-    dayChecks.forEach(cb => cb.checked = false);
-    let foundDays = false;
+    const dayChecks = document.querySelectorAll('#slot-days-container input'); dayChecks.forEach(cb => cb.checked = false); let foundDays = false;
     const patterns = [{ id: 0, r: /пн|понедельник/ }, { id: 1, r: /вт|вторник/ }, { id: 2, r: /ср|сред[ау]/ }, { id: 3, r: /чт|четверг/ }, { id: 4, r: /пт|пятниц[ау]/ }, { id: 5, r: /сб|суббот[ау]/ }, { id: 6, r: /вс|воскресень[ея]|вскр/ }];
     if (text.includes('все дни') || text.includes('любой день')) { dayChecks.forEach(cb => cb.checked = true); foundDays = true; }
     else { patterns.forEach(p => { if (p.r.test(text)) { document.querySelector(`#slot-days-container input[value="${p.id}"]`).checked = true; foundDays = true; } }); }
@@ -722,11 +781,9 @@ document.addEventListener('DOMContentLoaded', () => {
       stMins = h1 * 60 + parseInt(matchRange[2] || 0); etMins = h2 * 60 + parseInt(matchRange[4] || 0);
     } else {
       if (matchFrom) { let h = parseInt(matchFrom[2]); if (h < 8 && h > 0) h += 12; stMins = h * 60 + parseInt(matchFrom[3] || 0); }
-      else if (matchTo) { stMins = 8 * 60; }
-      else if (times.length > 0) { stMins = Math.min(...times) - 60; }
+      else if (matchTo) { stMins = 8 * 60; } else if (times.length > 0) { stMins = Math.min(...times) - 60; }
       if (matchTo) { let h = parseInt(matchTo[2]); if (h <= 8 && h > 0) h += 12; etMins = h * 60 + parseInt(matchTo[3] || 0); }
-      else if (matchFrom) { etMins = 22 * 60; }
-      else if (times.length > 0) { etMins = Math.max(...times) + 120; }
+      else if (matchFrom) { etMins = 22 * 60; } else if (times.length > 0) { etMins = Math.max(...times) + 120; }
     }
     stMins = Math.max(8 * 60, Math.min(22 * 60, stMins)); etMins = Math.max(8 * 60, Math.min(22 * 60, etMins));
     document.getElementById('search-time-start').value = minsToTime(stMins); document.getElementById('search-time-end').value = minsToTime(etMins);

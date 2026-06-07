@@ -721,6 +721,33 @@ input[type="text"]:focus {
   font-size: 0.85rem;
 }
 
+/* Стили для строк таблицы в зависимости от статуса */
+.row-future {
+  opacity: 0.55;
+}
+
+.row-future:hover {
+  opacity: 0.8;
+}
+
+.row-canceled {
+  color: #ef4444 !important;
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.row-canceled td {
+  color: #ef4444 !important;
+}
+
+.row-noshow {
+  color: #f59e0b !important;
+}
+
+.row-noshow td {
+  color: #f59e0b !important;
+}
+
 @media (max-width: 768px) {
   body {
     padding: 10px;

@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Интерактивное расписание</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📅</text></svg>">
-  <link rel="stylesheet" href="style.css?v=6.2">
+  <link rel="stylesheet" href="style.css?v=6.4">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 
@@ -43,79 +43,80 @@
   </div>
 
   <div class="modal-overlay" id="stats-modal">
-    <div class="modal-content" style="max-width: 550px; padding: 20px;">
+    <div class="modal-content" style="max-width: 450px;">
       <div id="stats-tabs" style="display: flex; gap: 10px; margin-bottom: 15px;">
         <button id="tab-current" class="btn-primary" style="flex: 1;">Текущий месяц</button>
         <button id="tab-history" class="btn-secondary" style="flex: 1;">История месяцев</button>
       </div>
 
       <div id="stats-current-view">
-        <div style="display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 6px;">
-          <span>За сегодня:</span><strong id="stat-today" style="color: #3b82f6;">0 ₽</strong>
+        <div style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 5px;">
+          <span>За сегодня:</span><strong id="stat-today" style="color: #2563eb;">0 ₽</strong>
         </div>
-        <div style="display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color);">
-          <span>За эту неделю:</span><strong id="stat-week" style="color: #3b82f6;">0 ₽</strong>
+        <div style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 5px;">
+          <span>За эту неделю:</span><strong id="stat-week" style="color: #2563eb;">0 ₽</strong>
         </div>
-
-        <h4 id="stat-month-title" style="margin: 0 0 10px 0; font-size: 1.05rem; color: var(--text-main); font-weight: 700;">Июнь 2026</h4>
+        <div style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color);">
+          <span>Прогноз на месяц:</span><strong id="stat-month-project" style="color: #10b981;">0 ₽</strong>
+        </div>
         
-        <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); margin-bottom: 15px; border-radius: 6px;">
-          <table class="excel-table">
-            <thead>
-              <tr>
-                <th style="width: 50px;">Дата</th>
-                <th>Урок / Группа</th>
-                <th>Школа</th>
-                <th style="text-align: right; width: 80px;">Сумма</th>
-              </tr>
-            </thead>
-            <tbody id="excel-month-tbody">
-              </tbody>
-          </table>
-        </div>
+        <button id="btn-open-excel" class="btn-primary" style="width: 100%; margin-bottom: 15px; background: #10b981;">📊 Смотреть подробно (Excel)</button>
 
-        <div style="background: var(--input-bg); padding: 14px; border-radius: 8px; font-size: 0.9rem; display: flex; flex-direction: column; gap: 9px; margin-bottom: 15px; border: 1px solid var(--border-color); font-family: monospace;">
-          <div style="display: flex; justify-content: space-between; color: var(--text-main);">
-            <span>Чисто за Компот:</span>
-            <span id="m-stat-itc-base" style="font-weight: bold;">0 ₽</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; color: #a855f7;">
-            <span>Премия:</span>
-            <span id="m-stat-itc-premium" style="font-weight: bold;">0 ₽</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; color: #10b981; font-weight: bold; padding-bottom: 4px; border-bottom: 1px dashed var(--border-color);">
-            <span>Сложение двух:</span>
-            <span id="m-stat-itc-total">0 ₽</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; color: #3b82f6; padding-bottom: 4px; border-bottom: 1px dashed var(--border-color);">
-            <span>Итог вторая школа:</span>
-            <span id="m-stat-zero-total" style="font-weight: bold;">0 ₽</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 1.05rem; font-weight: bold; color: #f59e0b; margin-top: 2px;">
-            <span>Итог премиальный:</span>
-            <div style="text-align: right; display: flex; flex-direction: column;">
-              <span id="m-stat-grand-total">0 ₽</span>
-              <span id="m-stat-grand-total-byn" style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px;">0 Br</span>
-            </div>
-          </div>
-        </div>
-
-        <div id="price-settings-list" style="max-height: 140px; overflow-y: auto; padding-right: 5px; margin-bottom: 10px; display: none;">
-           </div>
+        <div id="price-settings-list" style="max-height: 200px; overflow-y: auto; padding-right: 5px;"></div>
         
-        <div style="border-top: 1px solid var(--border-color); padding-top: 10px;">
-          <textarea id="sync-data-input" placeholder="Вставь код цен для синхронизации..." style="width: 100%; height: 45px; font-size: 0.75rem; padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-main); color: var(--text-main); margin-bottom: 8px; resize: none;"></textarea>
+        <div style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+          <label style="display: block; margin-bottom: 8px;">🔄 Синхронизация цен</label>
+          <textarea id="sync-data-input" placeholder="Вставь код..." style="width: 100%; height: 50px; font-size: 0.7rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); margin-bottom: 10px; resize: none;"></textarea>
           <div style="display: flex; gap: 10px;">
-            <button id="btn-export-prices" class="btn-secondary" style="flex: 1; padding: 6px 12px; font-size: 0.8rem;">📋 Копировать цены</button>
-            <button id="btn-import-prices" class="btn-primary" style="flex: 1; background: #10b981; padding: 6px 12px; font-size: 0.8rem;">📥 Загрузить цены</button>
+            <button id="btn-export-prices" class="btn-secondary" style="flex: 1;">📋 Копировать</button>
+            <button id="btn-import-prices" class="btn-primary" style="flex: 1; background: #10b981;">📥 Загрузить</button>
           </div>
         </div>
       </div>
 
-      <div id="stats-history-view" style="display: none; max-height: 400px; overflow-y: auto; padding-right: 5px;"></div>
+      <div id="stats-history-view" style="display: none; max-height: 400px; overflow-y: auto;"></div>
 
-      <div class="modal-actions" style="margin-top: 15px;">
-        <button id="btn-stats-close" class="btn-primary" style="width: 100%;">Закрыть</button>
+      <div class="modal-actions">
+        <button id="btn-stats-close" class="btn-primary">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="detailed-excel-modal">
+    <div class="modal-content" style="max-width: 750px; padding: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+        <h3 style="margin: 0;">Аналитика за <span id="excel-month-name">Месяц</span></h3>
+        <button id="btn-excel-close" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); padding: 0;">✖</button>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; background: var(--bg-main); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+          <div style="font-size: 0.95rem;"><strong>За сегодня:</strong> <span id="ex-today" style="color: #3b82f6; font-size: 1.1rem; float: right;">0 ₽</span></div>
+          <div style="font-size: 0.95rem;"><strong>Фактически заработано:</strong> <span id="ex-earned" style="color: #10b981; font-weight: bold; font-size: 1.1rem; float: right;">0 ₽</span></div>
+          <div style="font-size: 0.95rem; border-top: 1px dashed var(--border-color); padding-top: 8px;"><strong>Ожидается за неделю:</strong> <span id="ex-week" style="color: #3b82f6; font-size: 1.1rem; float: right;">0 ₽</span></div>
+          <div style="font-size: 0.95rem; border-top: 1px dashed var(--border-color); padding-top: 8px;"><strong>Ожидается за месяц:</strong> <span id="ex-expected" style="color: #f59e0b; font-weight: bold; font-size: 1.1rem; float: right;">0 ₽</span></div>
+      </div>
+
+      <div style="max-height: 350px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 15px;">
+        <table class="excel-table">
+          <thead>
+            <tr>
+              <th style="width: 50px;">Дата</th>
+              <th style="width: 90px;">Статус</th>
+              <th>Урок / Группа</th>
+              <th>Школа</th>
+              <th style="text-align: right; width: 80px;">Сумма</th>
+            </tr>
+          </thead>
+          <tbody id="detailed-excel-tbody"></tbody>
+        </table>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 15px;">
+          <div style="font-size: 0.85rem; color: var(--text-muted); font-family: monospace;">
+              ITC База: <span id="ex-itc-base">0</span> | Премия: <span id="ex-itc-prem">0</span><br>
+              Zero Итог: <span id="ex-zero">0</span>
+          </div>
+          <button id="btn-export-csv" class="btn-primary" style="background: #10b981; display: flex; align-items: center; gap: 8px;">📥 Выгрузить в CSV</button>
       </div>
     </div>
   </div>
@@ -175,7 +176,6 @@
         <div><strong>Школа:</strong> <span id="lm-school" style="color: #3b82f6;"></span></div>
         <div><strong>Время:</strong> <span id="lm-time"></span></div>
         <div><strong>Урок/Группа:</strong> <span id="lm-name" style="font-weight: bold;"></span></div>
-        
         <button id="btn-lm-enter-class" class="btn-primary" style="width: 100%; margin-top: 12px; background: #8b5cf6; box-shadow: 0 4px 6px rgba(139, 92, 246, 0.25);">🚀 Войти в класс</button>
       </div>
 
@@ -206,6 +206,6 @@
     </div>
   </div>
 
-  <script src="script.js?v=6.2"></script>
+  <script src="script.js?v=6.4"></script>
 </body>
 </html>
