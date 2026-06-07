@@ -21,7 +21,6 @@ const LINKS = {
 // ==========================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И ИНДЕКСАЦИЯ
 // ==========================================
-
 function cleanTrashCodes(str) {
   if (!str) return str;
   let cleaned = str.replace(/\s*-\s*N[TK][a-zA-Z]\d{2,}\b/ig, '');
@@ -75,7 +74,6 @@ function getStandardPrice(school, duration) {
 // ==========================================
 // КЭШ И УМНЫЕ ДАННЫЕ (С АВТО-МИГРАЦИЕЙ)
 // ==========================================
-
 function loadAndMigrate(bookName) {
   let data = JSON.parse(localStorage.getItem(bookName)) || {};
   let migrated = false;
@@ -120,8 +118,8 @@ function getEffectivePrice(event, dayName) {
   if (isNaN(basePrice)) basePrice = getStandardPrice(event.school, duration);
 
   if (status === 'noshow') {
-      if (event.school === 'Zerocoder' && duration === 45) return 135;
-      if (event.school === 'Zerocoder' && duration === 30) return 90;
+    if (event.school === 'Zerocoder' && duration === 45) return 135;
+    if (event.school === 'Zerocoder' && duration === 30) return 90;
   }
   return basePrice;
 }
@@ -422,10 +420,12 @@ function initCalendar() {
 // ==========================================
 // СТАТИСТИКА И РАСЧЕТ ЗАРПЛАТЫ (МАТЕМАТИКА EXCEL)
 // ==========================================
+
+// Точные ведомости из твоих файлов Excel (Март, Апрель, Май) со всеми вычислениями
 const historicalData = [
-  { month: 'Март 2026', sum: 56520 },
-  { month: 'Апрель 2026', sum: 52800 },
-  { month: 'Май 2026', sum: 46880 }
+  { month: 'Март 2026', itcBase: 56520, premium: 11304, itcTotal: 67824, zeroTotal: 2310, grandTotal: 70134, byn: 2594.96 },
+  { month: 'Апрель 2026', itcBase: 52800, premium: 10560, itcTotal: 63360, zeroTotal: 3810, grandTotal: 67170, byn: 2525.59 },
+  { month: 'Май 2026', itcBase: 46880, premium: 9376, itcTotal: 56256, zeroTotal: 18285, grandTotal: 74541, byn: 2802.74 }
 ];
 
 document.getElementById('tab-current').onclick = () => {
@@ -441,9 +441,24 @@ document.getElementById('tab-history').onclick = () => {
   document.getElementById('tab-history').className = 'btn-primary';
   document.getElementById('tab-current').className = 'btn-secondary';
   
-  let html = '<h4 style="margin: 0 0 15px 0;">Данные из Excel:</h4>';
+  let html = '';
   historicalData.forEach(d => {
-    html += `<div class="history-row"><strong>${d.month}</strong><span>${d.sum} ₽ <span style="font-size:0.8rem; color:var(--text-muted);">(≈ ${(d.sum * BYN_RATE).toFixed(2)} Br)</span></span></div>`;
+    html += `
+      <div style="background: var(--bg-main); padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border-color); font-family: monospace; font-size: 0.85rem;">
+        <div style="font-size: 0.95rem; font-weight: bold; color: #f59e0b; margin-bottom: 6px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">${d.month}</div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Чисто за Компот:</span><span>${d.itcBase} ₽</span></div>
+        <div style="display: flex; justify-content: space-between; color: #a855f7; margin-bottom: 4px;"><span>Премия (20%):</span><span>+ ${d.premium} ₽</span></div>
+        <div style="display: flex; justify-content: space-between; font-weight: bold; color: #10b981; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px dashed var(--border-color);"><span>Сложение двух:</span><span>${d.itcTotal} ₽</span></div>
+        <div style="display: flex; justify-content: space-between; color: #3b82f6; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px dashed var(--border-color);"><span>Итог вторая школа:</span><span>${d.zeroTotal} ₽</span></div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.95rem; font-weight: bold; color: #f59e0b;">
+          <span>Итог премиальный:</span>
+          <div style="text-align: right; display: flex; flex-direction: column;">
+            <span>${d.grandTotal} ₽</span>
+            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: normal; margin-top: 1px;">≈ ${d.byn} Br</span>
+          </div>
+        </div>
+      </div>
+    `;
   });
   document.getElementById('stats-history-view').innerHTML = html;
 };
@@ -482,22 +497,19 @@ function openStats() {
   document.getElementById('stats-modal').classList.add('active');
 }
 
-// УМНЫЙ EXCEL-РАСЧЕТ ВНУТРИ КАЛЕНДАРЯ
 function calcSalary() {
   let todaySum = 0; let weekSum = 0;
   const realToday = new Date();
   const realTodayStr = formatDateToString(realToday);
   
-  // Определяем границы текущего календарного месяца
   const curMonthIndex = realToday.getMonth();
   const curYear = realToday.getFullYear();
   
-  document.getElementById('stat-month-title').textContent = `Аналитика за ${monthsNominative[curMonthIndex]}`;
+  document.getElementById('stat-month-title').textContent = `${monthsNominative[curMonthIndex]} ${curYear}`;
 
   const currentWeekDates = []; 
   for (let i = 0; i < 7; i++) currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
 
-  // 1. Считаем оперативные показатели (День и Неделя) как раньше
   scheduleData.filter(e => currentWeekDates.includes(e.date)).forEach(ev => {
     const dayName = daysOfWeek[ev.customDayIndex];
     const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
@@ -511,17 +523,15 @@ function calcSalary() {
   document.getElementById('stat-today').innerHTML = `${todaySum} ₽ <span class="byn-text">(${(todaySum * BYN_RATE).toFixed(2)} Br)</span>`;
   document.getElementById('stat-week').innerHTML = `${weekSum} ₽ <span style="font-size: 0.8rem; color: var(--text-muted);">(${(weekSum * BYN_RATE).toFixed(2)} Br)</span>`;
 
-  // 2. 🚀 ИННОВАЦИЯ: Считаем полный текущий календарный месяц по правилам твоей таблицы!
   let monthItcBase = 0;
   let monthZeroTotal = 0;
 
-  // Отбираем все уроки, принадлежащие текущему месяцу
   scheduleData.forEach(ev => {
     const [y, m] = ev.date.split('-').map(Number);
-    if (y !== curYear || (m - 1) !== curMonthIndex) return; // Пропускаем чужие месяцы
+    if (y !== curYear || (m - 1) !== curMonthIndex) return; 
 
     const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
-    if (statusBook[dateKey] === 'canceled') return; // Отмененные не считаем
+    if (statusBook[dateKey] === 'canceled') return; 
 
     const dayName = daysOfWeek[ev.customDayIndex];
     const price = getEffectivePrice(ev, dayName);
@@ -533,12 +543,11 @@ function calcSalary() {
     }
   });
 
-  // Магические формулы твоей Excel-таблицы:
-  const monthItcPremium = Math.round(monthItcBase * 0.20); // Премия ровно 20%
-  const monthItcTotal = monthItcBase + monthItcPremium;    // Сложение двух
-  const grandTotal = monthItcTotal + monthZeroTotal;       // Общий итог месяца
+  // Математические формулы ведомости из твоего Excel
+  const monthItcPremium = Math.round(monthItcBase * 0.20); 
+  const monthItcTotal = monthItcBase + monthItcPremium;    
+  const grandTotal = monthItcTotal + monthZeroTotal;       
 
-  // Выводим данные на экран
   document.getElementById('m-stat-itc-base').textContent = `${monthItcBase} ₽`;
   document.getElementById('m-stat-itc-premium').textContent = `+ ${monthItcPremium} ₽`;
   document.getElementById('m-stat-itc-total').textContent = `${monthItcTotal} ₽`;
@@ -645,7 +654,6 @@ function findFreeSlots() {
 document.addEventListener('DOMContentLoaded', () => {
   if (scheduleData.length > 0) initCalendar();
   
-  // Умный запуск: если прошел час, подтягиваем свежак тихо в фоне
   const lastSync = parseInt(localStorage.getItem('lastSyncTime')) || 0;
   const oneHour = 60 * 60 * 1000; 
   if (Date.now() - lastSync > oneHour) {
