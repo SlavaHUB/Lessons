@@ -195,7 +195,6 @@ button {
   transition: opacity 0.3s ease;
 }
 
-/* АНИМАЦИЯ ЗАГРУЗКИ (ЛОАДЕР) */
 .calendar-wrapper.loading {
   opacity: 0.4;
   pointer-events: none;
@@ -317,7 +316,6 @@ button {
   border-right: none;
 }
 
-/* КАРТОЧКИ УРОКОВ И СТАТУСЫ */
 .event-card {
   position: absolute;
   left: 2px;
@@ -356,7 +354,6 @@ button {
   background-image: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05) 5px, transparent 5px, transparent 10px);
 }
 
-/* ФАНТОМНЫЕ УРОКИ (Проекции из будущего) */
 .phantom-event {
   opacity: 0.55;
   background: transparent !important;
@@ -475,7 +472,6 @@ button {
   border-color: var(--theme-red-stroke);
 }
 
-/* МОДАЛЬНЫЕ ОКНА И СТАТИСТИКА */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -686,13 +682,43 @@ input[type="text"]:focus {
   color: var(--text-muted);
 }
 
-.history-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 1rem;
+/* --- НОВЫЕ СТИЛИ ДЛЯ ИНТЕРАКТИВНОЙ EXCEL ТАБЛИЦЫ --- */
+.excel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+
+.excel-table th,
+.excel-table td {
+  border: 1px solid var(--border-color);
+  padding: 6px 8px;
+  color: var(--text-main);
+}
+
+.excel-table th {
+  background: var(--btn-secondary-bg);
+  font-weight: 600;
+  color: var(--text-muted);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-align: left;
+}
+
+.excel-table tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="dark"] .excel-table tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.excel-table td.num {
+  text-align: right;
+  font-family: monospace;
+  font-size: 0.85rem;
 }
 
 @media (max-width: 768px) {
