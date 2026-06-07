@@ -192,6 +192,8 @@ async function fetchLessons(forceSync = false) {
       localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       localStorage.setItem('loadedStartStr', startStr);
       localStorage.setItem('loadedEndStr', endStr);
+      // НОВОЕ: Запоминаем точное время успешной синхронизации
+      localStorage.setItem('lastSyncTime', Date.now().toString());
       loadedStartStr = startStr; loadedEndStr = endStr;
       initCalendar();
     }
@@ -601,9 +603,24 @@ function findFreeSlots() {
 // ==========================================
 // СЛУШАТЕЛИ СОБЫТИЙ UI
 // ==========================================
+// ==========================================
+// СЛУШАТЕЛИ СОБЫТИЙ UI
+// ==========================================
 document.addEventListener('DOMContentLoaded', () => {
   if (scheduleData.length > 0) initCalendar();
-  fetchLessons();
+
+  // УМНОЕ АВТООБНОВЛЕНИЕ
+  const lastSync = parseInt(localStorage.getItem('lastSyncTime')) || 0;
+  const oneHour = 60 * 60 * 1000; // 1 час в миллисекундах
+
+  if (Date.now() - lastSync > oneHour) {
+    fetchLessons(true); // Если прошел час — качаем свежак тихо в фоне
+  } else {
+    fetchLessons(); // Иначе просто открываем из памяти
+  }
+
+  // Если вкладка висит открытой, обновляем сами каждый час
+  setInterval(() => { fetchLessons(true); }, oneHour);
 
   document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
   document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); fetchLessons(); });
