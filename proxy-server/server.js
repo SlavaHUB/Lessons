@@ -9,12 +9,13 @@ app.use(cors());
 app.use(express.json());
 
 // --- 1. ПОДКЛЮЧЕНИЕ К БАЗЕ ---
-const fallbackURI = "mongodb+srv://slavalevch32_db_user:k6mKiJtYy7cMwe9L@cluster0.9s71api.mongodb.net/lessons_db?retryWrites=true&w=majority";
-const mongoString = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGODB_URL || fallbackURI;
+// Жестко зашиваем ссылку, чтобы исключить глюки Render-переменных
+const mongoString = "mongodb+srv://slavalevch32_db_user:k6mKiJtYy7cMwe9L@cluster0.9s71api.mongodb.net/lessons_db?retryWrites=true&w=majority";
 
 mongoose.connect(mongoString, {
-    serverSelectionTimeoutMS: 30000, // Ждем базу 30 секунд при холодном старте
-    connectTimeoutMS: 30000
+    serverSelectionTimeoutMS: 15000, 
+    connectTimeoutMS: 15000,
+    family: 4 // КРИТИЧЕСКИ ВАЖНО: Принудительно используем IPv4. Это лечит зависания MongoDB на Render!
 })
     .then(() => console.log('✅ MongoDB успешно подключена!'))
     .catch(err => console.error('❌ Ошибка подключения к MongoDB:', err));
