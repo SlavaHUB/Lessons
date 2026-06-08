@@ -871,9 +871,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const orig = this.textContent; this.textContent = '📥 Успешно!'; setTimeout(() => { this.textContent = orig; document.getElementById('stats-modal').classList.remove('active'); }, 1500);
     } catch (e) { alert('Ошибка данных!'); }
   });
+});
 
-  window.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-overlay')) {
-      e.target.classList.remove('active');
-    }
-  });
+window.addEventListener('click', (e) => {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('active');
+  }
+});
