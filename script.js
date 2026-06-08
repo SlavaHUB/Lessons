@@ -502,8 +502,8 @@ function openStats() {
       priceBook[e.target.dataset.key] = parseFloat(e.target.value) || 0;
       localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
 
-      // Сюда добавляем отправку в MongoDB Atlas
-      await savePriceBook(priceBook);
+      // Правильный вызов функции сохранения
+      await saveToCloud();
 
       calcSalary();
       initCalendar();
@@ -732,7 +732,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 3. Запускаем фоновую асинхронную загрузку актуальных цен из облака MongoDB
-  loadPriceBook().then(() => {
+  loadCloudData().then(() => {
     console.log("☁️ Свежие цены из MongoDB успешно загружены в фоне");
     if (scheduleData.length > 0) {
       initCalendar();
@@ -858,16 +858,22 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-import-prices').addEventListener('click', async function () {
     try {
       const rawData = JSON.parse(document.getElementById('sync-data-input').value.trim());
-      await savePriceBook(rawData);
+
+      // Обновляем локальные данные
+      priceBook = rawData;
+      localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
+
+      // Отправляем в облако
+      await saveToCloud();
+
       calcSalary(); initCalendar();
       document.getElementById('sync-data-input').value = '';
       const orig = this.textContent; this.textContent = '📥 Успешно!'; setTimeout(() => { this.textContent = orig; document.getElementById('stats-modal').classList.remove('active'); }, 1500);
     } catch (e) { alert('Ошибка данных!'); }
   });
-});
 
-window.addEventListener('click', (e) => {
-  if (e.target.classList.contains('modal-overlay')) {
-    e.target.classList.remove('active');
-  }
-});
+  window.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal-overlay')) {
+      e.target.classList.remove('active');
+    }
+  });
