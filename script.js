@@ -892,99 +892,254 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) { alert('Ошибка данных!'); }
   });
   
-  // Динамически добавляем кнопку импорта из Excel
-  const importBtn = document.getElementById('btn-import-prices');
-  if (importBtn) {
-    const excelBtn = document.createElement('button');
-    excelBtn.id = 'btn-import-excel';
-    excelBtn.className = 'btn-primary';
-    excelBtn.style.background = '#047857';
-    excelBtn.style.marginTop = '10px';
-    excelBtn.style.width = '100%';
-    excelBtn.textContent = '📊 Синхронизировать с Excel (CSV)';
-    importBtn.parentNode.insertBefore(excelBtn, importBtn.nextSibling);
+
+  // ==========================================
+  // НОВАЯ ИНТЕРАКТИВНАЯ ЗАГРУЗКА ИЗ EXCEL / CSV
+  // ==========================================
+  
+  // Убираем старую динамическую кнопку, так как теперь она встроена в HTML
+  const oldDynamicBtn = document.getElementById('btn-import-excel');
+  if (oldDynamicBtn) oldDynamicBtn.remove();
+  
+  const filePicker = document.getElementById('excel-file-picker');
+  const btnChooseFile = document.getElementById('btn-choose-file');
+  let parsedExcelLessons = []; // Глобальная переменная для временного хранения распаршенных уроков
+  
+  if (btnChooseFile && filePicker) {
+    btnChooseFile.addEventListener('click', () => {
+      filePicker.click();
+    });
+
+    filePicker.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          // SheetJS читает как .xlsx, так и .csv
+          const workbook = XLSX.read(data, {type: 'array'});
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const rawRows = XLSX.utils.sheet_to_json(worksheet, {header: 1}); // Массив массивов
+          
+          processExcelData(rawRows);
+        } catch (err) {
+          alert('Ошибка чтения файла: ' + err.message);
+          console.error(err);
+        } finally {
+          filePicker.value = ''; // Сбрасываем инпут
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
   }
 
-  document.getElementById('btn-import-excel')?.addEventListener('click', async function () {
-    try {
-      const rawText = document.getElementById('sync-data-input').value.trim();
-      if (!rawText) { alert('Вставь скопированный текст из CSV файла в поле выше!'); return; }
+  function processExcelData(rows) {
+    let currentDate = '';
+    parsedExcelLessons = [];
 
-      const lines = rawText.split('\n');
-      let currentDate = '';
-      let newCustomLessons = [];
+    rows.forEach((cols, index) => {
+      if (!cols || cols.length === 0) return;
+      
+      let col0 = cols[0] ? String(cols[0]).trim() : '';
+      let col1 = cols[1] ? String(cols[1]).trim() : '';
+      let col2 = cols[2] ? String(cols[2]).trim() : '';
+      let col3 = cols[3] ? String(cols[3]).trim() : '';
 
-      lines.forEach((line, index) => {
-        if (!line.trim()) return;
-        const cols = line.includes(';') ? line.split(';') : line.split(',');
-        if (cols.length < 2) return;
-
-        let datePart = cols[0].trim();
-        if (datePart) {
-          const parts = datePart.split('.');
-          if (parts.length === 3) {
+      // 1. Пытаемся распознать дату
+      if (col0 && col0.toLowerCase() !== 'дата') {
+        // Проверяем, является ли это числом Excel-даты (обычно > 40000)
+        if (!isNaN(col0) && Number(col0) > 40000) {
+          try {
+            const dateObj = XLSX.SSF.parse_date_code(Number(col0));
+            let day = String(dateObj.d).padStart(2, '0');
+            let month = String(dateObj.m).padStart(2, '0');
+            let year = String(dateObj.y);
+            currentDate = `${year}-${month}-${day}`;
+          } catch(e){}
+        } else {
+          // Обычный текстовый формат dd.mm.yyyy или dd.mm
+          const parts = col0.split('.');
+          if (parts.length >= 2) {
             let day = parts[0].padStart(2, '0');
             let month = parts[1].padStart(2, '0');
-            if (month === '00' || month === '0') month = '06';
-            let year = parts[2];
+            if (month === '00' || month === '0') month = '06'; // Фикс возможных опечаток
+            let year = parts[2] ? parts[2] : new Date().getFullYear().toString();
             if (year.length === 2) year = '20' + year;
             currentDate = `${year}-${month}-${day}`;
           }
         }
+      }
 
-        let title = cols[1]?.trim();
-        if (!title || title.toLowerCase().includes('итог') || title.toLowerCase().includes('премия')) return;
+      // 2. Распознаем урок
+      if (!col1 || col1.toLowerCase().includes('итог') || col1.toLowerCase().includes('премия') || col1.toLowerCase() === 'урок/группа') {
+        return; // Пропускаем системные строки
+      }
 
-        let statusText = cols[2]?.trim().toLowerCase();
-        let price = parseFloat(cols[3]?.trim()) || 0;
+      let price = parseFloat(col3.replace(',', '.')) || 0;
+      let statusText = col2.toLowerCase();
+      
+      if (currentDate && col1) {
+        const schoolType = col1.includes('Группа') || col1.includes('Индив') || col1.includes('Шоу') ? 'ITCompot' : 'Zerocoder';
+        
+        let initialStatus = 'done';
+        if (statusText.includes('комп.') || statusText.includes('прогул')) initialStatus = 'noshow';
+        else if (statusText.includes('отменен') || statusText.includes('отмена')) initialStatus = 'canceled';
 
-        if (currentDate && title) {
-          const lessonId = `excel_${currentDate}_${index}_${title.substring(0,5)}`;
-          const schoolType = title.includes('Группа') || title.includes('Индив') || title.includes('Шоу') ? 'ITCompot' : 'Zerocoder';
+        parsedExcelLessons.push({
+          tempId: `excel_parse_${index}`,
+          date: currentDate,
+          title: col1,
+          school: schoolType,
+          status: initialStatus,
+          price: price,
+          note: col2 !== 'комп.' && col2 !== '✅ Проведен' && col2 !== '⚠️ Прогул' ? col2 : '' 
+        });
+      }
+    });
 
-          newCustomLessons.push({
-            id: lessonId,
-            date: currentDate,
-            startTime: "08:00",
-            endTime: "08:45",
-            title: title,
-            school: schoolType,
-            customDayIndex: getCustomDayIndex(currentDate),
-            isExcelCustom: true,
-            excelPrice: price,
-            excelStatus: statusText === 'комп.' ? 'noshow' : 'done'
-          });
-        }
-      });
-
-      if (newCustomLessons.length === 0) { alert('Не удалось распознать формат. Проверь данные!'); return; }
-
-      customLessons = newCustomLessons;
-      localStorage.setItem('customLessons', JSON.stringify(customLessons));
-
-      customLessons.forEach(cl => {
-        const lessonKey = `${daysOfWeek[cl.customDayIndex]}_${cl.startTime}_${cl.title}`;
-        const dateKey = `${cl.date}_${cl.startTime}_${cl.title}`;
-
-        statusBook[dateKey] = cl.excelStatus;
-        if (cl.excelStatus === 'done') {
-          priceBook[lessonKey] = cl.excelPrice;
-        } else {
-          overridePriceBook[dateKey] = cl.excelPrice;
-        }
-      });
-
-      localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
-      localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
-      localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
-
-      await saveToCloud();
-      location.reload();
-    } catch (e) {
-      alert('Ошибка импорта: ' + e.message);
+    if (parsedExcelLessons.length === 0) {
+      alert('Не удалось распознать уроки. Проверьте формат файла.');
+      return;
     }
+
+    renderExcelReviewModal(parsedExcelLessons);
+  }
+
+  function renderExcelReviewModal(lessons) {
+    const tbody = document.getElementById('excel-review-tbody');
+    tbody.innerHTML = '';
+
+    lessons.forEach((l, i) => {
+      const parts = l.date.split('-');
+      const d = parts[2]; const m = parts[1];
+
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid var(--border-color)';
+      
+      // Выделяем прогулы и отмены цветом фона для удобства
+      if (l.status === 'noshow') tr.style.background = 'rgba(245, 158, 11, 0.1)';
+      else if (l.status === 'canceled') tr.style.background = 'rgba(239, 68, 68, 0.1)';
+
+      tr.innerHTML = `
+        <td style="padding: 10px; font-weight: bold; color: var(--text-main); white-space: nowrap;">${d}.${m}</td>
+        <td style="padding: 10px; color: var(--text-main); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${l.title}">
+          <div style="font-weight: bold; margin-bottom: 2px;">${l.title}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">${l.school === 'ITCompot' ? 'ITC' : 'Zero'}</div>
+        </td>
+        <td style="padding: 10px;">
+          <select class="review-status" data-index="${i}" style="width: 100%; padding: 6px; border-radius: 6px; background: var(--input-bg); color: var(--input-text); border: 1px solid var(--input-border); outline: none; font-size: 0.85rem;">
+            <option value="done" ${l.status === 'done' ? 'selected' : ''}>✅ Проведен</option>
+            <option value="noshow" ${l.status === 'noshow' ? 'selected' : ''}>⚠️ Прогул</option>
+            <option value="canceled" ${l.status === 'canceled' ? 'selected' : ''}>❌ Отменен</option>
+          </select>
+        </td>
+        <td style="padding: 10px;">
+          <input type="number" class="review-price" data-index="${i}" value="${l.price}" style="width: 80px; padding: 6px; border-radius: 6px; background: var(--input-bg); color: var(--input-text); border: 1px solid var(--input-border); outline: none; font-size: 0.85rem;">
+        </td>
+        <td style="padding: 10px;">
+          <input type="text" class="review-note" data-index="${i}" value="${l.note}" placeholder="Комментарий..." style="width: 100%; min-width: 150px; padding: 6px; border-radius: 6px; background: var(--input-bg); color: var(--input-text); border: 1px solid var(--input-border); outline: none; font-size: 0.85rem;">
+        </td>
+      `;
+      tbody.appendChild(tr);
+
+      // Добавляем интерактив: если поменяли статус, можно подсветить строку
+      const selectEl = tr.querySelector('.review-status');
+      selectEl.addEventListener('change', function() {
+        tr.style.background = 'transparent';
+        if (this.value === 'noshow') tr.style.background = 'rgba(245, 158, 11, 0.1)';
+        else if (this.value === 'canceled') tr.style.background = 'rgba(239, 68, 68, 0.1)';
+      });
+    });
+
+    document.getElementById('stats-modal').classList.remove('active'); // Закрываем статистику, чтобы не мешала
+    document.getElementById('excel-review-modal').classList.add('active'); // Открываем новую модалку
+  }
+
+  // Обработчики кнопок модалки проверки
+  document.getElementById('btn-review-close').addEventListener('click', () => {
+    document.getElementById('excel-review-modal').classList.remove('active');
   });
 
+  document.getElementById('btn-excel-confirm-cancel').addEventListener('click', () => {
+    document.getElementById('excel-review-modal').classList.remove('active');
+  });
+
+  document.getElementById('btn-excel-confirm-all').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-excel-confirm-all');
+    const origText = btn.innerHTML;
+    btn.innerHTML = '⏳ Сохранение...';
+    btn.disabled = true;
+
+    try {
+      const statusSelects = document.querySelectorAll('.review-status');
+      const priceInputs = document.querySelectorAll('.review-price');
+      const noteInputs = document.querySelectorAll('.review-note');
+      
+      let newCustomLessons = [];
+      
+      parsedExcelLessons.forEach((l, i) => {
+        const finalStatus = statusSelects[i].value;
+        const finalPrice = parseFloat(priceInputs[i].value) || 0;
+        const finalNote = noteInputs[i].value.trim();
+        
+        const lessonId = `excel_${l.date}_${i}_${l.title.substring(0,5)}`;
+        
+        const cl = {
+          id: lessonId,
+          date: l.date,
+          startTime: "08:00",
+          endTime: "08:45",
+          title: l.title,
+          school: l.school,
+          customDayIndex: getCustomDayIndex(l.date),
+          isExcelCustom: true,
+          excelPrice: finalPrice,
+          excelStatus: finalStatus
+        };
+        
+        newCustomLessons.push(cl);
+        
+        // Записываем финальные решения в общие справочники
+        const lessonKey = `${daysOfWeek[cl.customDayIndex]}_${cl.startTime}_${cl.title}`;
+        const dateKey = `${cl.date}_${cl.startTime}_${cl.title}`;
+        
+        statusBook[dateKey] = finalStatus;
+        if (finalNote) {
+          notesBook[lessonKey] = finalNote;
+        }
+        
+        if (finalStatus === 'done') {
+          priceBook[lessonKey] = finalPrice;
+          delete overridePriceBook[dateKey];
+        } else {
+          overridePriceBook[dateKey] = finalPrice;
+        }
+      });
+      
+      customLessons = newCustomLessons;
+      localStorage.setItem('customLessons', JSON.stringify(customLessons));
+      localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
+      localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
+      localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
+      localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
+      
+      await saveToCloud();
+      
+      btn.innerHTML = '✅ Успешно!';
+      setTimeout(() => {
+        document.getElementById('excel-review-modal').classList.remove('active');
+        location.reload(); // Обновляем страницу для отрисовки новых данных в календаре
+      }, 1000);
+
+    } catch (e) {
+      alert('Ошибка сохранения: ' + e.message);
+      btn.innerHTML = origText;
+      btn.disabled = false;
+    }
+  });
 });
 
 window.addEventListener('click', (e) => {
