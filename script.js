@@ -718,29 +718,32 @@ function findFreeSlots() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Первым делом мгновенно подтягиваем локальный кэш устройства
+  // 1. Мгновенно подтягиваем ВЕСЬ локальный кэш (не только цены, но и заметки со статусами)
   try {
     priceBook = JSON.parse(localStorage.getItem('lessonPrices_v2')) || {};
+    statusBook = JSON.parse(localStorage.getItem('lessonStatuses')) || {};
+    notesBook = JSON.parse(localStorage.getItem('lessonNotes')) || {};
+    overridePriceBook = JSON.parse(localStorage.getItem('lessonOverrides')) || {};
   } catch (e) {
-    priceBook = {};
+    priceBook = {}; statusBook = {}; notesBook = {}; overridePriceBook = {};
   }
 
-  // 2. Сразу же отрисовываем календарь, чтобы интерфейс открылся за долю секунды
+  // 2. Сразу же отрисовываем календарь (он покажет все твои заметки и цены моментально)
   if (scheduleData.length > 0) {
     initCalendar();
     calcSalary();
   }
 
-  // 3. Запускаем фоновую асинхронную загрузку актуальных цен из облака MongoDB
+  // 3. Запускаем фоновую асинхронную загрузку актуальных данных из облака
   loadCloudData().then(() => {
-    console.log("☁️ Свежие цены из MongoDB успешно загружены в фоне");
+    console.log("☁️ Свежие данные из MongoDB успешно загружены в фоне");
     if (scheduleData.length > 0) {
       initCalendar();
       calcSalary();
     }
-  }).catch(err => console.error("Ошибка фоновой загрузки цен:", err));
+  }).catch(err => console.error("Ошибка фоновой загрузки:", err));
 
-  // 4. Логика синхронизации расписания с CRM
+  // 4. Логика синхронизации расписания с CRM (дальше код остается прежним)
   const lastSync = parseInt(localStorage.getItem('lastSyncTime')) || 0;
   const oneHour = 60 * 60 * 1000;
   if (Date.now() - lastSync > oneHour) {

@@ -9,11 +9,13 @@ app.use(cors());
 app.use(express.json());
 
 // --- 1. ПОДКЛЮЧЕНИЕ К БАЗЕ ---
-// Вставляем твою ссылку напрямую как запасной вариант + указываем базу lessons_db
 const fallbackURI = "mongodb+srv://slavalevch32_db_user:k6mKiJtYy7cMwe9L@cluster0.9s71api.mongodb.net/lessons_db?retryWrites=true&w=majority";
 const mongoString = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.MONGODB_URL || fallbackURI;
 
-mongoose.connect(mongoString)
+mongoose.connect(mongoString, {
+    serverSelectionTimeoutMS: 30000, // Ждем базу 30 секунд при холодном старте
+    connectTimeoutMS: 30000
+})
     .then(() => console.log('✅ MongoDB успешно подключена!'))
     .catch(err => console.error('❌ Ошибка подключения к MongoDB:', err));
 
