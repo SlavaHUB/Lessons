@@ -1115,15 +1115,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const finalPrice = parseFloat(priceInputs[i].value) || 0;
         const finalNote = noteInputs[i].value.trim();
         
-        // 1. Ищем, есть ли этот урок уже в CRM (сверяем дату и часть имени)
+        // НОВАЯ СУПЕР-ЛОГИКА: 
+        // Ищем свободный урок в CRM просто по совпадению Даты и Школы, 
+        // потому что названия в Excel ("Нейротин") и CRM ("NIN562") физически разные!
         const matchingCrmEvent = pureCrmEvents.find(e => 
             e.date === l.date && 
-            !usedCrmEventIds.has(e.id) &&
-            (e.title.toLowerCase().includes(l.title.toLowerCase()) || l.title.toLowerCase().includes(e.title.toLowerCase()))
+            e.school === l.school &&
+            !usedCrmEventIds.has(e.id)
         );
 
         if (matchingCrmEvent) {
-            // Урок найден в CRM! Не создаем дубликат, а просто обновляем статусы и цены для него
+            // Урок найден! Привязываем цены и статусы из Excel к реальному уроку из CRM
             usedCrmEventIds.add(matchingCrmEvent.id);
             
             const dayName = daysOfWeek[getCustomDayIndex(matchingCrmEvent.date)];
@@ -1140,8 +1142,8 @@ document.addEventListener('DOMContentLoaded', () => {
               overridePriceBook[dateKey] = finalPrice;
             }
         } else {
-            // Урока в CRM нет. Создаем кастомный урок из Excel.
-            const lessonId = `excel_${l.date}_${i}_${l.title.substring(0,5)}`;
+            // Если в CRM такого урока вообще нет (уникальный доп. урок), создаем его на утро (08:00)
+            const lessonId = `excel_${l.date}_${i}_${l.school}`;
             const cl = {
               id: lessonId,
               date: l.date,
@@ -1197,7 +1199,10 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.disabled = false;
     }
   });
+}); // <- ЗАКРЫТИЕ DOMContentLoaded
+
 });
+}); // <- ВОТ ОНА РОДНАЯ СКОБКА ДЛЯ DOMContentLoaded
 
 window.addEventListener('click', (e) => {
   if (e.target.classList.contains('modal-overlay')) {
