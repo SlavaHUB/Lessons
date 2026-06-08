@@ -28,7 +28,8 @@ const AppData = mongoose.model('AppData', new mongoose.Schema({
     priceBook: { type: Object, default: {} },
     statusBook: { type: Object, default: {} },
     notesBook: { type: Object, default: {} },
-    overridePriceBook: { type: Object, default: {} }
+    overridePriceBook: { type: Object, default: {} },
+    customLessons: { type: Array, default: [] } // Новое поле для сохранения уроков из Excel
 }, { minimize: false }));
 
 const PriceBook = mongoose.model('PriceBook', new mongoose.Schema({
@@ -38,7 +39,6 @@ const PriceBook = mongoose.model('PriceBook', new mongoose.Schema({
 
 // --- 3. ЭНДПОИНТЫ ДЛЯ БД (Универсальные) ---
 
-// Для новой версии скрипта
 app.get('/api/data', async (req, res) => {
     try {
         let data = await AppData.findOne({ id: 'main' });
@@ -52,13 +52,12 @@ app.get('/api/data', async (req, res) => {
 
 app.post('/api/data', async (req, res) => {
     try {
-        const { priceBook, statusBook, notesBook, overridePriceBook } = req.body;
-        await AppData.findOneAndUpdate({ id: 'main' }, { priceBook, statusBook, notesBook, overridePriceBook }, { upsert: true });
+        const { priceBook, statusBook, notesBook, overridePriceBook, customLessons } = req.body;
+        await AppData.findOneAndUpdate({ id: 'main' }, { priceBook, statusBook, notesBook, overridePriceBook, customLessons }, { upsert: true });
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Для старой версии скрипта
 app.get('/api/prices', async (req, res) => {
     try {
         let config = await PriceBook.findOne({ configId: 'main_config' });

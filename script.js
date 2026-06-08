@@ -79,6 +79,7 @@ let priceBook = {};
 let statusBook = {};
 let notesBook = {};
 let overridePriceBook = {};
+let customLessons = []; // Сюда будут сохраняться уроки из Excel
 
 let scheduleData = JSON.parse(localStorage.getItem('cachedSchedule')) || [];
 scheduleData.forEach(e => { e.customDayIndex = getCustomDayIndex(e.date); e.title = cleanTrashCodes(e.title); });
@@ -98,15 +99,17 @@ async function loadCloudData() {
     const data = await res.json();
 
     if (data && Object.keys(data.priceBook || {}).length > 0) {
-      priceBook = data.priceBook;
-      statusBook = data.statusBook;
-      notesBook = data.notesBook;
-      overridePriceBook = data.overridePriceBook;
+      priceBook = data.priceBook || {};
+      statusBook = data.statusBook || {};
+      notesBook = data.notesBook || {};
+      overridePriceBook = data.overridePriceBook || {};
+      customLessons = data.customLessons || []; // Загружаем из базы
 
       localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
       localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
       localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
       localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
+      localStorage.setItem('customLessons', JSON.stringify(customLessons));
     } else {
       console.log('☁️ Облако пустое. Запускаю авто-миграцию...');
       const localPrices = JSON.parse(localStorage.getItem('lessonPrices_v2')) || {};
@@ -115,6 +118,7 @@ async function loadCloudData() {
         statusBook = JSON.parse(localStorage.getItem('lessonStatuses')) || {};
         notesBook = JSON.parse(localStorage.getItem('lessonNotes')) || {};
         overridePriceBook = JSON.parse(localStorage.getItem('lessonOverrides')) || {};
+        customLessons = JSON.parse(localStorage.getItem('customLessons')) || [];
         await saveToCloud();
       }
     }
@@ -124,6 +128,7 @@ async function loadCloudData() {
     statusBook = JSON.parse(localStorage.getItem('lessonStatuses')) || {};
     notesBook = JSON.parse(localStorage.getItem('lessonNotes')) || {};
     overridePriceBook = JSON.parse(localStorage.getItem('lessonOverrides')) || {};
+    customLessons = JSON.parse(localStorage.getItem('customLessons')) || [];
   }
 }
 
@@ -133,12 +138,19 @@ async function saveToCloud() {
     fetch(DB_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ priceBook, statusBook, notesBook, overridePriceBook })
+      body: JSON.stringify({ priceBook, statusBook, notesBook, overridePriceBook, customLessons }) // Добавили отправку
     });
   } catch (e) { console.error('Ошибка записи в облако', e); }
 }
 
 function getEffectivePrice(event, dayName) {
+  if (event.isExcelCustom && event.excelPrice !== undefined) {
+    const dateKey = `${event.date}_${event.startTime}_${event.title}`;
+    const status = statusBook[dateKey] || event.excelStatus;
+    if (status === 'canceled') return 0;
+    return event.excelPrice;
+  }
+
   const dateKey = `${event.date}_${event.startTime}_${event.title}`;
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
   const status = statusBook[dateKey] || 'done';
@@ -215,7 +227,10 @@ async function fetchLessons(forceSync = false) {
         }
       }
 
-      scheduleData = validEvents;
+      // Склеиваем уроки из CRM и уникальные уроки из Excel
+      const loadedCustom = JSON.parse(localStorage.getItem('customLessons')) || [];
+      scheduleData = [...validEvents, ...loadedCustom];
+      
       localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       localStorage.setItem('loadedStartStr', startStr);
       localStorage.setItem('loadedEndStr', endStr);
@@ -224,7 +239,8 @@ async function fetchLessons(forceSync = false) {
       initCalendar();
     }
   } catch (error) {
-    if (scheduleData.length > 0) initCalendar();
+    const loadedCustom = JSON.parse(localStorage.getItem('customLessons')) || [];
+    if (scheduleData.length > 0 || loadedCustom.length > 0) initCalendar();
   } finally {
     isFetching = false;
     if (btnRefresh) btnRefresh.innerHTML = '🔄';
@@ -250,17 +266,20 @@ function openLessonModal(event, dayName) {
   const dateKey = `${event.date}_${event.startTime}_${event.title}`;
   const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
 
-  let currentStatus = statusBook[dateKey] || 'done';
+  let currentStatus = statusBook[dateKey] || (event.isExcelCustom ? event.excelStatus : 'done');
   let currentNote = notesBook[lessonKey];
   if (!currentNote) currentNote = `${event.title}\nАлсу @Alsushenka1985 - Елена @ElenaLCastellano\n\nНе на уроке.`;
 
   const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
-  const isPerStudent = (event.school === 'ITCompot' && duration >= 90);
+  const isPerStudent = (event.school === 'ITCompot' && duration >= 90 && !event.isExcelCustom);
   currentEditingLesson.isPerStudent = isPerStudent;
 
   const computePrice = (status) => {
     if (status === 'canceled') return 0;
     if (overridePriceBook[dateKey] !== undefined && status === currentStatus) return overridePriceBook[dateKey];
+    
+    if (event.isExcelCustom) return event.excelPrice;
+
     let base = parseFloat(priceBook[lessonKey]);
     if (isNaN(base)) base = getStandardPrice(event.school, duration);
     if (status === 'noshow') {
@@ -320,7 +339,7 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
   statusBook[dateKey] = newStatus;
   notesBook[lessonKey] = document.getElementById('lm-notes').value;
 
-  if (newStatus === 'done') {
+  if (newStatus === 'done' || event.isExcelCustom) {
     priceBook[lessonKey] = finalPrice;
     delete overridePriceBook[dateKey];
   } else {
@@ -379,7 +398,7 @@ function initCalendar() {
     if (index === 1 || index === 2) dayCol.classList.add('day-off');
 
     const realEvents = scheduleData.filter(e => e.date === columnDateStr).map(e => ({ ...e, isPhantom: false }));
-    const allFutureEvents = scheduleData.filter(e => e.customDayIndex === index && e.date > columnDateStr);
+    const allFutureEvents = scheduleData.filter(e => e.customDayIndex === index && e.date > columnDateStr && !e.isExcelCustom);
 
     const phantomMap = new Map();
     allFutureEvents.forEach(fe => {
@@ -412,7 +431,7 @@ function initCalendar() {
         titlePrefix = `[${d}.${m}] `;
         eventDiv.addEventListener('click', () => alert(`👻 Это фантомный урок!\n\nШкола: ${event.school}\nУченик: ${event.title}\nОн запланирован на ${d}.${m}`));
       } else {
-        const status = statusBook[dateKey] || 'done';
+        const status = statusBook[dateKey] || (event.isExcelCustom ? event.excelStatus : 'done');
         if (status === 'canceled') eventDiv.classList.add('status-canceled');
         if (status === 'noshow') eventDiv.classList.add('status-noshow');
 
@@ -489,8 +508,12 @@ function openStats() {
       const lessonKey = `${daysOfWeek[index]}_${ev.startTime}_${ev.title}`;
       let cPrice = priceBook[lessonKey];
       if (cPrice === undefined) {
-        const dur = timeToMins(ev.endTime) - timeToMins(ev.startTime);
-        cPrice = getStandardPrice(ev.school, dur) || '';
+        if (ev.isExcelCustom) {
+           cPrice = ev.excelPrice;
+        } else {
+           const dur = timeToMins(ev.endTime) - timeToMins(ev.startTime);
+           cPrice = getStandardPrice(ev.school, dur) || '';
+        }
       }
       dayHtml += `<div class="price-row"><span class="price-title">${ev.startTime} - ${ev.title}</span><input type="number" class="price-input" data-key="${lessonKey}" value="${cPrice}"></div>`;
     });
@@ -502,9 +525,7 @@ function openStats() {
       priceBook[e.target.dataset.key] = parseFloat(e.target.value) || 0;
       localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
 
-      // Правильный вызов функции сохранения
       await saveToCloud();
-
       calcSalary();
       initCalendar();
     });
@@ -577,7 +598,7 @@ function openDetailedExcel() {
   monthEvents.forEach(ev => {
     const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
     const dayName = daysOfWeek[ev.customDayIndex];
-    const status = statusBook[dateKey] || 'done';
+    const status = statusBook[dateKey] || (ev.isExcelCustom ? ev.excelStatus : 'done');
     const price = getEffectivePrice(ev, dayName);
 
     const isPastOrToday = ev.date <= realTodayStr;
@@ -718,23 +739,21 @@ function findFreeSlots() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Мгновенно подтягиваем ВЕСЬ локальный кэш (не только цены, но и заметки со статусами)
   try {
     priceBook = JSON.parse(localStorage.getItem('lessonPrices_v2')) || {};
     statusBook = JSON.parse(localStorage.getItem('lessonStatuses')) || {};
     notesBook = JSON.parse(localStorage.getItem('lessonNotes')) || {};
     overridePriceBook = JSON.parse(localStorage.getItem('lessonOverrides')) || {};
+    customLessons = JSON.parse(localStorage.getItem('customLessons')) || [];
   } catch (e) {
-    priceBook = {}; statusBook = {}; notesBook = {}; overridePriceBook = {};
+    priceBook = {}; statusBook = {}; notesBook = {}; overridePriceBook = {}; customLessons = [];
   }
 
-  // 2. Сразу же отрисовываем календарь (он покажет все твои заметки и цены моментально)
   if (scheduleData.length > 0) {
     initCalendar();
     calcSalary();
   }
 
-  // 3. Запускаем фоновую асинхронную загрузку актуальных данных из облака
   loadCloudData().then(() => {
     console.log("☁️ Свежие данные из MongoDB успешно загружены в фоне");
     if (scheduleData.length > 0) {
@@ -743,7 +762,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }).catch(err => console.error("Ошибка фоновой загрузки:", err));
 
-  // 4. Логика синхронизации расписания с CRM (дальше код остается прежним)
   const lastSync = parseInt(localStorage.getItem('lastSyncTime')) || 0;
   const oneHour = 60 * 60 * 1000;
   if (Date.now() - lastSync > oneHour) {
@@ -754,7 +772,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   setInterval(() => { fetchLessons(true); }, oneHour);
 
-  // Все твои обработчики кликов остаются без изменений
   document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
   document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); fetchLessons(); });
   document.getElementById('btn-next').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, 7); fetchLessons(); });
@@ -874,6 +891,100 @@ document.addEventListener('DOMContentLoaded', () => {
       const orig = this.textContent; this.textContent = '📥 Успешно!'; setTimeout(() => { this.textContent = orig; document.getElementById('stats-modal').classList.remove('active'); }, 1500);
     } catch (e) { alert('Ошибка данных!'); }
   });
+  
+  // Динамически добавляем кнопку импорта из Excel
+  const importBtn = document.getElementById('btn-import-prices');
+  if (importBtn) {
+    const excelBtn = document.createElement('button');
+    excelBtn.id = 'btn-import-excel';
+    excelBtn.className = 'btn-primary';
+    excelBtn.style.background = '#047857';
+    excelBtn.style.marginTop = '10px';
+    excelBtn.style.width = '100%';
+    excelBtn.textContent = '📊 Синхронизировать с Excel (CSV)';
+    importBtn.parentNode.insertBefore(excelBtn, importBtn.nextSibling);
+  }
+
+  document.getElementById('btn-import-excel')?.addEventListener('click', async function () {
+    try {
+      const rawText = document.getElementById('sync-data-input').value.trim();
+      if (!rawText) { alert('Вставь скопированный текст из CSV файла в поле выше!'); return; }
+
+      const lines = rawText.split('\n');
+      let currentDate = '';
+      let newCustomLessons = [];
+
+      lines.forEach((line, index) => {
+        if (!line.trim()) return;
+        const cols = line.includes(';') ? line.split(';') : line.split(',');
+        if (cols.length < 2) return;
+
+        let datePart = cols[0].trim();
+        if (datePart) {
+          const parts = datePart.split('.');
+          if (parts.length === 3) {
+            let day = parts[0].padStart(2, '0');
+            let month = parts[1].padStart(2, '0');
+            if (month === '00' || month === '0') month = '06';
+            let year = parts[2];
+            if (year.length === 2) year = '20' + year;
+            currentDate = `${year}-${month}-${day}`;
+          }
+        }
+
+        let title = cols[1]?.trim();
+        if (!title || title.toLowerCase().includes('итог') || title.toLowerCase().includes('премия')) return;
+
+        let statusText = cols[2]?.trim().toLowerCase();
+        let price = parseFloat(cols[3]?.trim()) || 0;
+
+        if (currentDate && title) {
+          const lessonId = `excel_${currentDate}_${index}_${title.substring(0,5)}`;
+          const schoolType = title.includes('Группа') || title.includes('Индив') || title.includes('Шоу') ? 'ITCompot' : 'Zerocoder';
+
+          newCustomLessons.push({
+            id: lessonId,
+            date: currentDate,
+            startTime: "08:00",
+            endTime: "08:45",
+            title: title,
+            school: schoolType,
+            customDayIndex: getCustomDayIndex(currentDate),
+            isExcelCustom: true,
+            excelPrice: price,
+            excelStatus: statusText === 'комп.' ? 'noshow' : 'done'
+          });
+        }
+      });
+
+      if (newCustomLessons.length === 0) { alert('Не удалось распознать формат. Проверь данные!'); return; }
+
+      customLessons = newCustomLessons;
+      localStorage.setItem('customLessons', JSON.stringify(customLessons));
+
+      customLessons.forEach(cl => {
+        const lessonKey = `${daysOfWeek[cl.customDayIndex]}_${cl.startTime}_${cl.title}`;
+        const dateKey = `${cl.date}_${cl.startTime}_${cl.title}`;
+
+        statusBook[dateKey] = cl.excelStatus;
+        if (cl.excelStatus === 'done') {
+          priceBook[lessonKey] = cl.excelPrice;
+        } else {
+          overridePriceBook[dateKey] = cl.excelPrice;
+        }
+      });
+
+      localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
+      localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
+      localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
+
+      await saveToCloud();
+      location.reload();
+    } catch (e) {
+      alert('Ошибка импорта: ' + e.message);
+    }
+  });
+
 });
 
 window.addEventListener('click', (e) => {
