@@ -227,10 +227,8 @@ async function fetchLessons(forceSync = false) {
         }
       }
 
-      // Склеиваем уроки из CRM и уникальные уроки из Excel
-      const loadedCustom = JSON.parse(localStorage.getItem('customLessons')) || [];
-      scheduleData = [...validEvents, ...loadedCustom];
-      
+      // БЕРЕМ ТОЛЬКО УРОКИ ИЗ CRM! Никаких фейковых уроков из Excel в календаре.
+      scheduleData = [...validEvents];
       localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       localStorage.setItem('loadedStartStr', startStr);
       localStorage.setItem('loadedEndStr', endStr);
@@ -1105,7 +1103,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const priceInputs = document.querySelectorAll('.review-price');
       const noteInputs = document.querySelectorAll('.review-note');
       
-      let newCustomLessons = [];
+      // Берем только настоящие уроки из CRM
       let currentSchedule = JSON.parse(localStorage.getItem('cachedSchedule')) || scheduleData;
       let pureCrmEvents = currentSchedule.filter(e => !e.isExcelCustom);
       let usedCrmEventIds = new Set();
@@ -1115,9 +1113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const finalPrice = parseFloat(priceInputs[i].value) || 0;
         const finalNote = noteInputs[i].value.trim();
         
-        // НОВАЯ СУПЕР-ЛОГИКА: 
-        // Ищем свободный урок в CRM просто по совпадению Даты и Школы, 
-        // потому что названия в Excel ("Нейротин") и CRM ("NIN562") физически разные!
+        // Ищем свободный урок в CRM по дате и школе
         const matchingCrmEvent = pureCrmEvents.find(e => 
             e.date === l.date && 
             e.school === l.school &&
@@ -1125,7 +1121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         );
 
         if (matchingCrmEvent) {
-            // Урок найден! Привязываем цены и статусы из Excel к реальному уроку из CRM
+            // Привязываем цены и статусы из Excel к реальному уроку из CRM
             usedCrmEventIds.add(matchingCrmEvent.id);
             
             const dayName = daysOfWeek[getCustomDayIndex(matchingCrmEvent.date)];
@@ -1141,50 +1137,22 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
               overridePriceBook[dateKey] = finalPrice;
             }
-        } else {
-            // Если в CRM такого урока вообще нет (уникальный доп. урок), создаем его на утро (08:00)
-            const lessonId = `excel_${l.date}_${i}_${l.school}`;
-            const cl = {
-              id: lessonId,
-              date: l.date,
-              startTime: "08:00",
-              endTime: "08:45",
-              title: l.title,
-              school: l.school,
-              customDayIndex: getCustomDayIndex(l.date),
-              isExcelCustom: true,
-              excelPrice: finalPrice,
-              excelStatus: finalStatus
-            };
-            
-            newCustomLessons.push(cl);
-            
-            const lessonKey = `${daysOfWeek[cl.customDayIndex]}_${cl.startTime}_${cl.title}`;
-            const dateKey = `${cl.date}_${cl.startTime}_${cl.title}`;
-            
-            statusBook[dateKey] = finalStatus;
-            if (finalNote) notesBook[lessonKey] = finalNote;
-            
-            if (finalStatus === 'done') {
-              priceBook[lessonKey] = finalPrice;
-              delete overridePriceBook[dateKey];
-            } else {
-              overridePriceBook[dateKey] = finalPrice;
-            }
         }
+        // ЕСЛИ УРОКА НЕТ В CRM - ИГНОРИРУЕМ! Не создаем никаких визуальных блоков!
       });
       
-      customLessons = newCustomLessons;
+      // ПОЛНОСТЬЮ ОЧИЩАЕМ ВСЕ ПРИЗРАКИ
+      customLessons = [];
       localStorage.setItem('customLessons', JSON.stringify(customLessons));
       localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
       localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
       localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
       localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
       
-      // Обновляем кэш расписания
-      currentSchedule = [...pureCrmEvents, ...newCustomLessons]; 
-      localStorage.setItem('cachedSchedule', JSON.stringify(currentSchedule));
+      // Очищаем кэш расписания от призраков
+      localStorage.setItem('cachedSchedule', JSON.stringify(pureCrmEvents));
       
+      // Отправляем в облако пустой массив customLessons, чтобы стереть их и из базы MongoDB
       await saveToCloud();
       
       btn.innerHTML = '✅ Успешно!';
