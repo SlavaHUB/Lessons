@@ -910,9 +910,21 @@ document.addEventListener('DOMContentLoaded', () => {
       filePicker.click();
     });
 
-    filePicker.addEventListener('change', (e) => {
+    filePicker.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
+
+      // Динамическая загрузка библиотеки, если забыл обновить index.html
+      if (typeof XLSX === 'undefined') {
+        alert('Библиотека Excel не найдена в index.html. Пытаюсь загрузить автоматически...');
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
 
       const reader = new FileReader();
       reader.onload = function(evt) {
@@ -920,11 +932,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const data = new Uint8Array(evt.target.result);
           // SheetJS читает как .xlsx, так и .csv
           const workbook = XLSX.read(data, {type: 'array'});
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          const rawRows = XLSX.utils.sheet_to_json(worksheet, {header: 1}); // Массив массивов
-          
-          processExcelData(rawRows);
+          processExcelData(workbook);
         } catch (err) {
           alert('Ошибка чтения файла: ' + err.message);
           console.error(err);
@@ -936,74 +944,83 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function processExcelData(rows) {
-    let currentDate = '';
+  function processExcelData(workbook) {
     parsedExcelLessons = [];
 
-    rows.forEach((cols, index) => {
-      if (!cols || cols.length === 0) return;
-      
-      let col0 = cols[0] ? String(cols[0]).trim() : '';
-      let col1 = cols[1] ? String(cols[1]).trim() : '';
-      let col2 = cols[2] ? String(cols[2]).trim() : '';
-      let col3 = cols[3] ? String(cols[3]).trim() : '';
+    workbook.SheetNames.forEach(sheetName => {
+      // Пропускаем лист с долгами, так как там нет уроков
+      if (sheetName.toLowerCase().includes('долг')) return; 
 
-      // 1. Пытаемся распознать дату
-      if (col0 && col0.toLowerCase() !== 'дата') {
-        // Проверяем, является ли это числом Excel-даты (обычно > 40000)
-        if (!isNaN(col0) && Number(col0) > 40000) {
-          try {
-            const dateObj = XLSX.SSF.parse_date_code(Number(col0));
-            let day = String(dateObj.d).padStart(2, '0');
-            let month = String(dateObj.m).padStart(2, '0');
-            let year = String(dateObj.y);
-            currentDate = `${year}-${month}-${day}`;
-          } catch(e){}
-        } else {
-          // Обычный текстовый формат dd.mm.yyyy или dd.mm
-          const parts = col0.split('.');
-          if (parts.length >= 2) {
-            let day = parts[0].padStart(2, '0');
-            let month = parts[1].padStart(2, '0');
-            if (month === '00' || month === '0') month = '06'; // Фикс возможных опечаток
-            let year = parts[2] ? parts[2] : new Date().getFullYear().toString();
-            if (year.length === 2) year = '20' + year;
-            currentDate = `${year}-${month}-${day}`;
+      const worksheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+      let currentDate = '';
+
+      rows.forEach((cols, index) => {
+        if (!cols || cols.length === 0) return;
+        
+        let col0 = cols[0] ? String(cols[0]).trim() : '';
+        let col1 = cols[1] ? String(cols[1]).trim() : '';
+        let col2 = cols[2] ? String(cols[2]).trim() : '';
+        let col3 = cols[3] ? String(cols[3]).trim() : '';
+
+        // 1. Пытаемся распознать дату
+        if (col0 && col0.toLowerCase() !== 'дата') {
+          if (!isNaN(col0) && Number(col0) > 40000) {
+            try {
+              const dateObj = XLSX.SSF.parse_date_code(Number(col0));
+              let day = String(dateObj.d).padStart(2, '0');
+              let month = String(dateObj.m).padStart(2, '0');
+              let year = String(dateObj.y);
+              currentDate = `${year}-${month}-${day}`;
+            } catch(e){}
+          } else {
+            const parts = col0.split('.');
+            if (parts.length >= 2) {
+              let day = parts[0].padStart(2, '0');
+              let month = parts[1].padStart(2, '0');
+              if (month === '00' || month === '0') month = '06'; 
+              let year = parts[2] ? parts[2] : new Date().getFullYear().toString();
+              if (year.length === 2) year = '20' + year;
+              currentDate = `${year}-${month}-${day}`;
+            }
           }
         }
-      }
 
-      // 2. Распознаем урок
-      if (!col1 || col1.toLowerCase().includes('итог') || col1.toLowerCase().includes('премия') || col1.toLowerCase() === 'урок/группа') {
-        return; // Пропускаем системные строки
-      }
+        // 2. Распознаем урок
+        if (!col1 || col1.toLowerCase().includes('итог') || col1.toLowerCase().includes('премия') || col1.toLowerCase() === 'урок/группа' || col1.toLowerCase().includes('вторая школа')) {
+          return; // Пропускаем системные строки
+        }
 
-      let price = parseFloat(col3.replace(',', '.')) || 0;
-      let statusText = col2.toLowerCase();
-      
-      if (currentDate && col1) {
-        const schoolType = col1.includes('Группа') || col1.includes('Индив') || col1.includes('Шоу') ? 'ITCompot' : 'Zerocoder';
+        let price = parseFloat(col3.replace(',', '.')) || 0;
+        let statusText = col2.toLowerCase();
         
-        let initialStatus = 'done';
-        if (statusText.includes('комп.') || statusText.includes('прогул')) initialStatus = 'noshow';
-        else if (statusText.includes('отменен') || statusText.includes('отмена')) initialStatus = 'canceled';
+        if (currentDate && col1) {
+          const schoolType = col1.includes('Группа') || col1.includes('Индив') || col1.includes('Шоу') ? 'ITCompot' : 'Zerocoder';
+          
+          let initialStatus = 'done';
+          if (statusText.includes('комп.') || statusText.includes('прогул')) initialStatus = 'noshow';
+          else if (statusText.includes('отменен') || statusText.includes('отмена')) initialStatus = 'canceled';
 
-        parsedExcelLessons.push({
-          tempId: `excel_parse_${index}`,
-          date: currentDate,
-          title: col1,
-          school: schoolType,
-          status: initialStatus,
-          price: price,
-          note: col2 !== 'комп.' && col2 !== '✅ Проведен' && col2 !== '⚠️ Прогул' ? col2 : '' 
-        });
-      }
+          parsedExcelLessons.push({
+            tempId: `excel_${sheetName}_${index}`,
+            date: currentDate,
+            title: col1,
+            school: schoolType,
+            status: initialStatus,
+            price: price,
+            note: col2 !== 'комп.' && col2 !== '✅ Проведен' && col2 !== '⚠️ Прогул' ? col2 : '' 
+          });
+        }
+      });
     });
 
     if (parsedExcelLessons.length === 0) {
       alert('Не удалось распознать уроки. Проверьте формат файла.');
       return;
     }
+
+    // Сортируем по дате по убыванию (сначала свежие), чтобы было удобнее проверять последние уроки
+    parsedExcelLessons.sort((a, b) => b.date.localeCompare(a.date));
 
     renderExcelReviewModal(parsedExcelLessons);
   }

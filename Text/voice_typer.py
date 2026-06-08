@@ -1,5 +1,6 @@
 import os
 import sys
+import threading
 
 # Глубокий поиск и динамическое подключение всех зависимостей NVIDIA (cublas, cudnn, nvrtc)
 for path in sys.path:
@@ -20,10 +21,11 @@ import sounddevice as sd
 import numpy as np
 from faster_whisper import WhisperModel
 from pynput import keyboard
+import pyperclip  
 import time
 
 # --- НАСТРОЙКИ ---
-HOTKEY = keyboard.Key.f4 
+HOTKEY = keyboard.Key.f4  
 MODEL_SIZE = "large-v3-turbo"  
 DEVICE = "cuda"  
 COMPUTE_TYPE = "float16" 
@@ -39,7 +41,7 @@ except Exception as e:
     print("Переключаемся на процессор (CPU)...")
     model = WhisperModel(MODEL_SIZE, device="cpu", compute_type="int8")
 
-print("\nМодель готова! Нажми и держи F12 для записи.")
+print("\nМодель готова! Нажми и держи F4 для записи.")
 
 is_recording = False
 audio_queue = queue.Queue()
@@ -71,7 +73,8 @@ def stop_recording():
     
     if audio_data:
         audio_np = np.concatenate(audio_data, axis=0)
-        process_audio(audio_np)
+        # Выносим распознавание в отдельный поток, чтобы разблокировать клавиатуру
+        threading.Thread(target=process_audio, args=(audio_np,), daemon=True).start()
 
 def process_audio(audio_np):
     start_time = time.time()
@@ -88,7 +91,14 @@ def process_audio(audio_np):
 
 def insert_text(text):
     kb = keyboard.Controller()
-    kb.type(text + " ")
+    pyperclip.copy(text + " ")
+    time.sleep(0.05)  
+    
+    # Зажимаем Ctrl и отправляем код клавиши V (86) напрямую в систему
+    kb.press(keyboard.Key.ctrl)
+    kb.press(keyboard.KeyCode.from_vk(86))
+    kb.release(keyboard.KeyCode.from_vk(86))
+    kb.release(keyboard.Key.ctrl)
 
 def on_press(key):
     global is_recording
