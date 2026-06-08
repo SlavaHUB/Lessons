@@ -946,6 +946,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function processExcelData(workbook) {
     parsedExcelLessons = [];
+    const curMonthIndex = new Date().getMonth();
+    const curYear = new Date().getFullYear();
 
     workbook.SheetNames.forEach(sheetName => {
       // Пропускаем лист с долгами, так как там нет уроков
@@ -995,32 +997,38 @@ document.addEventListener('DOMContentLoaded', () => {
         let statusText = col2.toLowerCase();
         
         if (currentDate && col1) {
-          const schoolType = col1.includes('Группа') || col1.includes('Индив') || col1.includes('Шоу') ? 'ITCompot' : 'Zerocoder';
+          const [y, m, d] = currentDate.split('-').map(Number);
           
-          let initialStatus = 'done';
-          if (statusText.includes('комп.') || statusText.includes('прогул')) initialStatus = 'noshow';
-          else if (statusText.includes('отменен') || statusText.includes('отмена')) initialStatus = 'canceled';
+          // Пропускаем уроки, которые не относятся к текущему активному месяцу (например, если в файле есть старые записи за май)
+          if (y === curYear && (m - 1) === curMonthIndex) {
+            const schoolType = col1.includes('Группа') || col1.includes('Индив') || col1.includes('Шоу') ? 'ITCompot' : 'Zerocoder';
+            
+            let initialStatus = 'done';
+            if (statusText.includes('комп.') || statusText.includes('прогул')) initialStatus = 'noshow';
+            else if (statusText.includes('отменен') || statusText.includes('отмена')) initialStatus = 'canceled';
 
-          parsedExcelLessons.push({
-            tempId: `excel_${sheetName}_${index}`,
-            date: currentDate,
-            title: col1,
-            school: schoolType,
-            status: initialStatus,
-            price: price,
-            note: col2 !== 'комп.' && col2 !== '✅ Проведен' && col2 !== '⚠️ Прогул' ? col2 : '' 
-          });
+            parsedExcelLessons.push({
+              tempId: `excel_${sheetName}_${index}`,
+              rowIndex: index,
+              date: currentDate,
+              title: col1,
+              school: schoolType,
+              status: initialStatus,
+              price: price,
+              note: col2 !== 'комп.' && col2 !== '✅ Проведен' && col2 !== '⚠️ Прогул' ? col2 : '' 
+            });
+          }
         }
       });
     });
 
     if (parsedExcelLessons.length === 0) {
-      alert('Не удалось распознать уроки. Проверьте формат файла.');
+      alert('В этом файле не найдено уроков за текущий месяц. Проверьте данные.');
       return;
     }
 
-    // Сортируем по дате по убыванию (сначала свежие), чтобы было удобнее проверять последние уроки
-    parsedExcelLessons.sort((a, b) => b.date.localeCompare(a.date));
+    // Сортируем строго по дате по возрастанию (1, 2, 3 число...) и сохраняем оригинальный порядок строк из Excel внутри одного дня
+    parsedExcelLessons.sort((a, b) => a.date.localeCompare(b.date) || a.rowIndex - b.rowIndex);
 
     renderExcelReviewModal(parsedExcelLessons);
   }
