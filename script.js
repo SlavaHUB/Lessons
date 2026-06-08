@@ -1197,6 +1197,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.disabled = false;
     }
   });
+}); // <- ВОТ ОНА РОДНАЯ СКОБКА ДЛЯ DOMContentLoaded
 
 window.addEventListener('click', (e) => {
   if (e.target.classList.contains('modal-overlay')) {
