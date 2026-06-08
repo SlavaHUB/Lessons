@@ -1106,43 +1106,69 @@ document.addEventListener('DOMContentLoaded', () => {
       const noteInputs = document.querySelectorAll('.review-note');
       
       let newCustomLessons = [];
+      let currentSchedule = JSON.parse(localStorage.getItem('cachedSchedule')) || scheduleData;
+      let pureCrmEvents = currentSchedule.filter(e => !e.isExcelCustom);
+      let usedCrmEventIds = new Set();
       
       parsedExcelLessons.forEach((l, i) => {
         const finalStatus = statusSelects[i].value;
         const finalPrice = parseFloat(priceInputs[i].value) || 0;
         const finalNote = noteInputs[i].value.trim();
         
-        const lessonId = `excel_${l.date}_${i}_${l.title.substring(0,5)}`;
-        
-        const cl = {
-          id: lessonId,
-          date: l.date,
-          startTime: "08:00",
-          endTime: "08:45",
-          title: l.title,
-          school: l.school,
-          customDayIndex: getCustomDayIndex(l.date),
-          isExcelCustom: true,
-          excelPrice: finalPrice,
-          excelStatus: finalStatus
-        };
-        
-        newCustomLessons.push(cl);
-        
-        // Записываем финальные решения в общие справочники
-        const lessonKey = `${daysOfWeek[cl.customDayIndex]}_${cl.startTime}_${cl.title}`;
-        const dateKey = `${cl.date}_${cl.startTime}_${cl.title}`;
-        
-        statusBook[dateKey] = finalStatus;
-        if (finalNote) {
-          notesBook[lessonKey] = finalNote;
-        }
-        
-        if (finalStatus === 'done') {
-          priceBook[lessonKey] = finalPrice;
-          delete overridePriceBook[dateKey];
+        // 1. Ищем, есть ли этот урок уже в CRM (сверяем дату и часть имени)
+        const matchingCrmEvent = pureCrmEvents.find(e => 
+            e.date === l.date && 
+            !usedCrmEventIds.has(e.id) &&
+            (e.title.toLowerCase().includes(l.title.toLowerCase()) || l.title.toLowerCase().includes(e.title.toLowerCase()))
+        );
+
+        if (matchingCrmEvent) {
+            // Урок найден в CRM! Не создаем дубликат, а просто обновляем статусы и цены для него
+            usedCrmEventIds.add(matchingCrmEvent.id);
+            
+            const dayName = daysOfWeek[getCustomDayIndex(matchingCrmEvent.date)];
+            const lessonKey = `${dayName}_${matchingCrmEvent.startTime}_${matchingCrmEvent.title}`;
+            const dateKey = `${matchingCrmEvent.date}_${matchingCrmEvent.startTime}_${matchingCrmEvent.title}`;
+            
+            statusBook[dateKey] = finalStatus;
+            if (finalNote) notesBook[lessonKey] = finalNote;
+            
+            if (finalStatus === 'done') {
+              priceBook[lessonKey] = finalPrice;
+              delete overridePriceBook[dateKey];
+            } else {
+              overridePriceBook[dateKey] = finalPrice;
+            }
         } else {
-          overridePriceBook[dateKey] = finalPrice;
+            // Урока в CRM нет. Создаем кастомный урок из Excel.
+            const lessonId = `excel_${l.date}_${i}_${l.title.substring(0,5)}`;
+            const cl = {
+              id: lessonId,
+              date: l.date,
+              startTime: "08:00",
+              endTime: "08:45",
+              title: l.title,
+              school: l.school,
+              customDayIndex: getCustomDayIndex(l.date),
+              isExcelCustom: true,
+              excelPrice: finalPrice,
+              excelStatus: finalStatus
+            };
+            
+            newCustomLessons.push(cl);
+            
+            const lessonKey = `${daysOfWeek[cl.customDayIndex]}_${cl.startTime}_${cl.title}`;
+            const dateKey = `${cl.date}_${cl.startTime}_${cl.title}`;
+            
+            statusBook[dateKey] = finalStatus;
+            if (finalNote) notesBook[lessonKey] = finalNote;
+            
+            if (finalStatus === 'done') {
+              priceBook[lessonKey] = finalPrice;
+              delete overridePriceBook[dateKey];
+            } else {
+              overridePriceBook[dateKey] = finalPrice;
+            }
         }
       });
       
@@ -1153,10 +1179,8 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
       localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
       
-      // ФИКС: Обновляем кэш расписания, чтобы сайт сразу отобразил изменения
-      let currentSchedule = JSON.parse(localStorage.getItem('cachedSchedule')) || [];
-      currentSchedule = currentSchedule.filter(e => !e.isExcelCustom); // Удаляем старые
-      currentSchedule = [...currentSchedule, ...newCustomLessons]; // Добавляем новые
+      // Обновляем кэш расписания
+      currentSchedule = [...pureCrmEvents, ...newCustomLessons]; 
       localStorage.setItem('cachedSchedule', JSON.stringify(currentSchedule));
       
       await saveToCloud();
@@ -1164,7 +1188,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.innerHTML = '✅ Успешно!';
       setTimeout(() => {
         document.getElementById('excel-review-modal').classList.remove('active');
-        location.reload(); // Обновляем страницу для отрисовки новых данных в календаре
+        location.reload(); 
       }, 1000);
 
     } catch (e) {
@@ -1173,7 +1197,6 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.disabled = false;
     }
   });
-});
 
 window.addEventListener('click', (e) => {
   if (e.target.classList.contains('modal-overlay')) {
