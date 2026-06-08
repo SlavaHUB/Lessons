@@ -950,7 +950,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const curYear = new Date().getFullYear();
 
     workbook.SheetNames.forEach(sheetName => {
-      // Пропускаем лист с долгами, так как там нет уроков
       if (sheetName.toLowerCase().includes('долг')) return; 
 
       const worksheet = workbook.Sheets[sheetName];
@@ -976,13 +975,14 @@ document.addEventListener('DOMContentLoaded', () => {
               currentDate = `${year}-${month}-${day}`;
             } catch(e){}
           } else {
-            const parts = col0.split('.');
-            if (parts.length >= 2) {
-              let day = parts[0].padStart(2, '0');
-              let month = parts[1].padStart(2, '0');
-              if (month === '00' || month === '0') month = '06'; 
-              let year = parts[2] ? parts[2] : new Date().getFullYear().toString();
-              if (year.length === 2) year = '20' + year;
+            const dateMatch = col0.match(/(\d{1,2})[\.,\/](\d{1,2})/);
+            if (dateMatch) {
+              let day = dateMatch[1].padStart(2, '0');
+              let month = dateMatch[2].padStart(2, '0');
+              if (month === '00' || month === '0') month = String(curMonthIndex + 1).padStart(2, '0'); 
+              let year = curYear.toString();
+              const yearMatch = col0.match(/\d{4}/);
+              if (yearMatch) year = yearMatch[0];
               currentDate = `${year}-${month}-${day}`;
             }
           }
@@ -990,7 +990,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 2. Распознаем урок
         if (!col1 || col1.toLowerCase().includes('итог') || col1.toLowerCase().includes('премия') || col1.toLowerCase() === 'урок/группа' || col1.toLowerCase().includes('вторая школа')) {
-          return; // Пропускаем системные строки
+          return;
         }
 
         let price = parseFloat(col3.replace(',', '.')) || 0;
@@ -999,8 +999,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentDate && col1) {
           const [y, m, d] = currentDate.split('-').map(Number);
           
-          // Пропускаем уроки, которые не относятся к текущему активному месяцу (например, если в файле есть старые записи за май)
           if (y === curYear && (m - 1) === curMonthIndex) {
+            // ФИКС: Проверка на 31 июня и прочие несуществующие даты
+            const maxDaysInMonth = new Date(curYear, curMonthIndex + 1, 0).getDate();
+            if (d > maxDaysInMonth) return; 
+
             const schoolType = col1.includes('Группа') || col1.includes('Индив') || col1.includes('Шоу') ? 'ITCompot' : 'Zerocoder';
             
             let initialStatus = 'done';
@@ -1027,7 +1030,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Сортируем строго по дате по возрастанию (1, 2, 3 число...) и сохраняем оригинальный порядок строк из Excel внутри одного дня
     parsedExcelLessons.sort((a, b) => a.date.localeCompare(b.date) || a.rowIndex - b.rowIndex);
 
     renderExcelReviewModal(parsedExcelLessons);
@@ -1150,6 +1152,12 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
       localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
       localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
+      
+      // ФИКС: Обновляем кэш расписания, чтобы сайт сразу отобразил изменения
+      let currentSchedule = JSON.parse(localStorage.getItem('cachedSchedule')) || [];
+      currentSchedule = currentSchedule.filter(e => !e.isExcelCustom); // Удаляем старые
+      currentSchedule = [...currentSchedule, ...newCustomLessons]; // Добавляем новые
+      localStorage.setItem('cachedSchedule', JSON.stringify(currentSchedule));
       
       await saveToCloud();
       
