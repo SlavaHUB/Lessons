@@ -383,10 +383,11 @@ button {
 }
 
 .event-time {
-  font-weight: 700;
+  font-weight: 400;
   font-size: 0.65rem;
   opacity: 0.8;
   width: 100%;
+  letter-spacing: 0.4px;
 }
 
 .event-body {
@@ -401,10 +402,11 @@ button {
 }
 
 .event-title {
-  font-weight: 700;
+  font-weight: 400;
   font-size: 0.7rem;
   line-height: 1.1;
   white-space: nowrap;
+  letter-spacing: 0.4px;
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
@@ -818,6 +820,8 @@ input[type="text"]:focus {
   .event-time {
     font-size: 9px !important;
     margin-bottom: 3px !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.4px !important;
   }
 
   .event-body {
@@ -837,6 +841,8 @@ input[type="text"]:focus {
     word-break: break-word !important;
     width: 100% !important;
     flex: none !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.4px !important;
   }
 
   .event-price-tag {
