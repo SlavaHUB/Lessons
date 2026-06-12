@@ -820,7 +820,7 @@ input[type="text"]:focus {
   .event-time {
     font-size: 9px !important;
     margin-bottom: 3px !important;
-    font-weight: 400 !important;
+    font-weight: 600 !important;
     letter-spacing: 0.4px !important;
   }
 
@@ -841,7 +841,7 @@ input[type="text"]:focus {
     word-break: break-word !important;
     width: 100% !important;
     flex: none !important;
-    font-weight: 400 !important;
+    font-weight: 600 !important;
     letter-spacing: 0.4px !important;
   }
 
