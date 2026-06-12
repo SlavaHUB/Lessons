@@ -1236,3 +1236,5 @@ window.addEventListener('click', (e) => {
     e.target.classList.remove('active');
   }
 });
+
+// Final update
