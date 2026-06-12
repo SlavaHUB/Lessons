@@ -383,7 +383,7 @@ button {
 }
 
 .event-time {
-  font-weight: 400;
+  font-weight: 500;
   font-size: 0.65rem;
   opacity: 0.8;
   width: 100%;
@@ -402,7 +402,7 @@ button {
 }
 
 .event-title {
-  font-weight: 400;
+  font-weight: 500;
   font-size: 0.7rem;
   line-height: 1.1;
   white-space: nowrap;
@@ -820,7 +820,7 @@ input[type="text"]:focus {
   .event-time {
     font-size: 9px !important;
     margin-bottom: 3px !important;
-    font-weight: 600 !important;
+    font-weight: 500 !important;
     letter-spacing: 0.4px !important;
   }
 
@@ -841,7 +841,7 @@ input[type="text"]:focus {
     word-break: break-word !important;
     width: 100% !important;
     flex: none !important;
-    font-weight: 600 !important;
+    font-weight: 500 !important;
     letter-spacing: 0.4px !important;
   }
 

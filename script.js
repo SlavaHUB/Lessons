@@ -228,7 +228,10 @@ async function fetchLessons(forceSync = false) {
       }
 
       // БЕРЕМ ТОЛЬКО УРОКИ ИЗ CRM! Никаких фейковых уроков из Excel в календаре.
-      scheduleData = [...validEvents];
+            // БЕРЕМ УРОКИ ИЗ CRM + Наши личные кастомные уроки (Ваня)
+      const loadedCustom = JSON.parse(localStorage.getItem('customLessons')) || [];
+      const manualOnly = loadedCustom.filter(e => e.isManual === true); 
+      scheduleData = [...validEvents, ...manualOnly];
       localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       localStorage.setItem('loadedStartStr', startStr);
       localStorage.setItem('loadedEndStr', endStr);
@@ -1167,6 +1170,64 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.disabled = false;
     }
   });
+
+  // === ЛОГИКА ДОБАВЛЕНИЯ ЛИЧНЫХ УРОКОВ ===
+  const btnAddLesson = document.getElementById('btn-add-lesson');
+  const addLessonModal = document.getElementById('add-lesson-modal');
+  const btnCloseAdd = document.getElementById('btn-close-add-modal');
+  const btnSaveNewLesson = document.getElementById('btn-save-new-lesson');
+
+  if (btnAddLesson) {
+    btnAddLesson.addEventListener('click', () => {
+      addLessonModal.classList.add('active');
+      document.getElementById('add-date').value = new Date().toISOString().split('T')[0];
+    });
+  }
+
+  if (btnCloseAdd) {
+    btnCloseAdd.addEventListener('click', () => addLessonModal.classList.remove('active'));
+  }
+
+  if (btnSaveNewLesson) {
+    btnSaveNewLesson.addEventListener('click', async () => {
+      const title = document.getElementById('add-title').value.trim();
+      const date = document.getElementById('add-date').value;
+      const time = document.getElementById('add-time').value;
+      const duration = document.getElementById('add-duration').value || 45;
+      const school = document.getElementById('add-school').value;
+
+      if (!title || !date || !time) return alert('Заполните Имя, Дату и Время!');
+
+      // Вычисляем время окончания
+      const [h, m] = time.split(':').map(Number);
+      const endD = new Date(2000, 0, 1, h, m + Number(duration));
+      const endTime = `${String(endD.getHours()).padStart(2, '0')}:${String(endD.getMinutes()).padStart(2, '0')}`;
+
+      const newLesson = {
+        id: 'manual_' + Date.now(),
+        date: date,
+        startTime: time,
+        endTime: endTime,
+        title: title,
+        school: school,
+        isManual: true // Флаг: это настоящий урок, а не фейк из Excel
+      };
+
+      // Сохраняем в кэш
+      let currentCustom = JSON.parse(localStorage.getItem('customLessons')) || [];
+      currentCustom.push(newLesson);
+      localStorage.setItem('customLessons', JSON.stringify(currentCustom));
+      
+      // Глобальная переменная для отправки в базу MongoDB
+      customLessons = currentCustom; 
+      
+      btnSaveNewLesson.innerHTML = '⏳ Сохранение...';
+      await saveToCloud(); // Улетает на сервер, появится на телефоне
+      
+      location.reload(); 
+    });
+  }
+
 }); // <- ЗАКРЫТИЕ DOMContentLoaded
 
 

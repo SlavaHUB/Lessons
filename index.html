@@ -296,6 +296,47 @@
     </div>
   </div>
 
+
+  <!-- Модалка добавления кастомного урока -->
+  <div id="add-lesson-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 350px;">
+      <div class="modal-header">
+        <h3>➕ Добавить свой урок</h3>
+        <button class="close-btn" id="btn-close-add-modal">&times;</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
+        <div>
+          <label style="font-size: 0.85rem; color: var(--text-muted);">Имя ученика / Название</label>
+          <input type="text" id="add-title" placeholder="Например: Ваня" class="stats-date-input" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <div style="flex: 1;">
+            <label style="font-size: 0.85rem; color: var(--text-muted);">Дата</label>
+            <input type="date" id="add-date" class="stats-date-input" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+          </div>
+          <div style="flex: 1;">
+            <label style="font-size: 0.85rem; color: var(--text-muted);">Время</label>
+            <input type="time" id="add-time" class="stats-date-input" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <div style="flex: 1;">
+            <label style="font-size: 0.85rem; color: var(--text-muted);">Длительность (мин)</label>
+            <input type="number" id="add-duration" value="45" class="stats-date-input" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+          </div>
+          <div style="flex: 1;">
+            <label style="font-size: 0.85rem; color: var(--text-muted);">Тип/Школа</label>
+            <select id="add-school" class="stats-date-input" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+              <option value="Private">Личный (Ваня)</option>
+              <option value="ITCompot">ITCompot</option>
+              <option value="Zerocoder">Zerocoder</option>
+            </select>
+          </div>
+        </div>
+        <button id="btn-save-new-lesson" class="btn-primary" style="margin-top: 10px; width: 100%;">Сохранить урок</button>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>
