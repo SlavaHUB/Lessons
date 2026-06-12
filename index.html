@@ -7,7 +7,7 @@
   <title>Интерактивное расписание</title>
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📅</text></svg>">
-  <link rel="stylesheet" href="style.css?v=6.5">
+  <link rel="stylesheet" href="style.css?v=7.1">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -71,12 +71,13 @@
 
         <div style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
           <label style="display: block; margin-bottom: 8px;">🔄 Синхронизация цен</label>
-          
-            <button id="btn-choose-file" class="btn-primary" style="background: #2563eb; width: 100%; margin-top: 10px; margin-bottom: 5px; font-weight: bold;">
-              📁 Загрузить файл зарплаты (.xlsx / .csv)
-            </button>
-            <input type="file" id="excel-file-picker" accept=".xlsx, .xls, .csv" style="display: none;">
-            <textarea id="sync-data-input" placeholder="Вставь код..."
+
+          <button id="btn-choose-file" class="btn-primary"
+            style="background: #2563eb; width: 100%; margin-top: 10px; margin-bottom: 5px; font-weight: bold;">
+            📁 Загрузить файл зарплаты (.xlsx / .csv)
+          </button>
+          <input type="file" id="excel-file-picker" accept=".xlsx, .xls, .csv" style="display: none;">
+          <textarea id="sync-data-input" placeholder="Вставь код..."
             style="width: 100%; height: 50px; font-size: 0.7rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); margin-bottom: 10px; resize: none;"></textarea>
           <div style="display: flex; gap: 10px;">
             <button id="btn-export-prices" class="btn-secondary" style="flex: 1;">📋 Копировать</button>
@@ -259,7 +260,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=7.0"></script>
+
 
   <!-- Модальное окно проверки Excel -->
   <div id="excel-review-modal" class="modal-overlay">
@@ -269,11 +270,14 @@
         <button id="btn-review-close" class="btn-secondary" style="padding: 4px 10px;">✕</button>
       </div>
       <div style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.4;">
-        Мы нашли следующие уроки в вашем файле. Вы можете скорректировать их статус, цену или добавить комментарий (например, тему урока) перед финальным сохранением в базу.
+        Мы нашли следующие уроки в вашем файле. Вы можете скорректировать их статус, цену или добавить комментарий
+        (например, тему урока) перед финальным сохранением в базу.
       </div>
-      
-      <div style="max-height: 60vh; overflow-y: auto; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-main); text-align: left;">
+
+      <div
+        style="max-height: 60vh; overflow-y: auto; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+        <table
+          style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-main); text-align: left;">
           <thead style="position: sticky; top: 0; background: var(--bg-header); z-index: 5;">
             <tr style="border-bottom: 2px solid var(--border-color);">
               <th style="padding: 10px;">Дата</th>
@@ -288,9 +292,10 @@
           </tbody>
         </table>
       </div>
-      
+
       <div style="display: flex; gap: 10px; margin-top: 15px;">
-        <button id="btn-excel-confirm-all" class="btn-primary" style="flex: 1; background: #10b981; font-weight: bold; padding: 12px;">✅ Подтвердить и Сохранить</button>
+        <button id="btn-excel-confirm-all" class="btn-primary"
+          style="flex: 1; background: #10b981; font-weight: bold; padding: 12px;">✅ Подтвердить и Сохранить</button>
         <button id="btn-excel-confirm-cancel" class="btn-secondary" style="padding: 12px 20px;">Отмена</button>
       </div>
     </div>
@@ -307,36 +312,44 @@
       <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
         <div>
           <label style="font-size: 0.85rem; color: var(--text-muted);">Имя ученика / Название</label>
-          <input type="text" id="add-title" placeholder="Например: Ваня" class="stats-date-input" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+          <input type="text" id="add-title" placeholder="Например: Ваня" class="stats-date-input"
+            style="width: 100%; box-sizing: border-box; margin-top: 4px;">
         </div>
         <div style="display: flex; gap: 10px;">
           <div style="flex: 1;">
             <label style="font-size: 0.85rem; color: var(--text-muted);">Дата</label>
-            <input type="date" id="add-date" class="stats-date-input" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+            <input type="date" id="add-date" class="stats-date-input"
+              style="width: 100%; box-sizing: border-box; margin-top: 4px;">
           </div>
           <div style="flex: 1;">
             <label style="font-size: 0.85rem; color: var(--text-muted);">Время</label>
-            <input type="time" id="add-time" class="stats-date-input" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+            <input type="time" id="add-time" class="stats-date-input"
+              style="width: 100%; box-sizing: border-box; margin-top: 4px;">
           </div>
         </div>
         <div style="display: flex; gap: 10px;">
           <div style="flex: 1;">
             <label style="font-size: 0.85rem; color: var(--text-muted);">Длительность (мин)</label>
-            <input type="number" id="add-duration" value="45" class="stats-date-input" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+            <input type="number" id="add-duration" value="45" class="stats-date-input"
+              style="width: 100%; box-sizing: border-box; margin-top: 4px;">
           </div>
           <div style="flex: 1;">
             <label style="font-size: 0.85rem; color: var(--text-muted);">Тип/Школа</label>
-            <select id="add-school" class="stats-date-input" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+            <select id="add-school" class="stats-date-input"
+              style="width: 100%; box-sizing: border-box; margin-top: 4px;">
               <option value="Private">Личный (Ваня)</option>
               <option value="ITCompot">ITCompot</option>
               <option value="Zerocoder">Zerocoder</option>
             </select>
           </div>
         </div>
-        <button id="btn-save-new-lesson" class="btn-primary" style="margin-top: 10px; width: 100%;">Сохранить урок</button>
+        <button id="btn-save-new-lesson" class="btn-primary" style="margin-top: 10px; width: 100%;">Сохранить
+          урок</button>
       </div>
     </div>
   </div>
+
+  <script src="script.js?v=7.1"></script>
 </body>
 
 </html>
