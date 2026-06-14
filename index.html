@@ -7,7 +7,7 @@
   <title>Интерактивное расписание</title>
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📅</text></svg>">
-  <link rel="stylesheet" href="style.css?v=7.1">
+  <link rel="stylesheet" href="style.css?v=7.2">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -232,10 +232,16 @@
       </div>
 
       <label>Статус урока:</label>
-      <div style="display: flex; gap: 5px; margin-bottom: 15px;">
+      <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 15px;">
         <button class="status-btn" data-status="done">✅ Проведен</button>
+        <button class="status-btn" data-status="canceled">❌ Отмена</button>
         <button class="status-btn" data-status="noshow">⚠️ Прогул</button>
-        <button class="status-btn" data-status="canceled">❌ Отменен</button>
+        <button class="status-btn" data-status="late">⏰ Опоздал</button>
+      </div>
+
+      <div id="lm-manual-zone" style="display: none; margin-bottom: 15px; padding-top: 12px; border-top: 1px dashed var(--border-color);">
+        <button id="btn-lm-delete-manual" type="button" class="btn-secondary"
+          style="width: 100%; color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">🗑️ Удалить урок</button>
       </div>
 
       <div id="lm-price-zone" class="form-group" style="margin-bottom: 15px;"></div>
@@ -344,13 +350,17 @@
             </select>
           </div>
         </div>
+        <label class="recurring-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: var(--text-main);">
+          <input type="checkbox" id="add-recurring" style="width: 16px; height: 16px; accent-color: #f97316;">
+          <span>Повторять каждую неделю</span>
+        </label>
         <button id="btn-save-new-lesson" class="btn-primary" style="margin-top: 10px; width: 100%;">Сохранить
           урок</button>
       </div>
     </div>
   </div>
 
-  <script src="script.js?v=7.1"></script>
+  <script src="script.js?v=7.2"></script>
 </body>
 
 </html>

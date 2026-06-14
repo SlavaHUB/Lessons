@@ -49,6 +49,7 @@ function getCustomDayIndex(dateStr) {
   return jsDay === 0 ? 6 : jsDay - 1;
 }
 function getTheme(school, dayName) {
+  if (school === 'Private') return 'theme-private';
   if (dayName === 'Вт' || dayName === 'Ср') return 'theme-red';
   switch (school) {
     case 'RTS': return 'theme-blue';
@@ -56,6 +57,65 @@ function getTheme(school, dayName) {
     case 'Zerocoder': return 'theme-purple';
     default: return 'theme-blue';
   }
+}
+function getDateKey(event) { return `${event.date}_${event.startTime}_${event.title}`; }
+function getLessonKey(event, dayName) { return `${dayName || daysOfWeek[event.customDayIndex]}_${event.startTime}_${event.title}`; }
+function getCurrentWeekDates() {
+  const dates = [];
+  for (let i = 0; i < 7; i++) dates.push(formatDateToString(addDays(currentWeekMonday, i)));
+  return dates;
+}
+function getManualBaseId(lessonId) {
+  const match = String(lessonId).match(/^(manual_\d+)(?:_\d{4}-\d{2}-\d{2})?$/);
+  return match ? match[1] : lessonId;
+}
+function getSchoolLabel(school) {
+  if (school === 'ITCompot') return 'ITC';
+  if (school === 'Zerocoder') return 'Zero';
+  if (school === 'Private') return 'Личный';
+  return school;
+}
+function expandManualLessons(loadedCustom, reqStartD, reqEndD) {
+  const manualLessons = [];
+  loadedCustom.forEach(custom => {
+    if (!custom.isManual) return;
+    const template = { ...custom, title: cleanTrashCodes(custom.title), isManual: true };
+    if (custom.isRecurring) {
+      let currDate = new Date(custom.date + 'T12:00:00');
+      while (currDate <= reqEndD) {
+        if (currDate >= reqStartD) {
+          const dateStr = formatDateToString(currDate);
+          manualLessons.push({
+            ...template,
+            date: dateStr,
+            id: `${custom.id}_${dateStr}`,
+            customDayIndex: getCustomDayIndex(dateStr)
+          });
+        }
+        currDate = addDays(currDate, 7);
+      }
+    } else {
+      const lessonDate = new Date(custom.date + 'T12:00:00');
+      if (lessonDate >= reqStartD && lessonDate <= reqEndD) {
+        manualLessons.push({ ...template, customDayIndex: getCustomDayIndex(custom.date) });
+      }
+    }
+  });
+  const deletedSingles = JSON.parse(localStorage.getItem('deletedManualSingles')) || [];
+  return manualLessons.filter(lesson => !deletedSingles.includes(lesson.id));
+}
+function mergeScheduleData(crmEvents, startStr, endStr) {
+  const loadedCustom = JSON.parse(localStorage.getItem('customLessons')) || customLessons;
+  const reqStartD = new Date(startStr + 'T00:00:00');
+  const reqEndD = new Date(endStr + 'T23:59:59');
+  const pureCrm = crmEvents.filter(e => !e.isManual && !e.isExcelCustom);
+  return [...pureCrm, ...expandManualLessons(loadedCustom, reqStartD, reqEndD)];
+}
+function applyScheduleMerge(startStr, endStr) {
+  const crmEvents = scheduleData.filter(e => !e.isManual);
+  scheduleData = mergeScheduleData(crmEvents, startStr, endStr);
+  scheduleData.forEach(e => { if (e.customDayIndex === undefined) e.customDayIndex = getCustomDayIndex(e.date); });
+  localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
 }
 function timeToMins(timeStr) { const [h, m] = timeStr.split(':').map(Number); return h * 60 + m; }
 function minsToTime(mins) { const h = Math.floor(mins / 60).toString().padStart(2, '0'); const m = (mins % 60).toString().padStart(2, '0'); return `${h}:${m}`; }
@@ -185,7 +245,12 @@ async function fetchLessons(forceSync = false) {
     if (vsTime >= lsTime && reqEndTime <= leTime) hasCacheForThisWeek = true;
   }
 
-  if (hasCacheForThisWeek && !forceSync) { initCalendar(); return; }
+  if (hasCacheForThisWeek && !forceSync) {
+    applyScheduleMerge(loadedStartStr, loadedEndStr);
+    initCalendar();
+    calcSalary();
+    return;
+  }
   if (isFetching) return;
   isFetching = true;
 
@@ -227,37 +292,8 @@ async function fetchLessons(forceSync = false) {
         }
       }
 
-      // БЕРЕМ ТОЛЬКО УРОКИ ИЗ CRM! Никаких фейковых уроков из Excel в календаре.
-            // БЕРЕМ УРОКИ ИЗ CRM + Наши личные кастомные уроки (Ваня)
-      const loadedCustom = JSON.parse(localStorage.getItem('customLessons')) || [];
-      const manualLessons = [];
-      const reqStartD = new Date(startStr);
-      const reqEndD = new Date(endStr);
-
-      loadedCustom.forEach(custom => {
-        if (!custom.isManual) return;
-        if (custom.isRecurring) {
-          let currDate = new Date(custom.date);
-          while (currDate <= reqEndD) {
-            if (currDate >= reqStartD || currDate >= new Date(custom.date)) {
-              manualLessons.push({
-                ...custom,
-                date: formatDateToString(currDate),
-                id: custom.id + '_' + formatDateToString(currDate) // Уникальный ID для каждого повторения
-              });
-            }
-            currDate = new Date(currDate.getTime() + 7 * 24 * 60 * 60 * 1000);
-          }
-        } else {
-          manualLessons.push(custom);
-        }
-      });
-      
-      // Исключаем удаленные единичные уроки (если мы удалили только один урок из серии)
-      const deletedSingles = JSON.parse(localStorage.getItem('deletedManualSingles')) || [];
-      const filteredManuals = manualLessons.filter(lesson => !deletedSingles.includes(lesson.id));
-
-      scheduleData = [...validEvents, ...filteredManuals];
+      // Уроки из CRM + личные кастомные уроки
+      scheduleData = mergeScheduleData(validEvents, startStr, endStr);
       localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       localStorage.setItem('loadedStartStr', startStr);
       localStorage.setItem('loadedEndStr', endStr);
@@ -266,8 +302,8 @@ async function fetchLessons(forceSync = false) {
       initCalendar();
     }
   } catch (error) {
-    const loadedCustom = JSON.parse(localStorage.getItem('customLessons')) || [];
-    if (scheduleData.length > 0 || loadedCustom.length > 0) initCalendar();
+    if (loadedStartStr && loadedEndStr) applyScheduleMerge(loadedStartStr, loadedEndStr);
+    else if (scheduleData.length > 0) initCalendar();
   } finally {
     isFetching = false;
     if (btnRefresh) btnRefresh.innerHTML = '🔄';
@@ -280,33 +316,46 @@ async function fetchLessons(forceSync = false) {
 // ==========================================
 function openLessonModal(event, dayName) {
   currentEditingLesson = { event, dayName };
-  document.getElementById('lm-school').textContent = event.school || 'Неизвестно';
+  const isManual = !!event.isManual;
+
+  document.getElementById('lm-school').textContent = isManual ? getSchoolLabel(event.school) : (event.school || 'Неизвестно');
   const [, month, day] = event.date.split('-');
   document.getElementById('lm-time').textContent = `${day}.${month} | ${event.startTime} - ${event.endTime}`;
   document.getElementById('lm-name').textContent = event.title;
 
-  document.getElementById('btn-lm-enter-class').onclick = () => {
-    if (event.school === 'ITCompot') window.open('https://us02web.zoom.us/j/9514811985', '_blank');
-    else window.open('https://matrius.ktalk.ru/hpb5rfegc1tl', '_blank');
-  };
+  const enterBtn = document.getElementById('btn-lm-enter-class');
+  const crmBtn = document.getElementById('btn-lm-crm');
+  const manualZone = document.getElementById('lm-manual-zone');
+  enterBtn.style.display = isManual ? 'none' : 'block';
+  crmBtn.style.display = isManual ? 'none' : 'block';
+  manualZone.style.display = isManual ? 'block' : 'none';
 
-  const dateKey = `${event.date}_${event.startTime}_${event.title}`;
-  const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
+  if (!isManual) {
+    enterBtn.onclick = () => {
+      if (event.school === 'ITCompot') window.open('https://us02web.zoom.us/j/9514811985', '_blank');
+      else window.open('https://matrius.ktalk.ru/hpb5rfegc1tl', '_blank');
+    };
+  }
+
+  const dateKey = getDateKey(event);
+  const lessonKey = getLessonKey(event, dayName);
 
   let currentStatus = statusBook[dateKey] || (event.isExcelCustom ? event.excelStatus : 'done');
   let currentNote = notesBook[lessonKey];
-  if (!currentNote) currentNote = `${event.title}\nАлсу @Alsushenka1985 - Елена @ElenaLCastellano\n\nНе на уроке.`;
+  if (!currentNote) {
+    currentNote = isManual
+      ? `${event.title}\nЛичный урок`
+      : `${event.title}\nАлсу @Alsushenka1985 - Елена @ElenaLCastellano\n\nНе на уроке.`;
+  }
 
   const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
-  const isPerStudent = (event.school === 'ITCompot' && duration >= 90 && !event.isExcelCustom);
+  const isPerStudent = !isManual && (event.school === 'ITCompot' && duration >= 90 && !event.isExcelCustom);
   currentEditingLesson.isPerStudent = isPerStudent;
 
   const computePrice = (status) => {
     if (status === 'canceled') return 0;
     if (overridePriceBook[dateKey] !== undefined && status === currentStatus) return overridePriceBook[dateKey];
-    
     if (event.isExcelCustom) return event.excelPrice;
-
     let base = parseFloat(priceBook[lessonKey]);
     if (isNaN(base)) base = getStandardPrice(event.school, duration);
     if (status === 'noshow') {
@@ -343,8 +392,8 @@ function openLessonModal(event, dayName) {
 
     btn.onclick = (e) => {
       document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      currentStatus = e.target.dataset.status;
+      e.currentTarget.classList.add('active');
+      currentStatus = e.currentTarget.dataset.status;
       currentPrice = computePrice(currentStatus);
       renderPriceInput(currentPrice);
     };
@@ -353,14 +402,56 @@ function openLessonModal(event, dayName) {
   document.getElementById('lesson-modal').classList.add('active');
 }
 
+async function deleteManualLesson(event) {
+  const baseId = getManualBaseId(event.id);
+  const customList = JSON.parse(localStorage.getItem('customLessons')) || [];
+  const template = customList.find(c => c.id === baseId);
+  const isRecurringSeries = template?.isRecurring;
+
+  if (isRecurringSeries) {
+    const deleteAll = confirm(
+      'Этот урок входит в серию повторений.\n\n' +
+      'OK — удалить ВСЮ серию повторений.\n' +
+      'Отмена — удалить только этот урок.'
+    );
+    if (deleteAll) {
+      const updated = customList.filter(c => c.id !== baseId);
+      localStorage.setItem('customLessons', JSON.stringify(updated));
+      customLessons = updated;
+      const deletedSingles = (JSON.parse(localStorage.getItem('deletedManualSingles')) || [])
+        .filter(id => !id.startsWith(baseId + '_'));
+      localStorage.setItem('deletedManualSingles', JSON.stringify(deletedSingles));
+    } else {
+      const deletedSingles = JSON.parse(localStorage.getItem('deletedManualSingles')) || [];
+      if (!deletedSingles.includes(event.id)) deletedSingles.push(event.id);
+      localStorage.setItem('deletedManualSingles', JSON.stringify(deletedSingles));
+    }
+  } else {
+    if (!confirm('Удалить этот урок полностью?')) return;
+    const updated = customList.filter(c => c.id !== baseId);
+    localStorage.setItem('customLessons', JSON.stringify(updated));
+    customLessons = updated;
+  }
+
+  await saveToCloud();
+  document.getElementById('lesson-modal').classList.remove('active');
+  currentEditingLesson = null;
+
+  if (loadedStartStr && loadedEndStr) applyScheduleMerge(loadedStartStr, loadedEndStr);
+  else scheduleData = scheduleData.filter(e => e.id !== event.id && !e.id.startsWith(baseId + '_'));
+
+  initCalendar();
+  calcSalary();
+}
+
 document.getElementById('btn-lm-save').addEventListener('click', () => {
   if (!currentEditingLesson) return;
   const inputVal = parseFloat(document.getElementById('lm-input-price').value) || 0;
   const finalPrice = currentEditingLesson.isPerStudent ? inputVal * ITCOMPOT_RATE : inputVal;
 
   const { event, dayName } = currentEditingLesson;
-  const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
-  const dateKey = `${event.date}_${event.startTime}_${event.title}`;
+  const lessonKey = getLessonKey(event, dayName);
+  const dateKey = getDateKey(event);
   const newStatus = document.querySelector('.status-btn.active').dataset.status;
 
   statusBook[dateKey] = newStatus;
@@ -425,7 +516,7 @@ function initCalendar() {
     if (index === 1 || index === 2) dayCol.classList.add('day-off');
 
     const realEvents = scheduleData.filter(e => e.date === columnDateStr).map(e => ({ ...e, isPhantom: false }));
-    const allFutureEvents = scheduleData.filter(e => e.customDayIndex === index && e.date > columnDateStr && !e.isExcelCustom);
+    const allFutureEvents = scheduleData.filter(e => e.customDayIndex === index && e.date > columnDateStr && !e.isExcelCustom && !e.isManual);
 
     const phantomMap = new Map();
     allFutureEvents.forEach(fe => {
@@ -445,9 +536,10 @@ function initCalendar() {
       const heightPx = Math.max(timeToPixels(event.endTime) - topPx, (45 / 60) * HOUR_HEIGHT);
       const eventDiv = document.createElement('div');
 
-      const dateKey = `${event.date}_${event.startTime}_${event.title}`;
-      const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
+      const dateKey = getDateKey(event);
+      const lessonKey = getLessonKey(event, dayName);
       eventDiv.className = `event-card ${getTheme(event.school, dayName)}`;
+      if (event.isManual) eventDiv.classList.add('manual-event');
 
       let priceHtml = ''; let pinHtml = ''; let titlePrefix = '';
 
@@ -461,6 +553,7 @@ function initCalendar() {
         const status = statusBook[dateKey] || (event.isExcelCustom ? event.excelStatus : 'done');
         if (status === 'canceled') eventDiv.classList.add('status-canceled');
         if (status === 'noshow') eventDiv.classList.add('status-noshow');
+        if (status === 'late') eventDiv.classList.add('status-late');
 
         const price = getEffectivePrice(event, dayName);
         priceHtml = price > 0 ? `<div class="event-price-tag"><span class="price-rub">${price} ₽</span><span class="price-byn">≈ ${(price * BYN_RATE).toFixed(2)} Br</span></div>` : '';
@@ -523,7 +616,7 @@ document.getElementById('tab-history').onclick = () => {
 function openStats() {
   const listContainer = document.getElementById('price-settings-list');
   listContainer.innerHTML = '';
-  const currentWeekDates = []; for (let i = 0; i < 7; i++) currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
+  const currentWeekDates = getCurrentWeekDates();
 
   currentWeekDates.forEach((dateStr, index) => {
     const dayEvents = scheduleData.filter(e => e.date === dateStr);
@@ -532,17 +625,17 @@ function openStats() {
     let dayHtml = `<div class="stat-day-header">${daysOfWeek[index]} (${day}.${month})</div>`;
 
     dayEvents.forEach(ev => {
-      const lessonKey = `${daysOfWeek[index]}_${ev.startTime}_${ev.title}`;
+      const lessonKey = getLessonKey(ev, daysOfWeek[index]);
       let cPrice = priceBook[lessonKey];
       if (cPrice === undefined) {
-        if (ev.isExcelCustom) {
-           cPrice = ev.excelPrice;
-        } else {
-           const dur = timeToMins(ev.endTime) - timeToMins(ev.startTime);
-           cPrice = getStandardPrice(ev.school, dur) || '';
+        if (ev.isExcelCustom) cPrice = ev.excelPrice;
+        else {
+          const dur = timeToMins(ev.endTime) - timeToMins(ev.startTime);
+          cPrice = getStandardPrice(ev.school, dur) || '';
         }
       }
-      dayHtml += `<div class="price-row"><span class="price-title">${ev.startTime} - ${ev.title}</span><input type="number" class="price-input" data-key="${lessonKey}" value="${cPrice}"></div>`;
+      const schoolTag = ev.isManual ? ' 🟠' : '';
+      dayHtml += `<div class="price-row"><span class="price-title">${ev.startTime} - ${ev.title}${schoolTag}</span><input type="number" class="price-input" data-key="${lessonKey}" value="${cPrice}"></div>`;
     });
     listContainer.innerHTML += dayHtml;
   });
@@ -567,13 +660,11 @@ function calcSalary() {
   const realTodayStr = formatDateToString(new Date());
   const curMonthIndex = new Date().getMonth();
   const curYear = new Date().getFullYear();
-
-  const currentWeekDates = [];
-  for (let i = 0; i < 7; i++) currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
+  const currentWeekDates = getCurrentWeekDates();
 
   scheduleData.filter(e => currentWeekDates.includes(e.date)).forEach(ev => {
     const dayName = daysOfWeek[ev.customDayIndex];
-    const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
+    const dateKey = getDateKey(ev);
     if (statusBook[dateKey] === 'canceled') return;
 
     const price = getEffectivePrice(ev, dayName);
@@ -586,19 +677,21 @@ function calcSalary() {
 
   let monthItcBase = 0;
   let monthZeroTotal = 0;
+  let monthPrivateTotal = 0;
   scheduleData.forEach(ev => {
     const [y, m] = ev.date.split('-').map(Number);
     if (y !== curYear || (m - 1) !== curMonthIndex) return;
-    const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
+    const dateKey = getDateKey(ev);
     if (statusBook[dateKey] === 'canceled') return;
 
     const dayName = daysOfWeek[ev.customDayIndex];
     const price = getEffectivePrice(ev, dayName);
     if (ev.school === 'ITCompot') monthItcBase += price;
     else if (ev.school === 'Zerocoder') monthZeroTotal += price;
+    else if (ev.school === 'Private' || ev.isManual) monthPrivateTotal += price;
   });
 
-  const grandTotal = monthItcBase + Math.round(monthItcBase * 0.20) + monthZeroTotal;
+  const grandTotal = monthItcBase + Math.round(monthItcBase * 0.20) + monthZeroTotal + monthPrivateTotal;
   document.getElementById('stat-month-project').innerHTML = `${grandTotal} ₽ <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(${(grandTotal * BYN_RATE).toFixed(2)} Br)</span>`;
 }
 
@@ -614,16 +707,15 @@ function openDetailedExcel() {
     return (y === curYear && (m - 1) === curMonthIndex);
   }).sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
 
-  let earnedItc = 0, earnedZero = 0;
-  let expectedItc = 0, expectedZero = 0;
+  let earnedItc = 0, earnedZero = 0, earnedPrivate = 0;
+  let expectedItc = 0, expectedZero = 0, expectedPrivate = 0;
   let todaySum = 0, weekSum = 0;
   let tableRowsHtml = '';
 
-  const currentWeekDates = [];
-  for (let i = 0; i < 7; i++) currentWeekDates.push(formatDateToString(addDays(currentWeekMonday, i)));
+  const currentWeekDates = getCurrentWeekDates();
 
   monthEvents.forEach(ev => {
-    const dateKey = `${ev.date}_${ev.startTime}_${ev.title}`;
+    const dateKey = getDateKey(ev);
     const dayName = daysOfWeek[ev.customDayIndex];
     const status = statusBook[dateKey] || (ev.isExcelCustom ? ev.excelStatus : 'done');
     const price = getEffectivePrice(ev, dayName);
@@ -633,13 +725,17 @@ function openDetailedExcel() {
     const isFuture = ev.date > realTodayStr;
     const isCanceled = status === 'canceled';
     const isNoshow = status === 'noshow';
+    const isLate = status === 'late';
 
     if (ev.school === 'ITCompot') {
       expectedItc += price;
       if (isPastOrToday) earnedItc += price;
-    } else {
+    } else if (ev.school === 'Zerocoder') {
       expectedZero += price;
       if (isPastOrToday) earnedZero += price;
+    } else {
+      expectedPrivate += price;
+      if (isPastOrToday) earnedPrivate += price;
     }
 
     if (isToday) todaySum += price;
@@ -648,6 +744,7 @@ function openDetailedExcel() {
     let trClass = ''; let statusText = '✅ Проведен';
     if (isCanceled) { trClass = 'row-canceled'; statusText = '❌ Отменен'; }
     else if (isNoshow) { trClass = 'row-noshow'; statusText = '⚠️ Прогул'; }
+    else if (isLate) { trClass = 'row-late'; statusText = '⏰ Опоздал'; }
     else if (isFuture) { trClass = 'row-future'; statusText = '⏳ Ожидается'; }
 
     const [, mm, dd] = ev.date.split('-');
@@ -656,7 +753,7 @@ function openDetailedExcel() {
         <td>${dd}.${mm}</td>
         <td>${statusText}</td>
         <td>${ev.title}</td>
-        <td>${ev.school === 'ITCompot' ? 'ITC' : 'Zero'}</td>
+        <td>${getSchoolLabel(ev.school)}</td>
         <td class="num">${price} ₽</td>
       </tr>
     `;
@@ -666,10 +763,10 @@ function openDetailedExcel() {
 
   const earnedItcPrem = Math.round(earnedItc * 0.20);
   const earnedItcTotal = earnedItc + earnedItcPrem;
-  const earnedGrand = earnedItcTotal + earnedZero;
+  const earnedGrand = earnedItcTotal + earnedZero + earnedPrivate;
 
   const expectedItcPrem = Math.round(expectedItc * 0.20);
-  const expectedGrand = expectedItc + expectedItcPrem + expectedZero;
+  const expectedGrand = expectedItc + expectedItcPrem + expectedZero + expectedPrivate;
 
   document.getElementById('ex-today').textContent = `${todaySum} ₽`;
   document.getElementById('ex-earned').textContent = `${earnedGrand} ₽`;
@@ -777,16 +874,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (scheduleData.length > 0) {
+    if (loadedStartStr && loadedEndStr) applyScheduleMerge(loadedStartStr, loadedEndStr);
     initCalendar();
     calcSalary();
   }
 
   loadCloudData().then(() => {
     console.log("☁️ Свежие данные из MongoDB успешно загружены в фоне");
-    if (scheduleData.length > 0) {
-      initCalendar();
-      calcSalary();
-    }
+    if (loadedStartStr && loadedEndStr) applyScheduleMerge(loadedStartStr, loadedEndStr);
+    else if (scheduleData.length > 0) scheduleData = mergeScheduleData(scheduleData.filter(e => !e.isManual), formatDateToString(addDays(currentWeekMonday, -30)), formatDateToString(addDays(currentWeekMonday, 90)));
+    initCalendar();
+    calcSalary();
   }).catch(err => console.error("Ошибка фоновой загрузки:", err));
 
   const lastSync = parseInt(localStorage.getItem('lastSyncTime')) || 0;
@@ -841,6 +939,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-lesson-close').addEventListener('click', () => { document.getElementById('lesson-modal').classList.remove('active'); });
   document.getElementById('btn-lm-crm').addEventListener('click', () => { if (currentEditingLesson?.event?.school) window.open(LINKS[currentEditingLesson.event.school], '_blank'); });
+  document.getElementById('btn-lm-delete-manual').addEventListener('click', () => {
+    if (currentEditingLesson?.event?.isManual) deleteManualLesson(currentEditingLesson.event);
+  });
 
   document.getElementById('btn-copy-notes').addEventListener('click', function (e) {
     e.preventDefault(); const textarea = document.getElementById('lm-notes'); textarea.select(); document.execCommand('copy');
@@ -1134,7 +1235,7 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Берем только настоящие уроки из CRM
       let currentSchedule = JSON.parse(localStorage.getItem('cachedSchedule')) || scheduleData;
-      let pureCrmEvents = currentSchedule.filter(e => !e.isExcelCustom);
+      let pureCrmEvents = currentSchedule.filter(e => !e.isExcelCustom && !e.isManual);
       let usedCrmEventIds = new Set();
       
       parsedExcelLessons.forEach((l, i) => {
@@ -1170,16 +1271,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // ЕСЛИ УРОКА НЕТ В CRM - ИГНОРИРУЕМ! Не создаем никаких визуальных блоков!
       });
       
-      // ПОЛНОСТЬЮ ОЧИЩАЕМ ВСЕ ПРИЗРАКИ
-      customLessons = [];
+      // Сохраняем личные уроки, удаляем только Excel-призраки
+      customLessons = (JSON.parse(localStorage.getItem('customLessons')) || []).filter(c => c.isManual);
       localStorage.setItem('customLessons', JSON.stringify(customLessons));
       localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
       localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
       localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
       localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
       
-      // Очищаем кэш расписания от призраков
-      localStorage.setItem('cachedSchedule', JSON.stringify(pureCrmEvents));
+      // Обновляем кэш: CRM + личные уроки
+      scheduleData = mergeScheduleData(pureCrmEvents, loadedStartStr || formatDateToString(addDays(currentWeekMonday, -30)), loadedEndStr || formatDateToString(addDays(currentWeekMonday, 90)));
+      localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       
       // Отправляем в облако пустой массив customLessons, чтобы стереть их и из базы MongoDB
       await saveToCloud();
@@ -1206,7 +1308,11 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnAddLesson) {
     btnAddLesson.addEventListener('click', () => {
       addLessonModal.classList.add('active');
-      document.getElementById('add-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('add-date').value = formatDateToString(new Date());
+      document.getElementById('add-time').value = '';
+      document.getElementById('add-title').value = '';
+      document.getElementById('add-recurring').checked = false;
+      document.getElementById('add-school').value = 'Private';
     });
   }
 
@@ -1217,7 +1323,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnSaveNewLesson) {
     btnSaveNewLesson.addEventListener('click', async () => {
       const title = document.getElementById('add-title').value.trim();
-      const isRecurring = document.getElementById('add-recurring').checked;
+      const isRecurring = document.getElementById('add-recurring')?.checked ?? false;
       const date = document.getElementById('add-date').value;
       const time = document.getElementById('add-time').value;
       const duration = document.getElementById('add-duration').value || 45;
@@ -1225,34 +1331,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (!title || !date || !time) return alert('Заполните Имя, Дату и Время!');
 
-      // Вычисляем время окончания
       const [h, m] = time.split(':').map(Number);
       const endD = new Date(2000, 0, 1, h, m + Number(duration));
       const endTime = `${String(endD.getHours()).padStart(2, '0')}:${String(endD.getMinutes()).padStart(2, '0')}`;
 
       const newLesson = {
         id: 'manual_' + Date.now(),
-        date: date,
+        date,
         startTime: time,
-        endTime: endTime,
-        title: title,
-        school: school,
-        isManual: true, // Флаг: это настоящий урок, а не фейк из Excel
-        isRecurring: isRecurring
+        endTime,
+        title,
+        school,
+        isManual: true,
+        isRecurring
       };
 
-      // Сохраняем в кэш
       let currentCustom = JSON.parse(localStorage.getItem('customLessons')) || [];
       currentCustom.push(newLesson);
       localStorage.setItem('customLessons', JSON.stringify(currentCustom));
-      
-      // Глобальная переменная для отправки в базу MongoDB
-      customLessons = currentCustom; 
-      
+      customLessons = currentCustom;
+
       btnSaveNewLesson.innerHTML = '⏳ Сохранение...';
-      try { await saveToCloud(); } catch(e) { console.error('Ошибка облака:', e); }
-      
-      location.reload(); 
+      btnSaveNewLesson.disabled = true;
+      try { await saveToCloud(); } catch (e) { console.error('Ошибка облака:', e); }
+
+      addLessonModal.classList.remove('active');
+      if (loadedStartStr && loadedEndStr) applyScheduleMerge(loadedStartStr, loadedEndStr);
+      else await fetchLessons(true);
+
+      initCalendar();
+      calcSalary();
+
+      btnSaveNewLesson.innerHTML = 'Сохранить урок';
+      btnSaveNewLesson.disabled = false;
     });
   }
 
