@@ -72,7 +72,7 @@ function getManualBaseId(lessonId) {
 function getSchoolLabel(school) {
   if (school === 'ITCompot') return 'ITC';
   if (school === 'Zerocoder') return 'Zero';
-  if (school === 'Private') return 'Личный';
+  if (school === 'Private') return 'Персональные уроки';
   return school;
 }
 function expandManualLessons(loadedCustom, reqStartD, reqEndD) {
@@ -116,6 +116,14 @@ function applyScheduleMerge(startStr, endStr) {
   scheduleData = mergeScheduleData(crmEvents, startStr, endStr);
   scheduleData.forEach(e => { if (e.customDayIndex === undefined) e.customDayIndex = getCustomDayIndex(e.date); });
   localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
+}
+function normalize24HourTime(value) {
+  const match = String(value || '').trim().match(/^(\d{1,2})[:.](\d{2})$/);
+  if (!match) return '';
+  const h = Number(match[1]);
+  const m = Number(match[2]);
+  if (h < 0 || h > 23 || m < 0 || m > 59) return '';
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 function timeToMins(timeStr) { const [h, m] = timeStr.split(':').map(Number); return h * 60 + m; }
 function minsToTime(mins) { const h = Math.floor(mins / 60).toString().padStart(2, '0'); const m = (mins % 60).toString().padStart(2, '0'); return `${h}:${m}`; }
@@ -346,7 +354,7 @@ function openLessonModal(event, dayName) {
   let currentNote = notesBook[lessonKey];
   if (!currentNote) {
     currentNote = isManual
-      ? `${event.title}\nЛичный урок`
+      ? `${event.title}\nПерсональный урок`
       : `${event.title}\nАлсу @Alsushenka1985 - Елена @ElenaLCastellano\n\nНе на уроке.`;
   }
 
@@ -1458,7 +1466,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // === ЛОГИКА ДОБАВЛЕНИЯ ЛИЧНЫХ УРОКОВ ===
   const btnAddLesson = document.getElementById('btn-add-lesson');
   const addLessonModal = document.getElementById('add-lesson-modal');
-  const btnCloseAdd = document.getElementById('btn-close-add-modal');
   const btnSaveNewLesson = document.getElementById('btn-save-new-lesson');
 
   if (btnAddLesson) {
@@ -1472,20 +1479,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  if (btnCloseAdd) {
-    btnCloseAdd.addEventListener('click', () => addLessonModal.classList.remove('active'));
-  }
-
   if (btnSaveNewLesson) {
     btnSaveNewLesson.addEventListener('click', async () => {
       const title = document.getElementById('add-title').value.trim();
       const isRecurring = document.getElementById('add-recurring')?.checked ?? false;
       const date = document.getElementById('add-date').value;
-      const time = document.getElementById('add-time').value;
+      const time = normalize24HourTime(document.getElementById('add-time').value);
       const duration = document.getElementById('add-duration').value || 45;
       const school = document.getElementById('add-school').value;
 
-      if (!title || !date || !time) return alert('Заполните Имя, Дату и Время!');
+      if (!title || !date || !time) return alert('Заполните Имя, Дату и Время в формате 24 часа!');
 
       const [h, m] = time.split(':').map(Number);
       const endD = new Date(2000, 0, 1, h, m + Number(duration));

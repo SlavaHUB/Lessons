@@ -25,7 +25,7 @@
     </div>
     <button id="btn-burger" class="btn-secondary btn-burger">☰ Меню</button>
     <div class="action-controls" id="action-controls">
-      <button id="btn-add-lesson" class="btn-secondary" title="Добавить свой урок (Ваня)">➕ Урок</button>
+      <button id="btn-add-lesson" class="btn-secondary" title="Добавить свой урок">➕ Урок</button>
       <button id="btn-export" class="btn-secondary">📸 Скриншот</button>
       <button id="btn-find-slots" class="btn-secondary">🔍 Окошки</button>
       <button id="btn-stats" class="btn-secondary">📊 Статистика</button>
@@ -325,12 +325,11 @@
     <div class="modal-content" style="max-width: 350px;">
       <div class="modal-header">
         <h3>➕ Добавить свой урок</h3>
-        <button class="close-btn" id="btn-close-add-modal">&times;</button>
       </div>
       <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
         <div>
           <label style="font-size: 0.85rem; color: var(--text-muted);">Имя ученика / Название</label>
-          <input type="text" id="add-title" placeholder="Например: Ваня" class="stats-date-input"
+          <input type="text" id="add-title" class="stats-date-input"
             style="width: 100%; box-sizing: border-box; margin-top: 4px;">
         </div>
         <div style="display: flex; gap: 10px;">
@@ -341,7 +340,8 @@
           </div>
           <div style="flex: 1;">
             <label style="font-size: 0.85rem; color: var(--text-muted);">Время</label>
-            <input type="time" id="add-time" class="stats-date-input"
+            <input type="text" id="add-time" class="stats-date-input" inputmode="numeric" maxlength="5"
+              placeholder="14:30"
               style="width: 100%; box-sizing: border-box; margin-top: 4px;">
           </div>
         </div>
@@ -355,7 +355,7 @@
             <label style="font-size: 0.85rem; color: var(--text-muted);">Тип/Школа</label>
             <select id="add-school" class="stats-date-input"
               style="width: 100%; box-sizing: border-box; margin-top: 4px;">
-              <option value="Private">Личный (Ваня)</option>
+              <option value="Private">Персональные уроки</option>
               <option value="ITCompot">ITCompot</option>
               <option value="Zerocoder">Zerocoder</option>
             </select>
