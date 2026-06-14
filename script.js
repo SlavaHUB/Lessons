@@ -230,8 +230,34 @@ async function fetchLessons(forceSync = false) {
       // БЕРЕМ ТОЛЬКО УРОКИ ИЗ CRM! Никаких фейковых уроков из Excel в календаре.
             // БЕРЕМ УРОКИ ИЗ CRM + Наши личные кастомные уроки (Ваня)
       const loadedCustom = JSON.parse(localStorage.getItem('customLessons')) || [];
-      const manualOnly = loadedCustom.filter(e => e.isManual === true); 
-      scheduleData = [...validEvents, ...manualOnly];
+      const manualLessons = [];
+      const reqStartD = new Date(startStr);
+      const reqEndD = new Date(endStr);
+
+      loadedCustom.forEach(custom => {
+        if (!custom.isManual) return;
+        if (custom.isRecurring) {
+          let currDate = new Date(custom.date);
+          while (currDate <= reqEndD) {
+            if (currDate >= reqStartD || currDate >= new Date(custom.date)) {
+              manualLessons.push({
+                ...custom,
+                date: formatDateToString(currDate),
+                id: custom.id + '_' + formatDateToString(currDate) // Уникальный ID для каждого повторения
+              });
+            }
+            currDate = new Date(currDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+          }
+        } else {
+          manualLessons.push(custom);
+        }
+      });
+      
+      // Исключаем удаленные единичные уроки (если мы удалили только один урок из серии)
+      const deletedSingles = JSON.parse(localStorage.getItem('deletedManualSingles')) || [];
+      const filteredManuals = manualLessons.filter(lesson => !deletedSingles.includes(lesson.id));
+
+      scheduleData = [...validEvents, ...filteredManuals];
       localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       localStorage.setItem('loadedStartStr', startStr);
       localStorage.setItem('loadedEndStr', endStr);
@@ -1191,6 +1217,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnSaveNewLesson) {
     btnSaveNewLesson.addEventListener('click', async () => {
       const title = document.getElementById('add-title').value.trim();
+      const isRecurring = document.getElementById('add-recurring').checked;
       const date = document.getElementById('add-date').value;
       const time = document.getElementById('add-time').value;
       const duration = document.getElementById('add-duration').value || 45;
@@ -1210,7 +1237,8 @@ document.addEventListener('DOMContentLoaded', () => {
         endTime: endTime,
         title: title,
         school: school,
-        isManual: true // Флаг: это настоящий урок, а не фейк из Excel
+        isManual: true, // Флаг: это настоящий урок, а не фейк из Excel
+        isRecurring: isRecurring
       };
 
       // Сохраняем в кэш
@@ -1222,7 +1250,7 @@ document.addEventListener('DOMContentLoaded', () => {
       customLessons = currentCustom; 
       
       btnSaveNewLesson.innerHTML = '⏳ Сохранение...';
-      await saveToCloud(); // Улетает на сервер, появится на телефоне
+      try { await saveToCloud(); } catch(e) { console.error('Ошибка облака:', e); }
       
       location.reload(); 
     });
