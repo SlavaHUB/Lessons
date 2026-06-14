@@ -7,7 +7,7 @@
   <title>Интерактивное расписание</title>
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📅</text></svg>">
-  <link rel="stylesheet" href="style.css?v=7.2">
+  <link rel="stylesheet" href="style.css?v=7.3">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -63,6 +63,13 @@
         <div
           style="display: flex; justify-content: space-between; font-size: 1.1rem; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color);">
           <span>Прогноз на месяц:</span><strong id="stat-month-project" style="color: #10b981;">0 ₽</strong>
+        </div>
+
+        <div id="stat-counts-row" class="stat-counts-row">
+          <div class="stat-count-chip stat-count-done"><span id="stat-count-done">0</span><small>Проведено</small></div>
+          <div class="stat-count-chip stat-count-cancel"><span id="stat-count-canceled">0</span><small>Отмена</small></div>
+          <div class="stat-count-chip stat-count-noshow"><span id="stat-count-noshow">0</span><small>Прогул</small></div>
+          <div class="stat-count-chip stat-count-late"><span id="stat-count-late">0</span><small>Опоздал</small></div>
         </div>
 
         <button id="btn-open-excel" class="btn-primary"
@@ -269,41 +276,45 @@
 
 
 
-  <!-- Модальное окно проверки Excel -->
+  <!-- Модальное окно сверки Excel -->
   <div id="excel-review-modal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 800px; width: 95%;">
-      <div class="modal-header" style="margin-bottom: 10px;">
-        <h2 style="color: var(--text-main); font-size: 1.2rem;">Проверка и подтверждение уроков</h2>
+    <div class="modal-content recon-modal" style="max-width: 920px; width: 95%;">
+      <div class="recon-header">
+        <div>
+          <h2 class="recon-title">Сверка с Excel</h2>
+          <p class="recon-subtitle">Месяц: <span id="recon-month-label">—</span></p>
+        </div>
         <button id="btn-review-close" class="btn-secondary" style="padding: 4px 10px;">✕</button>
       </div>
-      <div style="margin-bottom: 15px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.4;">
-        Мы нашли следующие уроки в вашем файле. Вы можете скорректировать их статус, цену или добавить комментарий
-        (например, тему урока) перед финальным сохранением в базу.
+
+      <div class="recon-summary-grid">
+        <div class="recon-card recon-card-total">
+          <span class="recon-card-value" id="recon-stat-total">0</span>
+          <span class="recon-card-label">Всего строк</span>
+        </div>
+        <div class="recon-card recon-card-ok">
+          <span class="recon-card-value" id="recon-stat-ok">0</span>
+          <span class="recon-card-label">Совпало</span>
+        </div>
+        <div class="recon-card recon-card-danger">
+          <span class="recon-card-value" id="recon-stat-unpaid">0</span>
+          <span class="recon-card-label">Не в Excel</span>
+        </div>
+        <div class="recon-card recon-card-warn">
+          <span class="recon-card-value" id="recon-stat-extra">0</span>
+          <span class="recon-card-label">Не в расписании</span>
+        </div>
+        <div class="recon-card recon-card-mismatch">
+          <span class="recon-card-value" id="recon-stat-mismatch">0</span>
+          <span class="recon-card-label">Суммы ≠</span>
+        </div>
       </div>
 
-      <div
-        style="max-height: 60vh; overflow-y: auto; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
-        <table
-          style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: var(--text-main); text-align: left;">
-          <thead style="position: sticky; top: 0; background: var(--bg-header); z-index: 5;">
-            <tr style="border-bottom: 2px solid var(--border-color);">
-              <th style="padding: 10px;">Дата</th>
-              <th style="padding: 10px;">Урок / Группа</th>
-              <th style="padding: 10px;">Статус</th>
-              <th style="padding: 10px;">Сумма (₽)</th>
-              <th style="padding: 10px; min-width: 150px;">Заметка / Комментарий</th>
-            </tr>
-          </thead>
-          <tbody id="excel-review-tbody">
-            <!-- Сюда будут рендериться строки из файла -->
-          </tbody>
-        </table>
-      </div>
+      <div id="recon-sections" class="recon-sections"></div>
 
-      <div style="display: flex; gap: 10px; margin-top: 15px;">
-        <button id="btn-excel-confirm-all" class="btn-primary"
-          style="flex: 1; background: #10b981; font-weight: bold; padding: 12px;">✅ Подтвердить и Сохранить</button>
-        <button id="btn-excel-confirm-cancel" class="btn-secondary" style="padding: 12px 20px;">Отмена</button>
+      <div class="recon-actions">
+        <button id="btn-excel-apply-fixes" class="btn-primary recon-btn-apply">✅ Применить исправления</button>
+        <button id="btn-excel-confirm-cancel" class="btn-secondary">Отмена</button>
       </div>
     </div>
   </div>
@@ -360,7 +371,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=7.2"></script>
+  <script src="script.js?v=7.3"></script>
 </body>
 
 </html>

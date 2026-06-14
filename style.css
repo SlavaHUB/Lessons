@@ -785,7 +785,239 @@ input[type="text"]:focus {
   color: #f97316 !important;
 }
 
+/* --- Статистика: счётчики статусов --- */
+.stat-counts-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.stat-count-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 6px;
+  border-radius: 10px;
+  background: var(--btn-secondary-bg);
+  border: 1px solid var(--border-color);
+}
+
+.stat-count-chip span {
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.stat-count-chip small {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+  text-align: center;
+}
+
+.stat-count-done span { color: #10b981; }
+.stat-count-cancel span { color: #ef4444; }
+.stat-count-noshow span { color: #f59e0b; }
+.stat-count-late span { color: #f97316; }
+
+/* --- Сверка Excel (Apple TV style) --- */
+.recon-modal {
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  padding: 22px !important;
+}
+
+.recon-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+  flex-shrink: 0;
+}
+
+.recon-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.recon-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.recon-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-shrink: 0;
+}
+
+.recon-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 10px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  border: 1px solid var(--border-color);
+  backdrop-filter: blur(8px);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.recon-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.recon-card-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.recon-card-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  text-align: center;
+}
+
+.recon-card-total .recon-card-value { color: var(--text-main); }
+.recon-card-ok .recon-card-value { color: #10b981; }
+.recon-card-danger .recon-card-value { color: #ef4444; }
+.recon-card-warn .recon-card-value { color: #f59e0b; }
+.recon-card-mismatch .recon-card-value { color: #eab308; }
+
+.recon-sections {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding-right: 4px;
+}
+
+.recon-section {
+  margin-bottom: 18px;
+}
+
+.recon-section-title {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.recon-badge {
+  background: var(--btn-secondary-bg);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.recon-table-wrap {
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.recon-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.recon-table th {
+  background: var(--bg-header);
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.recon-table td {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-color);
+  vertical-align: top;
+}
+
+.recon-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.recon-row-danger {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.recon-row-warn {
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.recon-row-mismatch {
+  background: rgba(234, 179, 8, 0.14);
+}
+
+.recon-row-ok {
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.recon-price-old {
+  text-decoration: line-through;
+  opacity: 0.65;
+  margin-right: 4px;
+}
+
+.recon-empty {
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.recon-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.recon-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.recon-btn-apply {
+  flex: 1;
+  background: #10b981 !important;
+  font-weight: 700;
+  padding: 12px !important;
+}
+
 @media (max-width: 768px) {
+  .recon-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stat-counts-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   body {
     padding: 10px;
   }

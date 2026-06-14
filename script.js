@@ -148,6 +148,8 @@ let loadedStartStr = localStorage.getItem('loadedStartStr') || "";
 let loadedEndStr = localStorage.getItem('loadedEndStr') || "";
 let isFetching = false;
 let currentEditingLesson = null;
+let parsedExcelLessons = [];
+let reconciliationResult = null;
 
 document.documentElement.setAttribute('data-theme', 'dark');
 
@@ -570,6 +572,397 @@ function initCalendar() {
 }
 
 // ==========================================
+// СТАТИСТИКА, EXCEL-ПАРСИНГ И СВЕРКА
+// ==========================================
+const EXCEL_JUNK_PATTERNS = /^(итог|премия|byn|итоговый|долг|выплат|вторая школа|урок\/группа|дата|сложение|чисто за)/i;
+const ITC_TITLE_PATTERNS = /группа|индив|шоу/i;
+
+function getCurrentMonthBounds() {
+  const now = new Date();
+  return { year: now.getFullYear(), monthIndex: now.getMonth() };
+}
+
+function isInCurrentMonth(dateStr) {
+  const { year, monthIndex } = getCurrentMonthBounds();
+  const [y, m] = dateStr.split('-').map(Number);
+  return y === year && (m - 1) === monthIndex;
+}
+
+function normalizeMatchTitle(str) {
+  if (!str) return '';
+  return cleanTrashCodes(String(str))
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\s*-\s*$/, '');
+}
+
+function titlesMatch(scheduleTitle, excelTitle) {
+  const a = normalizeMatchTitle(scheduleTitle);
+  const b = normalizeMatchTitle(excelTitle);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.includes(b) || b.includes(a)) return true;
+  const ga = a.match(/группа\s*(?:из\s*)?(\d+)/);
+  const gb = b.match(/группа\s*(?:из\s*)?(\d+)/);
+  if (ga && gb && ga[1] === gb[1]) return true;
+  return false;
+}
+
+function inferSchoolFromExcelTitle(title) {
+  return ITC_TITLE_PATTERNS.test(title) ? 'ITCompot' : 'Zerocoder';
+}
+
+function isJunkExcelRow(title) {
+  if (!title || !String(title).trim()) return true;
+  const t = String(title).trim().toLowerCase();
+  if (EXCEL_JUNK_PATTERNS.test(t)) return true;
+  if (t.includes('итог') || t.includes('премия') || t.includes('вторая школа')) return true;
+  return false;
+}
+
+function parseExcelDateCell(cell, carryDate, curYear, curMonthIndex) {
+  if (cell === null || cell === undefined || cell === '') return carryDate;
+  const raw = String(cell).trim();
+  if (!raw || raw.toLowerCase() === 'дата') return carryDate;
+
+  if (!isNaN(raw) && Number(raw) > 40000) {
+    try {
+      const d = XLSX.SSF.parse_date_code(Number(raw));
+      const candidate = `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+      return isValidDateStr(candidate) ? candidate : carryDate;
+    } catch (e) { /* fall through */ }
+  }
+
+  const fixed = raw.replace(/(\d{1,2})\.0+\.(\d{4})/, (_, day, year) =>
+    `${day}.${String(curMonthIndex + 1).padStart(2, '0')}.${year}`
+  );
+  const dm = fixed.match(/(\d{1,2})[\.,\/](\d{1,2})(?:[\.,\/](\d{2,4}))?/);
+  if (!dm) return carryDate;
+
+  let day = dm[1].padStart(2, '0');
+  let month = dm[2].padStart(2, '0');
+  if (month === '00' || month === '0') month = String(curMonthIndex + 1).padStart(2, '0');
+  let year = dm[3] ? (dm[3].length === 2 ? `20${dm[3]}` : dm[3]) : String(curYear);
+  const candidate = `${year}-${month}-${day}`;
+  return isValidDateStr(candidate) ? candidate : carryDate;
+}
+
+function isValidDateStr(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y || m < 1 || m > 12 || d < 1) return false;
+  return d <= new Date(y, m, 0).getDate();
+}
+
+function parseExcelPrice(col2, col3) {
+  const tryNum = (v) => {
+    if (v === null || v === undefined || v === '') return NaN;
+    const n = parseFloat(String(v).replace(/\s/g, '').replace(',', '.'));
+    return (isNaN(n) || n <= 0 || n > 50000) ? NaN : n;
+  };
+  const p3 = tryNum(col3);
+  if (!isNaN(p3)) return p3;
+  const p2 = tryNum(col2);
+  if (!isNaN(p2)) return p2;
+  return 0;
+}
+
+function parseExcelStatus(col2) {
+  const s = String(col2 ?? '').trim().toLowerCase();
+  if (!s || !isNaN(parseFloat(s.replace(',', '.')))) return 'done';
+  if (s.includes('комп') || s.includes('прогул')) return 'noshow';
+  if (s.includes('отмен')) return 'canceled';
+  if (s.includes('опоз')) return 'late';
+  return 'done';
+}
+
+function getMonthScheduleEvents() {
+  const { year, monthIndex } = getCurrentMonthBounds();
+  return scheduleData.filter(ev => {
+    if (ev.isPhantom) return false;
+    const [y, m] = ev.date.split('-').map(Number);
+    return y === year && (m - 1) === monthIndex;
+  });
+}
+
+function getEventStatus(ev) {
+  const dateKey = getDateKey(ev);
+  return statusBook[dateKey] || (ev.isExcelCustom ? ev.excelStatus : 'done');
+}
+
+function computeStatsSnapshot(events) {
+  const realTodayStr = formatDateToString(new Date());
+  const { year, monthIndex } = getCurrentMonthBounds();
+  const weekSet = new Set(getCurrentWeekDates());
+
+  const snap = {
+    todaySum: 0, weekSum: 0,
+    monthItc: 0, monthZero: 0, monthPrivate: 0,
+    counts: { done: 0, canceled: 0, noshow: 0, late: 0, future: 0, total: 0 }
+  };
+
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+    const dayName = daysOfWeek[ev.customDayIndex];
+    const status = getEventStatus(ev);
+    const price = getEffectivePrice(ev, dayName);
+    const [y, m] = ev.date.split('-').map(Number);
+    const inMonth = y === year && (m - 1) === monthIndex;
+
+    snap.counts.total++;
+    if (ev.date > realTodayStr) snap.counts.future++;
+    else if (status === 'canceled') snap.counts.canceled++;
+    else if (status === 'noshow') snap.counts.noshow++;
+    else if (status === 'late') snap.counts.late++;
+    else snap.counts.done++;
+
+    if (status === 'canceled') continue;
+
+    if (weekSet.has(ev.date)) {
+      snap.weekSum += price;
+      if (ev.date === realTodayStr) snap.todaySum += price;
+    }
+
+    if (!inMonth) continue;
+    if (ev.school === 'ITCompot') snap.monthItc += price;
+    else if (ev.school === 'Zerocoder') snap.monthZero += price;
+    else snap.monthPrivate += price;
+  }
+
+  snap.monthGrand = snap.monthItc + Math.round(snap.monthItc * 0.20) + snap.monthZero + snap.monthPrivate;
+  return snap;
+}
+
+function processExcelData(workbook) {
+  parsedExcelLessons = [];
+  const { year: curYear, monthIndex: curMonthIndex } = getCurrentMonthBounds();
+  const monthSheetName = monthsNominative[curMonthIndex];
+
+  workbook.SheetNames.forEach(sheetName => {
+    if (sheetName.toLowerCase().includes('долг')) return;
+    if (sheetName !== monthSheetName && !sheetName.toLowerCase().includes(monthSheetName.toLowerCase())) return;
+
+    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
+    let currentDate = '';
+
+    rows.forEach((cols, index) => {
+      if (!cols || cols.length === 0) return;
+
+      const col0 = cols[0];
+      const col1 = cols[1] != null ? String(cols[1]).trim() : '';
+      const col2 = cols[2];
+      const col3 = cols[3];
+
+      const parsedDate = parseExcelDateCell(col0, currentDate, curYear, curMonthIndex);
+      if (parsedDate && parsedDate !== currentDate && isInCurrentMonth(parsedDate)) currentDate = parsedDate;
+
+      if (!currentDate || !isInCurrentMonth(currentDate)) return;
+      if (isJunkExcelRow(col1)) return;
+
+      const price = parseExcelPrice(col2, col3);
+      const status = parseExcelStatus(col2);
+      if (price === 0 && status === 'done') return;
+
+      parsedExcelLessons.push({
+        tempId: `excel_${sheetName}_${index}`,
+        rowIndex: index,
+        date: currentDate,
+        title: col1,
+        school: inferSchoolFromExcelTitle(col1),
+        status,
+        price,
+        note: (typeof col2 === 'string' && col2.trim() && isNaN(parseFloat(String(col2).replace(',', '.'))))
+          ? col2.trim() : ''
+      });
+    });
+  });
+
+  if (parsedExcelLessons.length === 0) {
+    alert(`В файле не найдено уроков за ${monthsNominative[curMonthIndex]} ${curYear}. Проверьте лист «${monthSheetName}».`);
+    return;
+  }
+
+  parsedExcelLessons.sort((a, b) => a.date.localeCompare(b.date) || a.rowIndex - b.rowIndex);
+  reconciliationResult = reconcileExcelWithSchedule(parsedExcelLessons, getMonthScheduleEvents());
+  renderReconciliationModal(reconciliationResult);
+}
+
+function reconcileExcelWithSchedule(excelLessons, scheduleEvents) {
+  const usedExcel = new Set();
+  const result = { ok: [], missing_in_excel: [], missing_in_schedule: [], price_mismatch: [] };
+
+  const sortedSchedule = [...scheduleEvents].sort((a, b) =>
+    a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)
+  );
+
+  sortedSchedule.forEach(ev => {
+    const dayName = daysOfWeek[ev.customDayIndex];
+    const schedulePrice = getEffectivePrice(ev, dayName);
+    const scheduleStatus = getEventStatus(ev);
+    const idx = excelLessons.findIndex((xl, i) =>
+      !usedExcel.has(i) && xl.date === ev.date && titlesMatch(ev.title, xl.title)
+    );
+
+    if (idx === -1) {
+      if (scheduleStatus !== 'canceled') {
+        result.missing_in_excel.push({
+          schedule: ev,
+          schedulePrice,
+          scheduleStatus,
+          apply: false
+        });
+      }
+      return;
+    }
+
+    usedExcel.add(idx);
+    const excel = excelLessons[idx];
+    const priceDiff = Math.abs(schedulePrice - excel.price) > 0.5;
+    const statusDiff = scheduleStatus !== excel.status;
+
+    const item = {
+      excel, schedule: ev,
+      schedulePrice, excelPrice: excel.price,
+      scheduleStatus, excelStatus: excel.status,
+      apply: priceDiff || statusDiff
+    };
+
+    if (priceDiff) result.price_mismatch.push(item);
+    else result.ok.push(item);
+  });
+
+  excelLessons.forEach((xl, i) => {
+    if (usedExcel.has(i)) return;
+    result.missing_in_schedule.push({ excel: xl, apply: false });
+  });
+
+  return result;
+}
+
+function applyExcelToSchedule(excelLesson, scheduleEvent) {
+  const dayName = daysOfWeek[scheduleEvent.customDayIndex];
+  const lessonKey = getLessonKey(scheduleEvent, dayName);
+  const dateKey = getDateKey(scheduleEvent);
+
+  statusBook[dateKey] = excelLesson.status;
+  if (excelLesson.note) notesBook[lessonKey] = excelLesson.note;
+
+  if (excelLesson.status === 'done' || excelLesson.status === 'late') {
+    priceBook[lessonKey] = excelLesson.price;
+    delete overridePriceBook[dateKey];
+  } else {
+    overridePriceBook[dateKey] = excelLesson.price;
+  }
+}
+
+function applyReconciliationFixes(recon) {
+  let applied = 0;
+  const applyItem = (item) => {
+    if (!item.apply || !item.excel || !item.schedule) return;
+    applyExcelToSchedule(item.excel, item.schedule);
+    applied++;
+  };
+
+  recon.price_mismatch.forEach(applyItem);
+  recon.ok.forEach(item => { if (item.apply) applyItem(item); });
+
+  localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
+  localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
+  localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
+  localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
+  return applied;
+}
+
+function formatShortDate(dateStr) {
+  const [, mm, dd] = dateStr.split('-');
+  return `${dd}.${mm}`;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function renderReconciliationModal(recon) {
+  const { year, monthIndex } = getCurrentMonthBounds();
+  const total = recon.ok.length + recon.missing_in_excel.length + recon.missing_in_schedule.length + recon.price_mismatch.length;
+
+  document.getElementById('recon-month-label').textContent = `${monthsNominative[monthIndex]} ${year}`;
+  document.getElementById('recon-stat-ok').textContent = recon.ok.length;
+  document.getElementById('recon-stat-unpaid').textContent = recon.missing_in_excel.length;
+  document.getElementById('recon-stat-extra').textContent = recon.missing_in_schedule.length;
+  document.getElementById('recon-stat-mismatch').textContent = recon.price_mismatch.length;
+  document.getElementById('recon-stat-total').textContent = total;
+
+  const sectionsEl = document.getElementById('recon-sections');
+  sectionsEl.innerHTML = '';
+
+  const renderRows = (items, type) => {
+    if (!items.length) return '';
+    const titleMap = {
+      missing_in_excel: '🔴 В расписании, но НЕТ в Excel (не заплатили)',
+      missing_in_schedule: '🟠 В Excel, но НЕТ в расписании',
+      price_mismatch: '🟡 Суммы не сходятся',
+      ok: '✅ Совпадения'
+    };
+    let rows = items.map((item, idx) => {
+      const globalIdx = `${type}_${idx}`;
+      if (type === 'missing_in_excel') {
+        const ev = item.schedule;
+        return `<tr class="recon-row recon-row-danger" data-type="${type}" data-idx="${idx}">
+          <td>${formatShortDate(ev.date)}</td>
+          <td>${escapeHtml(ev.title)}<div class="recon-sub">${getSchoolLabel(ev.school)} · ${ev.startTime}</div></td>
+          <td>${item.scheduleStatus}</td>
+          <td class="num">${item.schedulePrice} ₽</td>
+          <td class="recon-empty">—</td>
+        </tr>`;
+      }
+      if (type === 'missing_in_schedule') {
+        const xl = item.excel;
+        return `<tr class="recon-row recon-row-warn" data-type="${type}" data-idx="${idx}">
+          <td>${formatShortDate(xl.date)}</td>
+          <td>${escapeHtml(xl.title)}<div class="recon-sub">${getSchoolLabel(xl.school)}</div></td>
+          <td>${xl.status}</td>
+          <td class="num">${xl.price} ₽</td>
+          <td class="recon-empty">—</td>
+        </tr>`;
+      }
+      const { excel, schedule, schedulePrice, excelPrice, apply } = item;
+      const rowClass = type === 'price_mismatch' ? 'recon-row recon-row-mismatch' : 'recon-row recon-row-ok';
+      return `<tr class="${rowClass}" data-type="${type}" data-idx="${idx}">
+        <td>${formatShortDate(schedule.date)}</td>
+        <td>${escapeHtml(schedule.title)}<div class="recon-sub">${getSchoolLabel(schedule.school)} · ${schedule.startTime}</div></td>
+        <td>${item.scheduleStatus} → ${item.excelStatus}</td>
+        <td class="num"><span class="recon-price-old">${schedulePrice}</span>${type === 'price_mismatch' ? ` → <strong>${excelPrice}</strong>` : ''} ₽</td>
+        <td><label class="recon-check"><input type="checkbox" class="recon-apply-cb" data-type="${type}" data-idx="${idx}" ${apply ? 'checked' : ''}> Excel</label></td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="recon-section">
+      <h4 class="recon-section-title">${titleMap[type]} <span class="recon-badge">${items.length}</span></h4>
+      <div class="recon-table-wrap"><table class="recon-table"><thead><tr>
+        <th>Дата</th><th>Урок</th><th>Статус</th><th>Сумма</th><th></th>
+      </tr></thead><tbody>${rows}</tbody></table></div>
+    </div>`;
+  };
+
+  ['missing_in_excel', 'missing_in_schedule', 'price_mismatch', 'ok'].forEach(type => {
+    const html = renderRows(recon[type], type);
+    if (html) sectionsEl.insertAdjacentHTML('beforeend', html);
+  });
+
+  sectionsEl.querySelectorAll('.recon-apply-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const t = cb.dataset.type;
+      const i = parseInt(cb.dataset.idx, 10);
+      if (reconciliationResult[t][i]) reconciliationResult[t][i].apply = cb.checked;
+    });
+  });
+
+  document.getElementById('stats-modal').classList.remove('active');
+  document.getElementById('excel-review-modal').classList.add('active');
+}
+
+// ==========================================
 // СТАТИСТИКА И РАСЧЕТ ЗАРПЛАТЫ
 // ==========================================
 const historicalData = [
@@ -656,76 +1049,46 @@ function openStats() {
 }
 
 function calcSalary() {
-  let todaySum = 0; let weekSum = 0;
-  const realTodayStr = formatDateToString(new Date());
-  const curMonthIndex = new Date().getMonth();
-  const curYear = new Date().getFullYear();
-  const currentWeekDates = getCurrentWeekDates();
+  const snap = computeStatsSnapshot(scheduleData);
 
-  scheduleData.filter(e => currentWeekDates.includes(e.date)).forEach(ev => {
-    const dayName = daysOfWeek[ev.customDayIndex];
-    const dateKey = getDateKey(ev);
-    if (statusBook[dateKey] === 'canceled') return;
+  document.getElementById('stat-today').innerHTML = `${snap.todaySum} ₽ <span class="byn-text">(${(snap.todaySum * BYN_RATE).toFixed(2)} Br)</span>`;
+  document.getElementById('stat-week').innerHTML = `${snap.weekSum} ₽ <span style="font-size: 0.8rem; color: var(--text-muted);">(${(snap.weekSum * BYN_RATE).toFixed(2)} Br)</span>`;
+  document.getElementById('stat-month-project').innerHTML = `${snap.monthGrand} ₽ <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(${(snap.monthGrand * BYN_RATE).toFixed(2)} Br)</span>`;
 
-    const price = getEffectivePrice(ev, dayName);
-    weekSum += price;
-    if (ev.date === realTodayStr) todaySum += price;
-  });
-
-  document.getElementById('stat-today').innerHTML = `${todaySum} ₽ <span class="byn-text">(${(todaySum * BYN_RATE).toFixed(2)} Br)</span>`;
-  document.getElementById('stat-week').innerHTML = `${weekSum} ₽ <span style="font-size: 0.8rem; color: var(--text-muted);">(${(weekSum * BYN_RATE).toFixed(2)} Br)</span>`;
-
-  let monthItcBase = 0;
-  let monthZeroTotal = 0;
-  let monthPrivateTotal = 0;
-  scheduleData.forEach(ev => {
-    const [y, m] = ev.date.split('-').map(Number);
-    if (y !== curYear || (m - 1) !== curMonthIndex) return;
-    const dateKey = getDateKey(ev);
-    if (statusBook[dateKey] === 'canceled') return;
-
-    const dayName = daysOfWeek[ev.customDayIndex];
-    const price = getEffectivePrice(ev, dayName);
-    if (ev.school === 'ITCompot') monthItcBase += price;
-    else if (ev.school === 'Zerocoder') monthZeroTotal += price;
-    else if (ev.school === 'Private' || ev.isManual) monthPrivateTotal += price;
-  });
-
-  const grandTotal = monthItcBase + Math.round(monthItcBase * 0.20) + monthZeroTotal + monthPrivateTotal;
-  document.getElementById('stat-month-project').innerHTML = `${grandTotal} ₽ <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(${(grandTotal * BYN_RATE).toFixed(2)} Br)</span>`;
+  const monthEvents = getMonthScheduleEvents();
+  const monthSnap = computeStatsSnapshot(monthEvents);
+  const elDone = document.getElementById('stat-count-done');
+  const elCancel = document.getElementById('stat-count-canceled');
+  const elNoshow = document.getElementById('stat-count-noshow');
+  const elLate = document.getElementById('stat-count-late');
+  if (elDone) elDone.textContent = monthSnap.counts.done;
+  if (elCancel) elCancel.textContent = monthSnap.counts.canceled;
+  if (elNoshow) elNoshow.textContent = monthSnap.counts.noshow;
+  if (elLate) elLate.textContent = monthSnap.counts.late;
 }
 
 function openDetailedExcel() {
   const realTodayStr = formatDateToString(new Date());
-  const curMonthIndex = new Date().getMonth();
-  const curYear = new Date().getFullYear();
+  const { year: curYear, monthIndex: curMonthIndex } = getCurrentMonthBounds();
+  const weekSet = new Set(getCurrentWeekDates());
 
   document.getElementById('excel-month-name').textContent = `${monthsNominative[curMonthIndex]} ${curYear}`;
 
-  let monthEvents = scheduleData.filter(ev => {
-    const [y, m] = ev.date.split('-').map(Number);
-    return (y === curYear && (m - 1) === curMonthIndex);
-  }).sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+  const monthEvents = getMonthScheduleEvents()
+    .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
 
   let earnedItc = 0, earnedZero = 0, earnedPrivate = 0;
   let expectedItc = 0, expectedZero = 0, expectedPrivate = 0;
   let todaySum = 0, weekSum = 0;
-  let tableRowsHtml = '';
+  const rowParts = [];
 
-  const currentWeekDates = getCurrentWeekDates();
-
-  monthEvents.forEach(ev => {
-    const dateKey = getDateKey(ev);
+  for (let i = 0; i < monthEvents.length; i++) {
+    const ev = monthEvents[i];
     const dayName = daysOfWeek[ev.customDayIndex];
-    const status = statusBook[dateKey] || (ev.isExcelCustom ? ev.excelStatus : 'done');
+    const status = getEventStatus(ev);
     const price = getEffectivePrice(ev, dayName);
-
     const isPastOrToday = ev.date <= realTodayStr;
-    const isToday = ev.date === realTodayStr;
     const isFuture = ev.date > realTodayStr;
-    const isCanceled = status === 'canceled';
-    const isNoshow = status === 'noshow';
-    const isLate = status === 'late';
 
     if (ev.school === 'ITCompot') {
       expectedItc += price;
@@ -738,28 +1101,20 @@ function openDetailedExcel() {
       if (isPastOrToday) earnedPrivate += price;
     }
 
-    if (isToday) todaySum += price;
-    if (currentWeekDates.includes(ev.date)) weekSum += price;
+    if (ev.date === realTodayStr) todaySum += price;
+    if (weekSet.has(ev.date)) weekSum += price;
 
     let trClass = ''; let statusText = '✅ Проведен';
-    if (isCanceled) { trClass = 'row-canceled'; statusText = '❌ Отменен'; }
-    else if (isNoshow) { trClass = 'row-noshow'; statusText = '⚠️ Прогул'; }
-    else if (isLate) { trClass = 'row-late'; statusText = '⏰ Опоздал'; }
+    if (status === 'canceled') { trClass = 'row-canceled'; statusText = '❌ Отменен'; }
+    else if (status === 'noshow') { trClass = 'row-noshow'; statusText = '⚠️ Прогул'; }
+    else if (status === 'late') { trClass = 'row-late'; statusText = '⏰ Опоздал'; }
     else if (isFuture) { trClass = 'row-future'; statusText = '⏳ Ожидается'; }
 
     const [, mm, dd] = ev.date.split('-');
-    tableRowsHtml += `
-      <tr class="${trClass}">
-        <td>${dd}.${mm}</td>
-        <td>${statusText}</td>
-        <td>${ev.title}</td>
-        <td>${getSchoolLabel(ev.school)}</td>
-        <td class="num">${price} ₽</td>
-      </tr>
-    `;
-  });
+    rowParts.push(`<tr class="${trClass}"><td>${dd}.${mm}</td><td>${statusText}</td><td>${escapeHtml(ev.title)}</td><td>${getSchoolLabel(ev.school)}</td><td class="num">${price} ₽</td></tr>`);
+  }
 
-  document.getElementById('detailed-excel-tbody').innerHTML = tableRowsHtml;
+  document.getElementById('detailed-excel-tbody').innerHTML = rowParts.join('');
 
   const earnedItcPrem = Math.round(earnedItc * 0.20);
   const earnedItcTotal = earnedItc + earnedItcPrem;
@@ -1031,20 +1386,16 @@ document.addEventListener('DOMContentLoaded', () => {
   
   const filePicker = document.getElementById('excel-file-picker');
   const btnChooseFile = document.getElementById('btn-choose-file');
-  let parsedExcelLessons = []; // Глобальная переменная для временного хранения распаршенных уроков
-  
+
   if (btnChooseFile && filePicker) {
-    btnChooseFile.addEventListener('click', () => {
-      filePicker.click();
-    });
+    btnChooseFile.addEventListener('click', () => filePicker.click());
 
     filePicker.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      // Динамическая загрузка библиотеки, если забыл обновить index.html
       if (typeof XLSX === 'undefined') {
-        alert('Библиотека Excel не найдена в index.html. Пытаюсь загрузить автоматически...');
+        alert('Библиотека Excel не найдена. Пытаюсь загрузить...');
         await new Promise((resolve, reject) => {
           const script = document.createElement('script');
           script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
@@ -1055,165 +1406,22 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const reader = new FileReader();
-      reader.onload = function(evt) {
+      reader.onload = (evt) => {
         try {
           const data = new Uint8Array(evt.target.result);
-          // SheetJS читает как .xlsx, так и .csv
-          const workbook = XLSX.read(data, {type: 'array'});
+          const workbook = XLSX.read(data, { type: 'array' });
           processExcelData(workbook);
         } catch (err) {
           alert('Ошибка чтения файла: ' + err.message);
           console.error(err);
         } finally {
-          filePicker.value = ''; // Сбрасываем инпут
+          filePicker.value = '';
         }
       };
       reader.readAsArrayBuffer(file);
     });
   }
 
-  function processExcelData(workbook) {
-    parsedExcelLessons = [];
-    const curMonthIndex = new Date().getMonth();
-    const curYear = new Date().getFullYear();
-
-    workbook.SheetNames.forEach(sheetName => {
-      if (sheetName.toLowerCase().includes('долг')) return; 
-
-      const worksheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(worksheet, {header: 1});
-      let currentDate = '';
-
-      rows.forEach((cols, index) => {
-        if (!cols || cols.length === 0) return;
-        
-        let col0 = cols[0] ? String(cols[0]).trim() : '';
-        let col1 = cols[1] ? String(cols[1]).trim() : '';
-        let col2 = cols[2] ? String(cols[2]).trim() : '';
-        let col3 = cols[3] ? String(cols[3]).trim() : '';
-
-        // 1. Пытаемся распознать дату
-        if (col0 && col0.toLowerCase() !== 'дата') {
-          if (!isNaN(col0) && Number(col0) > 40000) {
-            try {
-              const dateObj = XLSX.SSF.parse_date_code(Number(col0));
-              let day = String(dateObj.d).padStart(2, '0');
-              let month = String(dateObj.m).padStart(2, '0');
-              let year = String(dateObj.y);
-              currentDate = `${year}-${month}-${day}`;
-            } catch(e){}
-          } else {
-            const dateMatch = col0.match(/(\d{1,2})[\.,\/](\d{1,2})/);
-            if (dateMatch) {
-              let day = dateMatch[1].padStart(2, '0');
-              let month = dateMatch[2].padStart(2, '0');
-              if (month === '00' || month === '0') month = String(curMonthIndex + 1).padStart(2, '0'); 
-              let year = curYear.toString();
-              const yearMatch = col0.match(/\d{4}/);
-              if (yearMatch) year = yearMatch[0];
-              currentDate = `${year}-${month}-${day}`;
-            }
-          }
-        }
-
-        // 2. Распознаем урок
-        if (!col1 || col1.toLowerCase().includes('итог') || col1.toLowerCase().includes('премия') || col1.toLowerCase() === 'урок/группа' || col1.toLowerCase().includes('вторая школа')) {
-          return;
-        }
-
-        let price = parseFloat(col3.replace(',', '.')) || 0;
-        let statusText = col2.toLowerCase();
-        
-        if (currentDate && col1) {
-          const [y, m, d] = currentDate.split('-').map(Number);
-          
-          if (y === curYear && (m - 1) === curMonthIndex) {
-            // ФИКС: Проверка на 31 июня и прочие несуществующие даты
-            const maxDaysInMonth = new Date(curYear, curMonthIndex + 1, 0).getDate();
-            if (d > maxDaysInMonth) return; 
-
-            const schoolType = col1.includes('Группа') || col1.includes('Индив') || col1.includes('Шоу') ? 'ITCompot' : 'Zerocoder';
-            
-            let initialStatus = 'done';
-            if (statusText.includes('комп.') || statusText.includes('прогул')) initialStatus = 'noshow';
-            else if (statusText.includes('отменен') || statusText.includes('отмена')) initialStatus = 'canceled';
-
-            parsedExcelLessons.push({
-              tempId: `excel_${sheetName}_${index}`,
-              rowIndex: index,
-              date: currentDate,
-              title: col1,
-              school: schoolType,
-              status: initialStatus,
-              price: price,
-              note: col2 !== 'комп.' && col2 !== '✅ Проведен' && col2 !== '⚠️ Прогул' ? col2 : '' 
-            });
-          }
-        }
-      });
-    });
-
-    if (parsedExcelLessons.length === 0) {
-      alert('В этом файле не найдено уроков за текущий месяц. Проверьте данные.');
-      return;
-    }
-
-    parsedExcelLessons.sort((a, b) => a.date.localeCompare(b.date) || a.rowIndex - b.rowIndex);
-
-    renderExcelReviewModal(parsedExcelLessons);
-  }
-
-  function renderExcelReviewModal(lessons) {
-    const tbody = document.getElementById('excel-review-tbody');
-    tbody.innerHTML = '';
-
-    lessons.forEach((l, i) => {
-      const parts = l.date.split('-');
-      const d = parts[2]; const m = parts[1];
-
-      const tr = document.createElement('tr');
-      tr.style.borderBottom = '1px solid var(--border-color)';
-      
-      // Выделяем прогулы и отмены цветом фона для удобства
-      if (l.status === 'noshow') tr.style.background = 'rgba(245, 158, 11, 0.1)';
-      else if (l.status === 'canceled') tr.style.background = 'rgba(239, 68, 68, 0.1)';
-
-      tr.innerHTML = `
-        <td style="padding: 10px; font-weight: bold; color: var(--text-main); white-space: nowrap;">${d}.${m}</td>
-        <td style="padding: 10px; color: var(--text-main); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${l.title}">
-          <div style="font-weight: bold; margin-bottom: 2px;">${l.title}</div>
-          <div style="font-size: 0.75rem; color: var(--text-muted);">${l.school === 'ITCompot' ? 'ITC' : 'Zero'}</div>
-        </td>
-        <td style="padding: 10px;">
-          <select class="review-status" data-index="${i}" style="width: 100%; padding: 6px; border-radius: 6px; background: var(--input-bg); color: var(--input-text); border: 1px solid var(--input-border); outline: none; font-size: 0.85rem;">
-            <option value="done" ${l.status === 'done' ? 'selected' : ''}>✅ Проведен</option>
-            <option value="noshow" ${l.status === 'noshow' ? 'selected' : ''}>⚠️ Прогул</option>
-            <option value="canceled" ${l.status === 'canceled' ? 'selected' : ''}>❌ Отменен</option>
-          </select>
-        </td>
-        <td style="padding: 10px;">
-          <input type="number" class="review-price" data-index="${i}" value="${l.price}" style="width: 80px; padding: 6px; border-radius: 6px; background: var(--input-bg); color: var(--input-text); border: 1px solid var(--input-border); outline: none; font-size: 0.85rem;">
-        </td>
-        <td style="padding: 10px;">
-          <input type="text" class="review-note" data-index="${i}" value="${l.note}" placeholder="Комментарий..." style="width: 100%; min-width: 150px; padding: 6px; border-radius: 6px; background: var(--input-bg); color: var(--input-text); border: 1px solid var(--input-border); outline: none; font-size: 0.85rem;">
-        </td>
-      `;
-      tbody.appendChild(tr);
-
-      // Добавляем интерактив: если поменяли статус, можно подсветить строку
-      const selectEl = tr.querySelector('.review-status');
-      selectEl.addEventListener('change', function() {
-        tr.style.background = 'transparent';
-        if (this.value === 'noshow') tr.style.background = 'rgba(245, 158, 11, 0.1)';
-        else if (this.value === 'canceled') tr.style.background = 'rgba(239, 68, 68, 0.1)';
-      });
-    });
-
-    document.getElementById('stats-modal').classList.remove('active'); // Закрываем статистику, чтобы не мешала
-    document.getElementById('excel-review-modal').classList.add('active'); // Открываем новую модалку
-  }
-
-  // Обработчики кнопок модалки проверки
   document.getElementById('btn-review-close').addEventListener('click', () => {
     document.getElementById('excel-review-modal').classList.remove('active');
   });
@@ -1222,78 +1430,26 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('excel-review-modal').classList.remove('active');
   });
 
-  document.getElementById('btn-excel-confirm-all').addEventListener('click', async () => {
-    const btn = document.getElementById('btn-excel-confirm-all');
+  document.getElementById('btn-excel-apply-fixes').addEventListener('click', async () => {
+    if (!reconciliationResult) return;
+    const btn = document.getElementById('btn-excel-apply-fixes');
     const origText = btn.innerHTML;
-    btn.innerHTML = '⏳ Сохранение...';
+    btn.innerHTML = '⏳ Применяю...';
     btn.disabled = true;
 
     try {
-      const statusSelects = document.querySelectorAll('.review-status');
-      const priceInputs = document.querySelectorAll('.review-price');
-      const noteInputs = document.querySelectorAll('.review-note');
-      
-      // Берем только настоящие уроки из CRM
-      let currentSchedule = JSON.parse(localStorage.getItem('cachedSchedule')) || scheduleData;
-      let pureCrmEvents = currentSchedule.filter(e => !e.isExcelCustom && !e.isManual);
-      let usedCrmEventIds = new Set();
-      
-      parsedExcelLessons.forEach((l, i) => {
-        const finalStatus = statusSelects[i].value;
-        const finalPrice = parseFloat(priceInputs[i].value) || 0;
-        const finalNote = noteInputs[i].value.trim();
-        
-        // Ищем свободный урок в CRM по дате и школе
-        const matchingCrmEvent = pureCrmEvents.find(e => 
-            e.date === l.date && 
-            e.school === l.school &&
-            !usedCrmEventIds.has(e.id)
-        );
-
-        if (matchingCrmEvent) {
-            // Привязываем цены и статусы из Excel к реальному уроку из CRM
-            usedCrmEventIds.add(matchingCrmEvent.id);
-            
-            const dayName = daysOfWeek[getCustomDayIndex(matchingCrmEvent.date)];
-            const lessonKey = `${dayName}_${matchingCrmEvent.startTime}_${matchingCrmEvent.title}`;
-            const dateKey = `${matchingCrmEvent.date}_${matchingCrmEvent.startTime}_${matchingCrmEvent.title}`;
-            
-            statusBook[dateKey] = finalStatus;
-            if (finalNote) notesBook[lessonKey] = finalNote;
-            
-            if (finalStatus === 'done') {
-              priceBook[lessonKey] = finalPrice;
-              delete overridePriceBook[dateKey];
-            } else {
-              overridePriceBook[dateKey] = finalPrice;
-            }
-        }
-        // ЕСЛИ УРОКА НЕТ В CRM - ИГНОРИРУЕМ! Не создаем никаких визуальных блоков!
-      });
-      
-      // Сохраняем личные уроки, удаляем только Excel-призраки
-      customLessons = (JSON.parse(localStorage.getItem('customLessons')) || []).filter(c => c.isManual);
-      localStorage.setItem('customLessons', JSON.stringify(customLessons));
-      localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
-      localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
-      localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
-      localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
-      
-      // Обновляем кэш: CRM + личные уроки
-      scheduleData = mergeScheduleData(pureCrmEvents, loadedStartStr || formatDateToString(addDays(currentWeekMonday, -30)), loadedEndStr || formatDateToString(addDays(currentWeekMonday, 90)));
-      localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
-      
-      // Отправляем в облако пустой массив customLessons, чтобы стереть их и из базы MongoDB
+      const applied = applyReconciliationFixes(reconciliationResult);
       await saveToCloud();
-      
-      btn.innerHTML = '✅ Успешно!';
+      calcSalary();
+      initCalendar();
+      btn.innerHTML = `✅ Применено: ${applied}`;
       setTimeout(() => {
         document.getElementById('excel-review-modal').classList.remove('active');
-        location.reload(); 
-      }, 1000);
-
+        btn.innerHTML = origText;
+        btn.disabled = false;
+      }, 1200);
     } catch (e) {
-      alert('Ошибка сохранения: ' + e.message);
+      alert('Ошибка: ' + e.message);
       btn.innerHTML = origText;
       btn.disabled = false;
     }
