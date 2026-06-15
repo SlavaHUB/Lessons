@@ -74,6 +74,16 @@ app.post('/api/prices', async (req, res) => {
 });
 
 // --- 4. ПАРСЕРЫ CRM ---
+const CRM_REQUEST_TIMEOUT_MS = 10000;
+
+function fetchWithTimeout(url, options = {}, timeoutMs = CRM_REQUEST_TIMEOUT_MS) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    return fetch(url, { ...options, signal: controller.signal })
+        .finally(() => clearTimeout(timeout));
+}
+
 function addMinutesToTime(timeStr, minsToAdd) {
     const [hours, minutes] = timeStr.split(':').map(Number);
     const date = new Date(2000, 0, 1, hours, minutes + minsToAdd);
@@ -113,7 +123,7 @@ app.get('/api/schedule', async (req, res) => {
         const fetchITC = async () => {
             let events = [];
             try {
-                const res = await fetch('https://it-school.t8s.ru/Interactive/GetSchedulesEvents', {
+                const res = await fetchWithTimeout('https://it-school.t8s.ru/Interactive/GetSchedulesEvents', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cookie': process.env.ITC_COOKIE, 'X-Requested-With': 'XMLHttpRequest' },
                     body: JSON.stringify({ start: unixStart, end: unixEnd, model: { TeacherId: 12445, TrialLessonsOnly: false, StudyRequestsMode: false, SplitByClassrooms: true, DefaultView: "agendaWeek", ExpandableFormClosed: false, Submitted: false } })
@@ -138,7 +148,7 @@ app.get('/api/schedule', async (req, res) => {
         const fetchZero = async () => {
             let events = [];
             try {
-                const res = await fetch('https://crm.genius-school.online/', {
+                const res = await fetchWithTimeout('https://crm.genius-school.online/', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-OCTOBER-REQUEST-HANDLER': 'onGetFilteredLessonsByDate', 'X-Requested-With': 'XMLHttpRequest', 'Cookie': process.env.ZERO_COOKIE },
                     body: JSON.stringify({ dates: datesArray, teacher_id: 52617, is_extra: false })

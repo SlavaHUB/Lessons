@@ -69,6 +69,32 @@ function getManualBaseId(lessonId) {
   const match = String(lessonId).match(/^(manual_\d+)(?:_\d{4}-\d{2}-\d{2})?$/);
   return match ? match[1] : lessonId;
 }
+function readStorageJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (e) {
+    console.warn(`Не удалось прочитать ${key} из localStorage.`, e);
+    return fallback;
+  }
+}
+function readStorageString(key, fallback = '') {
+  try {
+    return localStorage.getItem(key) || fallback;
+  } catch (e) {
+    console.warn(`Не удалось прочитать ${key} из localStorage.`, e);
+    return fallback;
+  }
+}
+function readStorageNumber(key, fallback = 0) {
+  try {
+    const value = parseInt(localStorage.getItem(key), 10);
+    return Number.isNaN(value) ? fallback : value;
+  } catch (e) {
+    console.warn(`Не удалось прочитать ${key} из localStorage.`, e);
+    return fallback;
+  }
+}
 function getSchoolLabel(school) {
   if (school === 'ITCompot') return 'ITC';
   if (school === 'Zerocoder') return 'Zero';
@@ -101,11 +127,11 @@ function expandManualLessons(loadedCustom, reqStartD, reqEndD) {
       }
     }
   });
-  const deletedSingles = JSON.parse(localStorage.getItem('deletedManualSingles')) || [];
+  const deletedSingles = readStorageJSON('deletedManualSingles', []);
   return manualLessons.filter(lesson => !deletedSingles.includes(lesson.id));
 }
 function mergeScheduleData(crmEvents, startStr, endStr) {
-  const loadedCustom = JSON.parse(localStorage.getItem('customLessons')) || customLessons;
+  const loadedCustom = readStorageJSON('customLessons', customLessons);
   const reqStartD = new Date(startStr + 'T00:00:00');
   const reqEndD = new Date(endStr + 'T23:59:59');
   const pureCrm = crmEvents.filter(e => !e.isManual && !e.isExcelCustom);
@@ -149,11 +175,15 @@ let notesBook = {};
 let overridePriceBook = {};
 let customLessons = []; // Сюда будут сохраняться уроки из Excel
 
-let scheduleData = JSON.parse(localStorage.getItem('cachedSchedule')) || [];
-scheduleData.forEach(e => { e.customDayIndex = getCustomDayIndex(e.date); e.title = cleanTrashCodes(e.title); });
+let scheduleData = readStorageJSON('cachedSchedule', []);
+scheduleData.forEach(e => {
+  if (!e || !e.date) return;
+  e.customDayIndex = getCustomDayIndex(e.date);
+  e.title = cleanTrashCodes(e.title);
+});
 
-let loadedStartStr = localStorage.getItem('loadedStartStr') || "";
-let loadedEndStr = localStorage.getItem('loadedEndStr') || "";
+let loadedStartStr = readStorageString('loadedStartStr');
+let loadedEndStr = readStorageString('loadedEndStr');
 let isFetching = false;
 let currentEditingLesson = null;
 let parsedExcelLessons = [];
@@ -182,23 +212,23 @@ async function loadCloudData() {
       localStorage.setItem('customLessons', JSON.stringify(customLessons));
     } else {
       console.log('☁️ Облако пустое. Запускаю авто-миграцию...');
-      const localPrices = JSON.parse(localStorage.getItem('lessonPrices_v2')) || {};
+      const localPrices = readStorageJSON('lessonPrices_v2', {});
       if (Object.keys(localPrices).length > 0) {
         priceBook = localPrices;
-        statusBook = JSON.parse(localStorage.getItem('lessonStatuses')) || {};
-        notesBook = JSON.parse(localStorage.getItem('lessonNotes')) || {};
-        overridePriceBook = JSON.parse(localStorage.getItem('lessonOverrides')) || {};
-        customLessons = JSON.parse(localStorage.getItem('customLessons')) || [];
+        statusBook = readStorageJSON('lessonStatuses', {});
+        notesBook = readStorageJSON('lessonNotes', {});
+        overridePriceBook = readStorageJSON('lessonOverrides', {});
+        customLessons = readStorageJSON('customLessons', []);
         await saveToCloud();
       }
     }
   } catch (e) {
     console.warn('⚠️ Оффлайн режим. Загружаю локальные данные.', e);
-    priceBook = JSON.parse(localStorage.getItem('lessonPrices_v2')) || {};
-    statusBook = JSON.parse(localStorage.getItem('lessonStatuses')) || {};
-    notesBook = JSON.parse(localStorage.getItem('lessonNotes')) || {};
-    overridePriceBook = JSON.parse(localStorage.getItem('lessonOverrides')) || {};
-    customLessons = JSON.parse(localStorage.getItem('customLessons')) || [];
+    priceBook = readStorageJSON('lessonPrices_v2', {});
+    statusBook = readStorageJSON('lessonStatuses', {});
+    notesBook = readStorageJSON('lessonNotes', {});
+    overridePriceBook = readStorageJSON('lessonOverrides', {});
+    customLessons = readStorageJSON('customLessons', []);
   }
 }
 
@@ -414,7 +444,7 @@ function openLessonModal(event, dayName) {
 
 async function deleteManualLesson(event) {
   const baseId = getManualBaseId(event.id);
-  const customList = JSON.parse(localStorage.getItem('customLessons')) || [];
+  const customList = readStorageJSON('customLessons', []);
   const template = customList.find(c => c.id === baseId);
   const isRecurringSeries = template?.isRecurring;
 
@@ -428,11 +458,10 @@ async function deleteManualLesson(event) {
       const updated = customList.filter(c => c.id !== baseId);
       localStorage.setItem('customLessons', JSON.stringify(updated));
       customLessons = updated;
-      const deletedSingles = (JSON.parse(localStorage.getItem('deletedManualSingles')) || [])
-        .filter(id => !id.startsWith(baseId + '_'));
+      const deletedSingles = (readStorageJSON('deletedManualSingles', [])).filter(id => !id.startsWith(baseId + '_'));
       localStorage.setItem('deletedManualSingles', JSON.stringify(deletedSingles));
     } else {
-      const deletedSingles = JSON.parse(localStorage.getItem('deletedManualSingles')) || [];
+      const deletedSingles = readStorageJSON('deletedManualSingles', []);
       if (!deletedSingles.includes(event.id)) deletedSingles.push(event.id);
       localStorage.setItem('deletedManualSingles', JSON.stringify(deletedSingles));
     }
@@ -527,15 +556,15 @@ function initCalendar() {
 
     const realEvents = scheduleData.filter(e => e.date === columnDateStr).map(e => ({ ...e, isPhantom: false }));
     const allFutureEvents = scheduleData.filter(e => e.customDayIndex === index && e.date > columnDateStr && !e.isExcelCustom && !e.isManual);
+    const realEventKeys = new Set(realEvents.map(e => `${e.startTime}_${e.title}`));
 
     const phantomMap = new Map();
     allFutureEvents.forEach(fe => {
       const dateKey = `${fe.date}_${fe.startTime}_${fe.title}`;
       if (statusBook[dateKey] === 'canceled') return;
-      const isSameRecurring = realEvents.some(ce => ce.startTime === fe.startTime && ce.title === fe.title);
-      if (!isSameRecurring) {
-        const key = `${fe.startTime}_${fe.title}`;
-        if (!phantomMap.has(key)) phantomMap.set(key, { ...fe, isPhantom: true });
+      const key = `${fe.startTime}_${fe.title}`;
+      if (!realEventKeys.has(key) && !phantomMap.has(key)) {
+        phantomMap.set(key, { ...fe, isPhantom: true });
       }
     });
 
@@ -585,6 +614,12 @@ function initCalendar() {
 const EXCEL_JUNK_PATTERNS = /^(итог|премия|byn|итоговый|долг|выплат|вторая школа|урок\/группа|дата|сложение|чисто за)/i;
 const ITC_TITLE_PATTERNS = /группа|индив|шоу/i;
 
+// Словарь алиасов: Excel-название → часть названия из CRM.
+// Пример: если в Excel "нейротин", а в CRM "NIN-562 Никита", добавьте { "нейротин": "NIN-562" }.
+const EXCEL_TITLE_ALIASES = {
+  "нейротин": "NIN-562"
+};
+
 function getCurrentMonthBounds() {
   const now = new Date();
   return { year: now.getFullYear(), monthIndex: now.getMonth() };
@@ -600,21 +635,62 @@ function normalizeMatchTitle(str) {
   if (!str) return '';
   return cleanTrashCodes(String(str))
     .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[^a-zа-я0-9]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .replace(/\s*-\s*$/, '');
 }
 
-function titlesMatch(scheduleTitle, excelTitle) {
+function expandTitleAliases(str) {
+  const normalized = normalizeMatchTitle(str);
+  if (!normalized) return normalized;
+  const alias = EXCEL_TITLE_ALIASES[normalized];
+  return alias ? `${normalized} ${normalizeMatchTitle(alias)}` : normalized;
+}
+
+function getMatchTokens(str) {
+  return expandTitleAliases(str)
+    .split(' ')
+    .filter(token => token && token.length > 1);
+}
+
+function getTitlesMatchInfo(scheduleTitle, excelTitle) {
   const a = normalizeMatchTitle(scheduleTitle);
   const b = normalizeMatchTitle(excelTitle);
-  if (!a || !b) return false;
-  if (a === b) return true;
-  if (a.includes(b) || b.includes(a)) return true;
+
+  if (!a || !b) return null;
+  if (a === b) return { type: 'exact', label: 'точное совпадение' };
+  if (a.includes(b) || b.includes(a)) return { type: 'fuzzy', label: 'совпадение по вхождению' };
+
+  const scheduleTokens = getMatchTokens(scheduleTitle);
+  const excelTokens = getMatchTokens(excelTitle);
+  const commonTokens = scheduleTokens.filter(token => excelTokens.includes(token));
+
+  if (commonTokens.length > 0) {
+    const excelAlias = EXCEL_TITLE_ALIASES[normalizeMatchTitle(excelTitle)];
+    const scheduleAlias = EXCEL_TITLE_ALIASES[normalizeMatchTitle(scheduleTitle)];
+    const aliasTokens = [
+      ...(excelAlias ? getMatchTokens(excelAlias) : []),
+      ...(scheduleAlias ? getMatchTokens(scheduleAlias) : [])
+    ];
+    const matchedByAlias = commonTokens.some(token => aliasTokens.includes(token));
+
+    return {
+      type: matchedByAlias ? 'alias' : 'fuzzy',
+      label: matchedByAlias ? `совпадение по alias: ${excelAlias || scheduleAlias}` : `совпадение по слову: ${commonTokens.join(', ')}`
+    };
+  }
+
   const ga = a.match(/группа\s*(?:из\s*)?(\d+)/);
   const gb = b.match(/группа\s*(?:из\s*)?(\d+)/);
-  if (ga && gb && ga[1] === gb[1]) return true;
-  return false;
+  if (ga && gb && ga[1] === gb[1]) return { type: 'group', label: 'совпадение по группе' };
+
+  return null;
+}
+
+function titlesMatch(scheduleTitle, excelTitle) {
+  return !!getTitlesMatchInfo(scheduleTitle, excelTitle);
 }
 
 function inferSchoolFromExcelTitle(title) {
@@ -795,48 +871,86 @@ function processExcelData(workbook) {
   renderReconciliationModal(reconciliationResult);
 }
 
+function buildScheduleReconIndex(scheduleEvents) {
+  const scheduleByDate = new Map();
+
+  scheduleEvents.forEach(ev => {
+    if (ev.isPhantom) return;
+    if (!scheduleByDate.has(ev.date)) scheduleByDate.set(ev.date, []);
+    scheduleByDate.get(ev.date).push(ev);
+  });
+
+  return scheduleByDate;
+}
+
+function buildExcelReconIndex(excelLessons) {
+  const excelByDate = new Map();
+
+  excelLessons.forEach((xl, index) => {
+    if (!excelByDate.has(xl.date)) excelByDate.set(xl.date, []);
+    excelByDate.get(xl.date).push({ lesson: xl, index });
+  });
+
+  return excelByDate;
+}
+
+function findExcelMatchForSchedule(ev, excelByDate, usedExcel) {
+  const candidates = excelByDate.get(ev.date) || [];
+
+  for (let i = 0; i < candidates.length; i++) {
+    const { lesson, index } = candidates[i];
+    if (usedExcel.has(index)) continue;
+    if (titlesMatch(ev.title, lesson.title)) return { lesson, index };
+  }
+
+  return null;
+}
+
 function reconcileExcelWithSchedule(excelLessons, scheduleEvents) {
   const usedExcel = new Set();
   const result = { ok: [], missing_in_excel: [], missing_in_schedule: [], price_mismatch: [] };
-
   const sortedSchedule = [...scheduleEvents].sort((a, b) =>
     a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)
   );
+  const scheduleByDate = buildScheduleReconIndex(sortedSchedule);
+  const excelByDate = buildExcelReconIndex(excelLessons);
 
-  sortedSchedule.forEach(ev => {
-    const dayName = daysOfWeek[ev.customDayIndex];
-    const schedulePrice = getEffectivePrice(ev, dayName);
-    const scheduleStatus = getEventStatus(ev);
-    const idx = excelLessons.findIndex((xl, i) =>
-      !usedExcel.has(i) && xl.date === ev.date && titlesMatch(ev.title, xl.title)
-    );
+  Array.from(scheduleByDate.entries()).forEach(([date, dayEvents]) => {
+    dayEvents.forEach(ev => {
+      const dayName = daysOfWeek[ev.customDayIndex];
+      const schedulePrice = getEffectivePrice(ev, dayName);
+      const scheduleStatus = getEventStatus(ev);
+      const match = findExcelMatchForSchedule(ev, excelByDate, usedExcel);
 
-    if (idx === -1) {
-      if (scheduleStatus !== 'canceled') {
-        result.missing_in_excel.push({
-          schedule: ev,
-          schedulePrice,
-          scheduleStatus,
-          apply: false
-        });
+      if (!match) {
+        if (scheduleStatus !== 'canceled') {
+          result.missing_in_excel.push({
+            schedule: ev,
+            schedulePrice,
+            scheduleStatus,
+            apply: false
+          });
+        }
+        return;
       }
-      return;
-    }
 
-    usedExcel.add(idx);
-    const excel = excelLessons[idx];
-    const priceDiff = Math.abs(schedulePrice - excel.price) > 0.5;
-    const statusDiff = scheduleStatus !== excel.status;
+      usedExcel.add(match.index);
+      const excel = match.lesson;
+      const priceDiff = Math.abs(schedulePrice - excel.price) > 0.5;
+      const statusDiff = scheduleStatus !== excel.status;
+      const matchInfo = getTitlesMatchInfo(ev.title, excel.title);
 
-    const item = {
-      excel, schedule: ev,
-      schedulePrice, excelPrice: excel.price,
-      scheduleStatus, excelStatus: excel.status,
-      apply: priceDiff || statusDiff
-    };
+      const item = {
+        excel, schedule: ev,
+        schedulePrice, excelPrice: excel.price,
+        scheduleStatus, excelStatus: excel.status,
+        match: matchInfo,
+        apply: priceDiff || statusDiff
+      };
 
-    if (priceDiff) result.price_mismatch.push(item);
-    else result.ok.push(item);
+      if (priceDiff) result.price_mismatch.push(item);
+      else result.ok.push(item);
+    });
   });
 
   excelLessons.forEach((xl, i) => {
@@ -934,11 +1048,17 @@ function renderReconciliationModal(recon) {
           <td class="recon-empty">—</td>
         </tr>`;
       }
-      const { excel, schedule, schedulePrice, excelPrice, apply } = item;
+      const { excel, schedule, schedulePrice, excelPrice, apply, match } = item;
       const rowClass = type === 'price_mismatch' ? 'recon-row recon-row-mismatch' : 'recon-row recon-row-ok';
+      const matchLabel = match?.label ? `<div class="recon-sub" style="color: #22c55e;">${escapeHtml(match.label)}</div>` : '';
       return `<tr class="${rowClass}" data-type="${type}" data-idx="${idx}">
         <td>${formatShortDate(schedule.date)}</td>
-        <td>${escapeHtml(schedule.title)}<div class="recon-sub">${getSchoolLabel(schedule.school)} · ${schedule.startTime}</div></td>
+        <td>
+          ${escapeHtml(schedule.title)}
+          <div class="recon-sub">${getSchoolLabel(schedule.school)} · CRM · ${schedule.startTime}</div>
+          <div class="recon-sub">Excel: ${escapeHtml(excel.title)}</div>
+          ${matchLabel}
+        </td>
         <td>${item.scheduleStatus} → ${item.excelStatus}</td>
         <td class="num"><span class="recon-price-old">${schedulePrice}</span>${type === 'price_mismatch' ? ` → <strong>${excelPrice}</strong>` : ''} ₽</td>
         <td><label class="recon-check"><input type="checkbox" class="recon-apply-cb" data-type="${type}" data-idx="${idx}" ${apply ? 'checked' : ''}> Excel</label></td>
@@ -1227,11 +1347,11 @@ function findFreeSlots() {
 
 document.addEventListener('DOMContentLoaded', () => {
   try {
-    priceBook = JSON.parse(localStorage.getItem('lessonPrices_v2')) || {};
-    statusBook = JSON.parse(localStorage.getItem('lessonStatuses')) || {};
-    notesBook = JSON.parse(localStorage.getItem('lessonNotes')) || {};
-    overridePriceBook = JSON.parse(localStorage.getItem('lessonOverrides')) || {};
-    customLessons = JSON.parse(localStorage.getItem('customLessons')) || [];
+    priceBook = readStorageJSON('lessonPrices_v2', {});
+    statusBook = readStorageJSON('lessonStatuses', {});
+    notesBook = readStorageJSON('lessonNotes', {});
+    overridePriceBook = readStorageJSON('lessonOverrides', {});
+    customLessons = readStorageJSON('customLessons', []);
   } catch (e) {
     priceBook = {}; statusBook = {}; notesBook = {}; overridePriceBook = {}; customLessons = [];
   }
@@ -1250,7 +1370,7 @@ document.addEventListener('DOMContentLoaded', () => {
     calcSalary();
   }).catch(err => console.error("Ошибка фоновой загрузки:", err));
 
-  const lastSync = parseInt(localStorage.getItem('lastSyncTime')) || 0;
+  const lastSync = readStorageNumber('lastSyncTime', 0);
   const oneHour = 60 * 60 * 1000;
   if (Date.now() - lastSync > oneHour) {
     fetchLessons(true);
@@ -1505,7 +1625,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isRecurring
       };
 
-      let currentCustom = JSON.parse(localStorage.getItem('customLessons')) || [];
+      let currentCustom = readStorageJSON('customLessons', []);
       currentCustom.push(newLesson);
       localStorage.setItem('customLessons', JSON.stringify(currentCustom));
       customLessons = currentCustom;
