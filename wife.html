@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Расписание жены — Июнь 2026</title>
+    <title>Расписание жены</title>
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👩</text></svg>">
     <style>
@@ -39,7 +39,7 @@
             color: var(--text-main);
             margin: 0;
             padding: 20px;
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -48,23 +48,32 @@
         .toolbar {
             margin-bottom: 15px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .month-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
         }
 
         .title-month {
-            font-size: 1.2rem;
-            font-weight: 700;
+            font-size: 1.15rem;
+            font-weight: 800;
+            white-space: nowrap;
         }
 
         button {
             cursor: pointer;
             font-family: inherit;
             font-size: 0.85rem;
-            font-weight: 600;
-            border-radius: 6px;
+            font-weight: 700;
+            border-radius: 8px;
             border: none;
-            padding: 8px 16px;
+            padding: 9px 13px;
             transition: all 0.2s ease;
             background: var(--btn-secondary-bg);
             color: var(--btn-secondary-text);
@@ -72,6 +81,23 @@
 
         button:hover {
             background: var(--btn-secondary-hover);
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .wife-summary {
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: var(--text-muted);
+            font-size: 0.9rem;
         }
 
         .calendar-wrapper {
@@ -79,7 +105,7 @@
             flex-direction: column;
             flex: 1;
             border: 1px solid var(--border-color);
-            border-radius: 8px;
+            border-radius: 12px;
             overflow: hidden;
             background: var(--bg-container);
         }
@@ -90,7 +116,7 @@
             background: var(--bg-header);
             border-bottom: 1px solid var(--border-color);
             text-align: center;
-            font-weight: 700;
+            font-weight: 800;
             font-size: 0.85rem;
             padding: 10px 0;
         }
@@ -102,40 +128,39 @@
         .month-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            grid-template-rows: repeat(5, 1fr);
             flex: 1;
+            min-height: 0;
         }
 
         .day-cell {
             border-right: 1px solid var(--border-color);
             border-bottom: 1px solid var(--border-color);
-            padding: 6px;
+            padding: 7px;
             display: flex;
             flex-direction: column;
             position: relative;
-            min-height: 0;
+            min-height: 86px;
         }
 
         .day-cell:nth-child(7n) {
             border-right: none;
         }
 
-        .day-cell:nth-last-child(-n+7) {
-            border-bottom: none;
+        .day-cell.empty {
+            background: rgba(100, 116, 139, 0.08);
         }
 
-        /* ПОДСВЕТКА СЕГОДНЯШНЕГО ДНЯ */
         .day-cell.today-highlight {
-            background-color: rgba(59, 130, 246, 0.08);
+            background-color: rgba(59, 130, 246, 0.12);
             border: 2px solid #3b82f6;
             z-index: 2;
         }
 
         .day-number {
-            font-weight: 700;
+            font-weight: 800;
             font-size: 0.85rem;
             color: var(--text-muted);
-            margin-bottom: 4px;
+            margin-bottom: 6px;
             display: inline-block;
             align-self: flex-start;
         }
@@ -143,54 +168,52 @@
         .today-highlight .day-number {
             color: #ffffff;
             background-color: #3b82f6;
-            padding: 1px 6px;
-            border-radius: 4px;
+            padding: 1px 7px;
+            border-radius: 999px;
         }
 
-        /* Карточка смены */
         .shift-card {
             background: var(--theme-green-bg);
             color: var(--theme-green-text);
             border: 1px solid var(--theme-green-stroke);
             border-left: 4px solid var(--theme-green-border);
-            border-radius: 4px;
-            padding: 4px 6px;
+            border-radius: 7px;
+            padding: 7px 8px;
             flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
-            gap: 2px;
+            gap: 4px;
         }
 
         .shift-role {
-            font-size: 0.65rem;
-            font-weight: 800;
+            font-size: 0.68rem;
+            font-weight: 900;
             text-transform: uppercase;
-            opacity: 0.7;
+            opacity: 0.75;
             letter-spacing: 0.05em;
         }
 
         .shift-time {
-            font-size: 0.8rem;
-            font-weight: 700;
+            font-size: 0.82rem;
+            font-weight: 800;
         }
 
-        /* Выходной */
         .wife-day-off {
             background-image: repeating-linear-gradient(-45deg, var(--day-off-bg1), var(--day-off-bg1) 7px, var(--day-off-bg2) 7px, var(--day-off-bg2) 14px);
             justify-content: flex-start;
         }
 
         .day-off-label {
-            font-size: 0.7rem;
+            font-size: 0.72rem;
             color: var(--text-muted);
-            font-weight: 600;
+            font-weight: 700;
             text-align: center;
             margin-top: auto;
             margin-bottom: auto;
-            opacity: 0.5;
+            opacity: 0.55;
         }
 
         @media (max-width: 768px) {
@@ -198,13 +221,33 @@
                 padding: 10px;
             }
 
+            .toolbar {
+                align-items: stretch;
+            }
+
+            .title-month {
+                width: 100%;
+                text-align: center;
+                order: -1;
+            }
+
+            .month-controls {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            .month-controls button {
+                flex: 1;
+            }
+
             .week-header {
-                font-size: 0.75rem;
+                font-size: 0.72rem;
                 padding: 6px 0;
             }
 
             .day-cell {
-                padding: 3px;
+                min-height: 62px;
+                padding: 4px;
             }
 
             .day-cell.today-highlight {
@@ -213,30 +256,36 @@
 
             .day-number {
                 font-size: 0.7rem;
-                margin-bottom: 2px;
+                margin-bottom: 3px;
             }
 
             .shift-role {
-                font-size: 8px;
+                font-size: 0.55rem;
             }
 
             .shift-time {
-                font-size: 0.65rem;
+                font-size: 0.68rem;
             }
 
             .day-off-label {
-                font-size: 9px;
+                font-size: 0.55rem;
             }
         }
     </style>
 </head>
 
 <body>
-
     <div class="toolbar">
-        <button onclick="window.location.href='index.html'">← Моё расписание</button>
-        <div class="title-month">👩 Расписание Кати — Июнь 2026</div>
-        <div style="width: 140px;"></div> </div>
+        <button id="btn-back-schedule" type="button">← Моё расписание</button>
+        <div id="wife-month-title" class="title-month">👩 Расписание Кати</div>
+        <div class="month-controls">
+            <button id="btn-wife-prev-month" type="button">←</button>
+            <button id="btn-wife-today" type="button">Сегодня</button>
+            <button id="btn-wife-next-month" type="button">→</button>
+        </div>
+    </div>
+
+    <div id="wife-summary" class="wife-summary">Загрузка расписания...</div>
 
     <div class="calendar-wrapper">
         <div class="week-header">
@@ -249,73 +298,144 @@
             <div class="week-day-name">Вс</div>
         </div>
 
-        <div class="month-grid" id="month-grid-container">
-            </div>
+        <div class="month-grid" id="month-grid-container"></div>
     </div>
 
     <script>
-        const scheduleData = {
-            "1": "выходной", "2": "выходной",
-            "3": { "start": "12:00", "end": "21:00" }, "4": { "start": "11:00", "end": "20:00" },
-            "5": { "start": "09:00", "end": "18:00" }, "6": { "start": "12:00", "end": "21:00" },
-            "7": { "start": "11:00", "end": "20:00" }, "8": "выходной", "9": "выходной",
-            "10": { "start": "09:00", "end": "18:00" }, "11": { "start": "11:00", "end": "21:00" },
-            "12": { "start": "10:00", "end": "20:00" }, "13": "выходной", "14": "выходной",
-            "15": { "start": "11:00", "end": "21:00" }, "16": { "start": "09:00", "end": "18:00" },
-            "17": { "start": "12:00", "end": "21:00" }, "18": { "start": "09:00", "end": "18:00" },
-            "19": { "start": "12:00", "end": "21:00" }, "20": { "start": "09:00", "end": "18:00" },
-            "21": "выходной", "22": { "start": "11:00", "end": "21:00" }, "23": { "start": "09:00", "end": "18:00" },
-            "24": { "start": "12:00", "end": "21:00" }, "25": { "start": "09:00", "end": "18:00" },
-            "26": { "start": "12:00", "end": "21:00" }, "27": { "start": "09:00", "end": "18:00" },
-            "28": "выходной", "29": { "start": "12:00", "end": "20:00" }, "30": { "start": "09:00", "end": "15:00" }
+        const wifeSchedules = {
+            "2026-06": {
+                label: "Июнь 2026",
+                shifts: {
+                    "1": "выходной", "2": "выходной",
+                    "3": { "start": "12:00", "end": "21:00" }, "4": { "start": "11:00", "end": "20:00" },
+                    "5": { "start": "09:00", "end": "18:00" }, "6": { "start": "12:00", "end": "21:00" },
+                    "7": { "start": "11:00", "end": "20:00" }, "8": "выходной", "9": "выходной",
+                    "10": { "start": "09:00", "end": "18:00" }, "11": { "start": "11:00", "end": "21:00" },
+                    "12": { "start": "10:00", "end": "20:00" }, "13": "выходной", "14": "выходной",
+                    "15": { "start": "11:00", "end": "21:00" }, "16": { "start": "09:00", "end": "18:00" },
+                    "17": { "start": "12:00", "end": "21:00" }, "18": { "start": "09:00", "end": "18:00" },
+                    "19": { "start": "12:00", "end": "21:00" }, "20": { "start": "09:00", "end": "18:00" },
+                    "21": "выходной", "22": { "start": "11:00", "end": "21:00" }, "23": { "start": "09:00", "end": "18:00" },
+                    "24": { "start": "12:00", "end": "21:00" }, "25": { "start": "09:00", "end": "18:00" },
+                    "26": { "start": "12:00", "end": "21:00" }, "27": { "start": "09:00", "end": "18:00" },
+                    "28": "выходной", "29": { "start": "12:00", "end": "20:00" }, "30": { "start": "09:00", "end": "15:00" }
+                }
+            }
         };
 
         const container = document.getElementById('month-grid-container');
-        
-        // Получаем сегодняшнюю дату для умной подсветки
-        const realToday = new Date();
-        const currentDay = realToday.getDate();
-        const currentMonth = realToday.getMonth(); // Месяцы в JS начинаются с 0, июнь - это 5
-        const currentYear = realToday.getFullYear();
+        const titleEl = document.getElementById('wife-month-title');
+        const summaryEl = document.getElementById('wife-summary');
+        const today = new Date();
+        let selectedMonthKey = formatMonthKey(today);
 
-        // Отрисовываем 30 дней июня
-        for (let day = 1; day <= 30; day++) {
-            const dayCell = document.createElement('div');
-            dayCell.className = 'day-cell';
-            
-            // Если сегодня июнь 2026 года и день совпадает — вешаем подсветку
-            if (day === currentDay && currentMonth === 5 && currentYear === 2026) {
-                dayCell.classList.add('today-highlight');
-            }
-
-            const dayNumDiv = document.createElement('div');
-            dayNumDiv.className = 'day-number';
-            dayNumDiv.textContent = day;
-            dayCell.appendChild(dayNumDiv);
-
-            const status = scheduleData[day];
-
-            if (status === "выходной") {
-                dayCell.classList.add('wife-day-off');
-                dayCell.innerHTML += `<div class="day-off-label">☁️ ВЫХОДНОЙ</div>`;
-            } else if (status && status.start) {
-                dayCell.innerHTML += `
-          <div class="shift-card">
-            <div class="shift-role">Кассир</div>
-            <div class="shift-time">${status.start} - ${status.end}</div>
-          </div>
-        `;
-            }
-            container.appendChild(dayCell);
+        if (!wifeSchedules[selectedMonthKey]) {
+            selectedMonthKey = Object.keys(wifeSchedules)[0] || selectedMonthKey;
         }
 
-        // Добавляем 5 пустых ячеек в конце, чтобы забить сетку 5x7 до красивого ровного состояния
-        for (let i = 0; i < 5; i++) {
-            const emptyCell = document.createElement('div');
-            emptyCell.className = 'day-cell';
-            emptyCell.style.opacity = '0.2';
-            container.appendChild(emptyCell);
+        document.getElementById('btn-back-schedule').addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+
+        document.getElementById('btn-wife-prev-month').addEventListener('click', () => {
+            const [year, month] = selectedMonthKey.split('-').map(Number);
+            selectedMonthKey = formatMonthKey(new Date(year, month - 2, 1));
+            renderWifeCalendar();
+        });
+
+        document.getElementById('btn-wife-next-month').addEventListener('click', () => {
+            const [year, month] = selectedMonthKey.split('-').map(Number);
+            selectedMonthKey = formatMonthKey(new Date(year, month, 1));
+            renderWifeCalendar();
+        });
+
+        document.getElementById('btn-wife-today').addEventListener('click', () => {
+            selectedMonthKey = formatMonthKey(today);
+            renderWifeCalendar();
+        });
+
+        function formatMonthKey(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            return `${year}-${month}`;
         }
+
+        function monthLabelFromKey(monthKey) {
+            const [year, month] = monthKey.split('-').map(Number);
+            return new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1));
+        }
+
+        function renderWifeCalendar() {
+            const schedule = wifeSchedules[selectedMonthKey];
+            const [year, month] = selectedMonthKey.split('-').map(Number);
+            const firstDay = new Date(year, month - 1, 1);
+            const daysInMonth = new Date(year, month, 0).getDate();
+            const startOffset = (firstDay.getDay() + 6) % 7;
+            const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+            const weeksCount = totalCells / 7;
+            const shifts = Object.values(schedule?.shifts || {}).filter(status => status && status.start);
+            const daysOff = Object.values(schedule?.shifts || {}).filter(status => status === 'выходной').length;
+
+            titleEl.textContent = `👩 Расписание Кати — ${schedule ? schedule.label : monthLabelFromKey(selectedMonthKey)}`;
+            summaryEl.textContent = schedule
+                ? `Смен: ${shifts.length} · Выходных: ${daysOff} · Дней без данных: ${Math.max(0, daysInMonth - shifts.length - daysOff)}`
+                : `Расписание на ${monthLabelFromKey(selectedMonthKey)} пока не добавлено.`;
+
+            container.style.gridTemplateRows = `repeat(${weeksCount}, minmax(70px, 1fr))`;
+            container.innerHTML = '';
+
+            for (let i = 0; i < totalCells; i++) {
+                const dayCell = document.createElement('div');
+                dayCell.className = 'day-cell';
+
+                if (i < startOffset || i - startOffset + 1 > daysInMonth) {
+                    dayCell.classList.add('empty');
+                    container.appendChild(dayCell);
+                    continue;
+                }
+
+                const day = i - startOffset + 1;
+                const status = schedule?.shifts?.[String(day)];
+                const isToday = day === today.getDate() && today.getMonth() + 1 === month && today.getFullYear() === year;
+
+                if (isToday) dayCell.classList.add('today-highlight');
+
+                const dayNumDiv = document.createElement('div');
+                dayNumDiv.className = 'day-number';
+                dayNumDiv.textContent = day;
+                dayCell.appendChild(dayNumDiv);
+
+                if (!schedule) {
+                    const emptyLabel = document.createElement('div');
+                    emptyLabel.className = 'day-off-label';
+                    emptyLabel.textContent = 'нет данных';
+                    dayCell.appendChild(emptyLabel);
+                } else if (status === 'выходной') {
+                    dayCell.classList.add('wife-day-off');
+                    const offLabel = document.createElement('div');
+                    offLabel.className = 'day-off-label';
+                    offLabel.textContent = '☁️ ВЫХОДНОЙ';
+                    dayCell.appendChild(offLabel);
+                } else if (status && status.start) {
+                    const shiftCard = document.createElement('div');
+                    shiftCard.className = 'shift-card';
+                    shiftCard.innerHTML = `
+                        <div class="shift-role">Кассир</div>
+                        <div class="shift-time">${status.start} - ${status.end}</div>
+                    `;
+                    dayCell.appendChild(shiftCard);
+                } else {
+                    const emptyLabel = document.createElement('div');
+                    emptyLabel.className = 'day-off-label';
+                    emptyLabel.textContent = 'нет данных';
+                    dayCell.appendChild(emptyLabel);
+                }
+
+                container.appendChild(dayCell);
+            }
+        }
+
+        renderWifeCalendar();
     </script>
 </body>
 

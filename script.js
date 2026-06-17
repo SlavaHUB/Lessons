@@ -3,7 +3,18 @@
 // ==========================================
 const API_URL = 'https://lessons-mqy0.onrender.com/api/schedule';
 const DB_API_URL = 'https://lessons-mqy0.onrender.com/api/data';
+const CLOUD_SYNC_QUEUE_KEY = 'cloudSyncQueue';
 let currentWeekMonday = getMonday(new Date());
+let cloudRevision = '';
+let cloudUpdatedAt = '';
+let isFlushingCloudQueue = false;
+
+try {
+  cloudRevision = localStorage.getItem('cloudRevision') || '';
+  cloudUpdatedAt = localStorage.getItem('cloudUpdatedAt') || '';
+} catch (e) {
+  console.warn('Не удалось прочитать метаданные облачной синхронизации.', e);
+}
 
 const BYN_RATE = 0.0387;
 const ITCOMPOT_RATE = 190;
@@ -191,28 +202,180 @@ let reconciliationResult = null;
 
 document.documentElement.setAttribute('data-theme', 'dark');
 
-// Загрузка из MongoDB (с авто-миграцией)
+function fetchWithClientTimeout(url, options = {}, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timeout));
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function getPendingCloudQueue() {
+  return readStorageJSON(CLOUD_SYNC_QUEUE_KEY, []);
+}
+
+function persistPendingCloudQueue(queue) {
+  try {
+    localStorage.setItem(CLOUD_SYNC_QUEUE_KEY, JSON.stringify(Array.isArray(queue) ? queue : []));
+  } catch (e) {
+    console.warn('Не удалось сохранить очередь синхронизации.', e);
+    setSyncStatus('БД: очередь не сохраняется', 'error');
+  }
+}
+
+function setSyncStatus(text, type = 'info') {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+
+  el.textContent = text;
+  el.dataset.type = type;
+  el.className = `sync-status ${type}`;
+}
+
+function getCloudPayload() {
+  return {
+    priceBook,
+    statusBook,
+    notesBook,
+    overridePriceBook,
+    customLessons,
+    clientRevision: cloudRevision,
+    clientUpdatedAt: cloudUpdatedAt
+  };
+}
+
+async function flushCloudQueue() {
+  if (isFlushingCloudQueue) return;
+
+  isFlushingCloudQueue = true;
+  let retryCount = 3;
+
+  try {
+    while (true) {
+      const queue = getPendingCloudQueue();
+
+      if (queue.length === 0) {
+        if (cloudUpdatedAt) {
+          const time = new Date(cloudUpdatedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+          setSyncStatus(`БД: ${time}`, 'ok');
+        } else {
+          setSyncStatus('БД: локально', 'ok');
+        }
+        break;
+      }
+
+      if (!navigator.onLine) {
+        setSyncStatus(`БД: офлайн ${queue.length}`, 'warn');
+        break;
+      }
+
+      const [currentOp, ...restQueue] = queue;
+
+      try {
+        setSyncStatus('БД: синхронизация...', 'info');
+
+        const res = await fetchWithClientTimeout(DB_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentOp.payload || getCloudPayload())
+        }, 12000);
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const saved = await res.json();
+
+        if (saved.revision !== undefined) {
+          cloudRevision = String(saved.revision);
+          localStorage.setItem('cloudRevision', cloudRevision);
+        }
+
+        if (saved.updatedAt) {
+          cloudUpdatedAt = saved.updatedAt;
+          localStorage.setItem('cloudUpdatedAt', cloudUpdatedAt);
+        }
+
+        persistPendingCloudQueue(restQueue);
+        retryCount = 3;
+      } catch (error) {
+        persistPendingCloudQueue(queue);
+
+        if (retryCount <= 0) {
+          setSyncStatus(`БД: ошибка ${queue.length}`, 'error');
+          break;
+        }
+
+        retryCount -= 1;
+        await delay(1000 * (4 - retryCount));
+      }
+    }
+  } finally {
+    isFlushingCloudQueue = false;
+  }
+}
+
+// Загрузка из MongoDB (с авто-миграцией и офлайн-очередью)
 async function loadCloudData() {
   try {
-    const res = await fetch(DB_API_URL);
+    const res = await fetchWithClientTimeout(DB_API_URL, {}, 8000);
     if (!res.ok) throw new Error('Network response was not ok');
     const data = await res.json();
 
-    if (data && Object.keys(data.priceBook || {}).length > 0) {
-      priceBook = data.priceBook || {};
-      statusBook = data.statusBook || {};
-      notesBook = data.notesBook || {};
-      overridePriceBook = data.overridePriceBook || {};
-      customLessons = data.customLessons || []; // Загружаем из базы
+    if (data?.revision !== undefined) {
+      cloudRevision = String(data.revision);
+      localStorage.setItem('cloudRevision', cloudRevision);
+    }
 
-      localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
-      localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
-      localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
-      localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
-      localStorage.setItem('customLessons', JSON.stringify(customLessons));
+    if (data?.updatedAt) {
+      cloudUpdatedAt = data.updatedAt;
+      localStorage.setItem('cloudUpdatedAt', cloudUpdatedAt);
+    }
+
+    const pendingQueue = getPendingCloudQueue();
+    const hasCloudData = data && (
+      Object.keys(data.priceBook || {}).length > 0 ||
+      Object.keys(data.statusBook || {}).length > 0 ||
+      Object.keys(data.notesBook || {}).length > 0 ||
+      Object.keys(data.overridePriceBook || {}).length > 0 ||
+      Array.isArray(data.customLessons) && data.customLessons.length > 0
+    );
+
+    if (hasCloudData) {
+      if (pendingQueue.length > 0) {
+        // Если есть несохраненные локальные изменения, локальные данные приоритетнее облака.
+        priceBook = { ...(data.priceBook || {}), ...priceBook };
+        statusBook = { ...(data.statusBook || {}), ...statusBook };
+        notesBook = { ...(data.notesBook || {}), ...notesBook };
+        overridePriceBook = { ...(data.overridePriceBook || {}), ...overridePriceBook };
+        customLessons = customLessons.length > 0 ? customLessons : (data.customLessons || []);
+
+        localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
+        localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
+        localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
+        localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
+        localStorage.setItem('customLessons', JSON.stringify(customLessons));
+
+        console.log('☁️ Есть локальная очередь. Сначала применяем ее, потом досылаем в БД.');
+      } else {
+        priceBook = data.priceBook || {};
+        statusBook = data.statusBook || {};
+        notesBook = data.notesBook || {};
+        overridePriceBook = data.overridePriceBook || {};
+        customLessons = data.customLessons || [];
+
+        localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
+        localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
+        localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
+        localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
+        localStorage.setItem('customLessons', JSON.stringify(customLessons));
+      }
     } else {
       console.log('☁️ Облако пустое. Запускаю авто-миграцию...');
       const localPrices = readStorageJSON('lessonPrices_v2', {});
+
       if (Object.keys(localPrices).length > 0) {
         priceBook = localPrices;
         statusBook = readStorageJSON('lessonStatuses', {});
@@ -220,27 +383,36 @@ async function loadCloudData() {
         overridePriceBook = readStorageJSON('lessonOverrides', {});
         customLessons = readStorageJSON('customLessons', []);
         await saveToCloud();
+      } else {
+        setSyncStatus('БД: пусто', 'warn');
       }
     }
   } catch (e) {
-    console.warn('⚠️ Оффлайн режим. Загружаю локальные данные.', e);
+    console.warn('⚠️ Оффлайн режим. Работаем по локальным данным.', e);
     priceBook = readStorageJSON('lessonPrices_v2', {});
     statusBook = readStorageJSON('lessonStatuses', {});
     notesBook = readStorageJSON('lessonNotes', {});
     overridePriceBook = readStorageJSON('lessonOverrides', {});
     customLessons = readStorageJSON('customLessons', []);
+    setSyncStatus('БД: офлайн', 'warn');
   }
 }
 
-// Отправка данных в MongoDB
+// Отправка данных в MongoDB через надежную очередь
 async function saveToCloud() {
-  try {
-    fetch(DB_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ priceBook, statusBook, notesBook, overridePriceBook, customLessons }) // Добавили отправку
-    });
-  } catch (e) { console.error('Ошибка записи в облако', e); }
+  const queue = getPendingCloudQueue();
+
+  queue.push({
+    id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    payload: getCloudPayload(),
+    createdAt: new Date().toISOString()
+  });
+
+  persistPendingCloudQueue(queue);
+  setSyncStatus(`БД: в очереди ${queue.length}`, 'warn');
+
+  await flushCloudQueue();
+  return getPendingCloudQueue().length === 0;
 }
 
 function getEffectivePrice(event, dayName) {
@@ -483,7 +655,7 @@ async function deleteManualLesson(event) {
   calcSalary();
 }
 
-document.getElementById('btn-lm-save').addEventListener('click', () => {
+document.getElementById('btn-lm-save').addEventListener('click', async () => {
   if (!currentEditingLesson) return;
   const inputVal = parseFloat(document.getElementById('lm-input-price').value) || 0;
   const finalPrice = currentEditingLesson.isPerStudent ? inputVal * ITCOMPOT_RATE : inputVal;
@@ -508,7 +680,7 @@ document.getElementById('btn-lm-save').addEventListener('click', () => {
   localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
   localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
 
-  saveToCloud(); // Фоновое сохранение
+  await saveToCloud(); // Надежное сохранение через очередь
 
   calcSalary();
   initCalendar();
@@ -1364,6 +1536,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadCloudData().then(() => {
     console.log("☁️ Свежие данные из MongoDB успешно загружены в фоне");
+    flushCloudQueue();
     if (loadedStartStr && loadedEndStr) applyScheduleMerge(loadedStartStr, loadedEndStr);
     else if (scheduleData.length > 0) scheduleData = mergeScheduleData(scheduleData.filter(e => !e.isManual), formatDateToString(addDays(currentWeekMonday, -30)), formatDateToString(addDays(currentWeekMonday, 90)));
     initCalendar();
@@ -1379,6 +1552,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   setInterval(() => { fetchLessons(true); }, oneHour);
+
+  window.addEventListener('online', () => flushCloudQueue());
+  window.addEventListener('offline', () => setSyncStatus(`БД: офлайн ${getPendingCloudQueue().length}`, 'warn'));
 
   document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
   document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); fetchLessons(); });

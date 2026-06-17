@@ -5,31 +5,39 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*';
+app.use(cors({ origin: allowedOrigins }));
+app.use(express.json({ limit: '2mb' }));
 
 // Отключаем буферизацию команд, чтобы сразу видеть ошибки, если они есть
 mongoose.set('bufferCommands', false);
 
 // --- 1. ПОДКЛЮЧЕНИЕ К БАЗЕ ---
-// Твой новый чистый URL с обновленным паролем
-const mongoString = "mongodb+srv://slavalevch32_db_user:samsung1976@cluster0.9s71api.mongodb.net/lessons_db?retryWrites=true&w=majority";
+// URL базы берется из .env, чтобы секреты не попадали в код
+const mongoString = process.env.MONGO_URI;
 
-mongoose.connect(mongoString, {
-    serverSelectionTimeoutMS: 5000, // Ждем ответ от базы максимум 5 секунд
-    family: 4 // Принудительно IPv4, чтобы Render не зависал
-})
-    .then(() => console.log('✅ MongoDB успешно подключена!'))
-    .catch(err => console.error('❌ Ошибка подключения к MongoDB:', err));
+if (!mongoString) {
+  console.warn('⚠️ MONGO_URI не задан в .env. MongoDB-эндпоинты будут недоступны.');
+} else {
+  mongoose.connect(mongoString, {
+      serverSelectionTimeoutMS: 5000, // Ждем ответ от базы максимум 5 секунд
+      family: 4 // Принудительно IPv4, чтобы Render не зависал
+  })
+      .then(() => console.log('✅ MongoDB успешно подключена!'))
+      .catch(err => console.error('❌ Ошибка подключения к MongoDB:', err));
+}
 
 // --- 2. СХЕМЫ ДАННЫХ ---
 const AppData = mongoose.model('AppData', new mongoose.Schema({
-    id: { type: String, default: 'main' },
+    id: { type: String, default: 'main', unique: true },
     priceBook: { type: Object, default: {} },
     statusBook: { type: Object, default: {} },
     notesBook: { type: Object, default: {} },
     overridePriceBook: { type: Object, default: {} },
-    customLessons: { type: Array, default: [] } // Новое поле для сохранения уроков из Excel
+    customLessons: { type: Array, default: [] },
+    schemaVersion: { type: Number, default: 1 },
+    revision: { type: Number, default: 0 },
+    updatedAt: { type: Date, default: Date.now }
 }, { minimize: false }));
 
 const PriceBook = mongoose.model('PriceBook', new mongoose.Schema({
@@ -39,11 +47,24 @@ const PriceBook = mongoose.model('PriceBook', new mongoose.Schema({
 
 // --- 3. ЭНДПОИНТЫ ДЛЯ БД (Универсальные) ---
 
+function serializeAppData(data) {
+    return {
+        priceBook: data.priceBook || {},
+        statusBook: data.statusBook || {},
+        notesBook: data.notesBook || {},
+        overridePriceBook: data.overridePriceBook || {},
+        customLessons: data.customLessons || [],
+        schemaVersion: data.schemaVersion || 1,
+        revision: data.revision || 0,
+        updatedAt: data.updatedAt || null
+    };
+}
+
 app.get('/api/data', async (req, res) => {
     try {
         let data = await AppData.findOne({ id: 'main' });
         if (!data) data = await AppData.create({ id: 'main' });
-        res.json(data);
+        res.json(serializeAppData(data));
     } catch (e) {
         console.error('Ошибка GET /api/data:', e.message);
         res.status(500).json({ error: e.message });
@@ -53,9 +74,45 @@ app.get('/api/data', async (req, res) => {
 app.post('/api/data', async (req, res) => {
     try {
         const { priceBook, statusBook, notesBook, overridePriceBook, customLessons } = req.body;
-        await AppData.findOneAndUpdate({ id: 'main' }, { priceBook, statusBook, notesBook, overridePriceBook, customLessons }, { upsert: true });
-        res.json({ success: true });
+        const now = new Date();
+        const current = await AppData.findOne({ id: 'main' });
+        const nextRevision = (current?.revision || 0) + 1;
+
+        const data = await AppData.findOneAndUpdate(
+            { id: 'main' },
+            {
+                $set: {
+                    priceBook: priceBook || {},
+                    statusBook: statusBook || {},
+                    notesBook: notesBook || {},
+                    overridePriceBook: overridePriceBook || {},
+                    customLessons: Array.isArray(customLessons) ? customLessons : [],
+                    schemaVersion: 1,
+                    revision: nextRevision,
+                    updatedAt: now
+                }
+            },
+            { upsert: true, new: true }
+        );
+
+        res.json({ success: true, revision: data.revision, updatedAt: data.updatedAt });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/health', async (req, res) => {
+    try {
+        const mongoReady = mongoose.connection.readyState === 1;
+        res.json({
+            ok: mongoReady,
+            mongo: mongoReady ? 'connected' : 'disconnected',
+            dbUriConfigured: !!process.env.MONGO_URI,
+            itcCookieConfigured: !!process.env.ITC_COOKIE,
+            zeroCookieConfigured: !!process.env.ZERO_COOKIE,
+            now: new Date().toISOString()
+        });
+    } catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
 });
 
 app.get('/api/prices', async (req, res) => {

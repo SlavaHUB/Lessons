@@ -131,6 +131,41 @@ body {
   color: var(--text-main);
 }
 
+.sync-status {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--btn-secondary-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+}
+
+.sync-status.ok {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.sync-status.warn {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.sync-status.error {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.sync-status.info {
+  background: rgba(37, 99, 235, 0.12);
+  color: #3b82f6;
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
 .action-controls {
   display: flex;
   gap: 10px;
