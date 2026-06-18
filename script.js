@@ -259,14 +259,13 @@ async function flushCloudQueue() {
       const queue = getPendingCloudQueue();
 
       if (queue.length === 0) {
-        // Берем текущее время успешного коннекта
         const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        setSyncStatus(`Online: ${checkTime}`, 'ok');
+        setSyncStatus(`БД: ОК (${checkTime})`, 'ok');
         break;
       }
 
       if (!navigator.onLine) {
-        setSyncStatus(`Offline: ${queue.length}`, 'warn');
+        setSyncStatus(`БД: офлайн ${queue.length}`, 'warn');
         break;
       }
 
@@ -794,8 +793,6 @@ function initCalendar() {
 const EXCEL_JUNK_PATTERNS = /^(итог|премия|byn|итоговый|долг|выплат|вторая школа|урок\/группа|дата|сложение|чисто за)/i;
 const ITC_TITLE_PATTERNS = /группа|индив|шоу/i;
 
-// Словарь алиасов: Excel-название → часть названия из CRM.
-// Пример: если в Excel "нейротин", а в CRM "NIN-562 Никита", добавьте { "нейротин": "NIN-562" }.
 const EXCEL_TITLE_ALIASES = {
   "нейротин": "NIN-562"
 };
@@ -1525,6 +1522,32 @@ function findFreeSlots() {
   document.getElementById('btn-copy-sms').addEventListener('click', function () { document.getElementById('sms-output').select(); document.execCommand('copy'); this.textContent = '✅ Скопировано!'; setTimeout(() => this.textContent = '📋 Скопировать', 2000); });
 }
 
+function cleanOldCacheData() {
+  const cutoffDate = new Date();
+  cutoffDate.setMonth(cutoffDate.getMonth() - 4);
+  const cutoffStr = formatDateToString(cutoffDate);
+
+  let cleaned = false;
+  for (const key in statusBook) {
+    const datePart = key.split('_')[0];
+    if (datePart && datePart < cutoffStr) {
+      delete statusBook[key];
+      delete overridePriceBook[key];
+      cleaned = true;
+    }
+  }
+
+  const initLen = customLessons.length;
+  customLessons = customLessons.filter(c => c.isRecurring || c.date >= cutoffStr);
+
+  if (cleaned || customLessons.length !== initLen) {
+    localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
+    localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
+    localStorage.setItem('customLessons', JSON.stringify(customLessons));
+    console.log('🧹 Старый кэш очищен');
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   try {
     priceBook = readStorageJSON('lessonPrices_v2', {});
@@ -1535,6 +1558,8 @@ document.addEventListener('DOMContentLoaded', () => {
   } catch (e) {
     priceBook = {}; statusBook = {}; notesBook = {}; overridePriceBook = {}; customLessons = [];
   }
+
+  cleanOldCacheData();
 
   if (scheduleData.length > 0) {
     if (loadedStartStr && loadedEndStr) applyScheduleMerge(loadedStartStr, loadedEndStr);
@@ -1691,16 +1716,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const orig = this.textContent; this.textContent = '📥 Успешно!'; setTimeout(() => { this.textContent = orig; document.getElementById('stats-modal').classList.remove('active'); }, 1500);
     } catch (e) { alert('Ошибка данных!'); }
   });
-
+  
 
   // ==========================================
   // НОВАЯ ИНТЕРАКТИВНАЯ ЗАГРУЗКА ИЗ EXCEL / CSV
   // ==========================================
-
+  
   // Убираем старую динамическую кнопку, так как теперь она встроена в HTML
   const oldDynamicBtn = document.getElementById('btn-import-excel');
   if (oldDynamicBtn) oldDynamicBtn.remove();
-
+  
   const filePicker = document.getElementById('excel-file-picker');
   const btnChooseFile = document.getElementById('btn-choose-file');
 
@@ -1843,5 +1868,3 @@ window.addEventListener('click', (e) => {
     e.target.classList.remove('active');
   }
 });
-
-// Final update
