@@ -261,7 +261,7 @@ async function flushCloudQueue() {
       if (queue.length === 0) {
         // Берем текущее время успешного коннекта
         const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        setSyncStatus(`Online: (${checkTime})`, 'ok');
+        setSyncStatus(`Online: ${checkTime}`, 'ok');
         break;
       }
 
