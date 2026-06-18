@@ -14,7 +14,7 @@ mongoose.set('bufferCommands', false);
 
 // --- 1. ПОДКЛЮЧЕНИЕ К БАЗЕ ---
 // URL базы берется из .env, чтобы секреты не попадали в код
-const mongoString = process.env.MONGO_URI;
+const mongoString = process.env.MONGO_URI || process.env.MONGODB_URL;
 let mongoConnectionPromise = Promise.resolve();
 let mongoConnectionError = null;
 
@@ -161,7 +161,7 @@ app.get('/api/health', async (req, res) => {
         res.json({
             ok: mongoReady,
             mongo: mongoReady ? 'connected' : 'disconnected',
-            dbUriConfigured: !!process.env.MONGO_URI,
+            dbUriConfigured: !!(process.env.MONGO_URI || process.env.MONGODB_URL),
             itcCookieConfigured: !!process.env.ITC_COOKIE,
             zeroCookieConfigured: !!process.env.ZERO_COOKIE,
             now: new Date().toISOString()
