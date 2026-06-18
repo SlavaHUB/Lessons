@@ -261,12 +261,12 @@ async function flushCloudQueue() {
       if (queue.length === 0) {
         // Берем текущее время успешного коннекта
         const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        setSyncStatus(`БД: ОК (${checkTime})`, 'ok');
+        setSyncStatus(`Online: (${checkTime})`, 'ok');
         break;
       }
 
       if (!navigator.onLine) {
-        setSyncStatus(`БД: офлайн ${queue.length}`, 'warn');
+        setSyncStatus(`Offline: ${queue.length}`, 'warn');
         break;
       }
 

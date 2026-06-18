@@ -68,8 +68,10 @@
 
         <div id="stat-counts-row" class="stat-counts-row">
           <div class="stat-count-chip stat-count-done"><span id="stat-count-done">0</span><small>Проведено</small></div>
-          <div class="stat-count-chip stat-count-cancel"><span id="stat-count-canceled">0</span><small>Отмена</small></div>
-          <div class="stat-count-chip stat-count-noshow"><span id="stat-count-noshow">0</span><small>Прогул</small></div>
+          <div class="stat-count-chip stat-count-cancel"><span id="stat-count-canceled">0</span><small>Отмена</small>
+          </div>
+          <div class="stat-count-chip stat-count-noshow"><span id="stat-count-noshow">0</span><small>Прогул</small>
+          </div>
           <div class="stat-count-chip stat-count-late"><span id="stat-count-late">0</span><small>Опоздал</small></div>
         </div>
 
@@ -247,7 +249,8 @@
         <button class="status-btn" data-status="late">⏰ Опоздал</button>
       </div>
 
-      <div id="lm-manual-zone" style="display: none; margin-bottom: 15px; padding-top: 12px; border-top: 1px dashed var(--border-color);">
+      <div id="lm-manual-zone"
+        style="display: none; margin-bottom: 15px; padding-top: 12px; border-top: 1px dashed var(--border-color);">
         <button id="btn-lm-delete-manual" type="button" class="btn-secondary"
           style="width: 100%; color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">🗑️ Удалить урок</button>
       </div>
@@ -342,8 +345,7 @@
           <div style="flex: 1;">
             <label style="font-size: 0.85rem; color: var(--text-muted);">Время</label>
             <input type="text" id="add-time" class="stats-date-input" inputmode="numeric" maxlength="5"
-              placeholder="14:30"
-              style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+              placeholder="14:30" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
           </div>
         </div>
         <div style="display: flex; gap: 10px;">
@@ -362,7 +364,8 @@
             </select>
           </div>
         </div>
-        <label class="recurring-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: var(--text-main);">
+        <label class="recurring-checkbox"
+          style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: var(--text-main);">
           <input type="checkbox" id="add-recurring" style="width: 16px; height: 16px; accent-color: #f97316;">
           <span>Повторять каждую неделю</span>
         </label>
@@ -372,7 +375,7 @@
     </div>
   </div>
 
-  <script src="script.js?v=7.5"></script>
+  <script src="script.js?v=7.6"></script>
 </body>
 
 </html>
