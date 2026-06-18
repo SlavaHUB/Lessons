@@ -15,16 +15,35 @@ mongoose.set('bufferCommands', false);
 // --- 1. ПОДКЛЮЧЕНИЕ К БАЗЕ ---
 // URL базы берется из .env, чтобы секреты не попадали в код
 const mongoString = process.env.MONGO_URI;
+let mongoConnectionPromise = Promise.resolve();
+let mongoConnectionError = null;
+
+async function ensureMongoConnection() {
+    if (!mongoString) {
+        const error = new Error('MONGO_URI не задан в переменных окружения Render');
+        error.statusCode = 503;
+        throw error;
+    }
+
+    if (mongoose.connection.readyState === 1) return;
+    if (mongoConnectionError) throw mongoConnectionError;
+
+    await mongoConnectionPromise;
+}
 
 if (!mongoString) {
   console.warn('⚠️ MONGO_URI не задан в .env. MongoDB-эндпоинты будут недоступны.');
 } else {
-  mongoose.connect(mongoString, {
+  mongoConnectionPromise = mongoose.connect(mongoString, {
       serverSelectionTimeoutMS: 5000, // Ждем ответ от базы максимум 5 секунд
       family: 4 // Принудительно IPv4, чтобы Render не зависал
   })
       .then(() => console.log('✅ MongoDB успешно подключена!'))
-      .catch(err => console.error('❌ Ошибка подключения к MongoDB:', err));
+      .catch(err => {
+          mongoConnectionError = err;
+          console.error('❌ Ошибка подключения к MongoDB:', err);
+          throw err;
+      });
 }
 
 // --- 2. СХЕМЫ ДАННЫХ ---
@@ -92,17 +111,20 @@ function serializeAppData(data) {
 
 app.get('/api/data', async (req, res) => {
     try {
+        await ensureMongoConnection();
         let data = await AppData.findOne({ id: 'main' });
         if (!data) data = await AppData.create({ id: 'main' });
         res.json(serializeAppData(data));
     } catch (e) {
         console.error('Ошибка GET /api/data:', e.stack || e.message);
-        res.status(500).json({ error: e.message });
+        const status = e.statusCode || 500;
+        res.status(status).json({ error: e.message });
     }
 });
 
 app.post('/api/data', async (req, res) => {
     try {
+        await ensureMongoConnection();
         const body = req.body || {};
         const now = new Date();
         const current = await AppData.findOne({ id: 'main' });
@@ -128,7 +150,8 @@ app.post('/api/data', async (req, res) => {
         res.json({ success: true, revision: data.revision, updatedAt: data.updatedAt });
     } catch (e) {
         console.error('Ошибка POST /api/data:', e.stack || e.message);
-        res.status(500).json({ error: e.message });
+        const status = e.statusCode || 500;
+        res.status(status).json({ error: e.message });
     }
 });
 
