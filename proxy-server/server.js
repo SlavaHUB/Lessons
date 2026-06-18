@@ -30,10 +30,10 @@ if (!mongoString) {
 // --- 2. СХЕМЫ ДАННЫХ ---
 const AppData = mongoose.model('AppData', new mongoose.Schema({
     id: { type: String, default: 'main', unique: true },
-    priceBook: { type: Object, default: {} },
-    statusBook: { type: Object, default: {} },
-    notesBook: { type: Object, default: {} },
-    overridePriceBook: { type: Object, default: {} },
+    priceBook: { type: mongoose.Schema.Types.Mixed, default: {} },
+    statusBook: { type: mongoose.Schema.Types.Mixed, default: {} },
+    notesBook: { type: mongoose.Schema.Types.Mixed, default: {} },
+    overridePriceBook: { type: mongoose.Schema.Types.Mixed, default: {} },
     customLessons: { type: Array, default: [] },
     schemaVersion: { type: Number, default: 1 },
     revision: { type: Number, default: 0 },
@@ -47,12 +47,42 @@ const PriceBook = mongoose.model('PriceBook', new mongoose.Schema({
 
 // --- 3. ЭНДПОИНТЫ ДЛЯ БД (Универсальные) ---
 
+function escapeMongoKey(key) {
+    return encodeURIComponent(String(key)).replace(/%/g, '%25');
+}
+
+function unescapeMongoKey(key) {
+    try {
+        return decodeURIComponent(String(key).replace(/%25/g, '%'));
+    } catch (e) {
+        return key;
+    }
+}
+
+function normalizeMapForStorage(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    const result = {};
+    Object.entries(value).forEach(([key, val]) => {
+        result[escapeMongoKey(key)] = val;
+    });
+    return result;
+}
+
+function denormalizeMap(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    const result = {};
+    Object.entries(value).forEach(([key, val]) => {
+        result[unescapeMongoKey(key)] = val;
+    });
+    return result;
+}
+
 function serializeAppData(data) {
     return {
-        priceBook: data.priceBook || {},
-        statusBook: data.statusBook || {},
-        notesBook: data.notesBook || {},
-        overridePriceBook: data.overridePriceBook || {},
+        priceBook: denormalizeMap(data.priceBook || {}),
+        statusBook: denormalizeMap(data.statusBook || {}),
+        notesBook: denormalizeMap(data.notesBook || {}),
+        overridePriceBook: denormalizeMap(data.overridePriceBook || {}),
         customLessons: data.customLessons || [],
         schemaVersion: data.schemaVersion || 1,
         revision: data.revision || 0,
@@ -66,14 +96,14 @@ app.get('/api/data', async (req, res) => {
         if (!data) data = await AppData.create({ id: 'main' });
         res.json(serializeAppData(data));
     } catch (e) {
-        console.error('Ошибка GET /api/data:', e.message);
+        console.error('Ошибка GET /api/data:', e.stack || e.message);
         res.status(500).json({ error: e.message });
     }
 });
 
 app.post('/api/data', async (req, res) => {
     try {
-        const { priceBook, statusBook, notesBook, overridePriceBook, customLessons } = req.body;
+        const body = req.body || {};
         const now = new Date();
         const current = await AppData.findOne({ id: 'main' });
         const nextRevision = (current?.revision || 0) + 1;
@@ -82,11 +112,11 @@ app.post('/api/data', async (req, res) => {
             { id: 'main' },
             {
                 $set: {
-                    priceBook: priceBook || {},
-                    statusBook: statusBook || {},
-                    notesBook: notesBook || {},
-                    overridePriceBook: overridePriceBook || {},
-                    customLessons: Array.isArray(customLessons) ? customLessons : [],
+                    priceBook: normalizeMapForStorage(body.priceBook),
+                    statusBook: normalizeMapForStorage(body.statusBook),
+                    notesBook: normalizeMapForStorage(body.notesBook),
+                    overridePriceBook: normalizeMapForStorage(body.overridePriceBook),
+                    customLessons: Array.isArray(body.customLessons) ? body.customLessons : [],
                     schemaVersion: 1,
                     revision: nextRevision,
                     updatedAt: now
@@ -96,7 +126,10 @@ app.post('/api/data', async (req, res) => {
         );
 
         res.json({ success: true, revision: data.revision, updatedAt: data.updatedAt });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) {
+        console.error('Ошибка POST /api/data:', e.stack || e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.get('/api/health', async (req, res) => {
