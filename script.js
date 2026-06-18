@@ -321,7 +321,14 @@ async function flushCloudQueue() {
 async function loadCloudData() {
   try {
     const res = await fetchWithClientTimeout(DB_API_URL, {}, 8000);
-    if (!res.ok) throw new Error('Network response was not ok');
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => '');
+      const reason = `${res.status} ${res.statusText || ''}${errorText ? ` — ${errorText.slice(0, 160)}` : ''}`.trim();
+      console.warn(`⚠️ Оффлайн режим. Работаем по локальным данным. БД недоступна: ${reason}`);
+      return false;
+    }
+
     const data = await res.json();
 
     if (data?.revision !== undefined) {
@@ -387,14 +394,18 @@ async function loadCloudData() {
         setSyncStatus('БД: пусто', 'warn');
       }
     }
+
+    return true;
   } catch (e) {
-    console.warn('⚠️ Оффлайн режим. Работаем по локальным данным.', e);
+    const reason = e?.name === 'AbortError' ? 'тайм-аут подключения' : (e?.message || 'ошибка сети');
+    console.warn(`⚠️ Оффлайн режим. Работаем по локальным данным. Причина: ${reason}`);
     priceBook = readStorageJSON('lessonPrices_v2', {});
     statusBook = readStorageJSON('lessonStatuses', {});
     notesBook = readStorageJSON('lessonNotes', {});
     overridePriceBook = readStorageJSON('lessonOverrides', {});
     customLessons = readStorageJSON('customLessons', []);
     setSyncStatus('БД: офлайн', 'warn');
+    return false;
   }
 }
 
@@ -1534,8 +1545,13 @@ document.addEventListener('DOMContentLoaded', () => {
     calcSalary();
   }
 
-  loadCloudData().then(() => {
-    console.log("☁️ Свежие данные из MongoDB успешно загружены в фоне");
+  loadCloudData().then((loaded) => {
+    if (loaded) {
+      console.log("☁️ Свежие данные из MongoDB успешно загружены в фоне");
+    } else {
+      console.log("☁️ Не удалось загрузить данные из MongoDB, используем локальные данные");
+    }
+
     flushCloudQueue();
     if (loadedStartStr && loadedEndStr) applyScheduleMerge(loadedStartStr, loadedEndStr);
     else if (scheduleData.length > 0) scheduleData = mergeScheduleData(scheduleData.filter(e => !e.isManual), formatDateToString(addDays(currentWeekMonday, -30)), formatDateToString(addDays(currentWeekMonday, 90)));
