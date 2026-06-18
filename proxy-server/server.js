@@ -13,38 +13,8 @@ app.use(express.json({ limit: '2mb' }));
 mongoose.set('bufferCommands', false);
 
 // --- 1. ПОДКЛЮЧЕНИЕ К БАЗЕ ---
-// URL базы берется из .env, чтобы секреты не попадали в код
+// Берем URL из .env (теперь поддерживаются оба варианта названия)
 const mongoString = process.env.MONGO_URI || process.env.MONGODB_URL;
-let mongoConnectionPromise = Promise.resolve();
-let mongoConnectionError = null;
-
-async function ensureMongoConnection() {
-    if (!mongoString) {
-        const error = new Error('MONGO_URI не задан в переменных окружения Render');
-        error.statusCode = 503;
-        throw error;
-    }
-
-    if (mongoose.connection.readyState === 1) return;
-    if (mongoConnectionError) throw mongoConnectionError;
-
-    await mongoConnectionPromise;
-}
-
-if (!mongoString) {
-  console.warn('⚠️ MONGO_URI не задан в .env. MongoDB-эндпоинты будут недоступны.');
-} else {
-  mongoConnectionPromise = mongoose.connect(mongoString, {
-      serverSelectionTimeoutMS: 5000, // Ждем ответ от базы максимум 5 секунд
-      family: 4 // Принудительно IPv4, чтобы Render не зависал
-  })
-      .then(() => console.log('✅ MongoDB успешно подключена!'))
-      .catch(err => {
-          mongoConnectionError = err;
-          console.error('❌ Ошибка подключения к MongoDB:', err);
-          throw err;
-      });
-}
 
 // --- 2. СХЕМЫ ДАННЫХ ---
 const AppData = mongoose.model('AppData', new mongoose.Schema({
@@ -111,20 +81,17 @@ function serializeAppData(data) {
 
 app.get('/api/data', async (req, res) => {
     try {
-        await ensureMongoConnection();
         let data = await AppData.findOne({ id: 'main' });
         if (!data) data = await AppData.create({ id: 'main' });
         res.json(serializeAppData(data));
     } catch (e) {
         console.error('Ошибка GET /api/data:', e.stack || e.message);
-        const status = e.statusCode || 500;
-        res.status(status).json({ error: e.message });
+        res.status(500).json({ error: e.message });
     }
 });
 
 app.post('/api/data', async (req, res) => {
     try {
-        await ensureMongoConnection();
         const body = req.body || {};
         const now = new Date();
         const current = await AppData.findOne({ id: 'main' });
@@ -150,8 +117,7 @@ app.post('/api/data', async (req, res) => {
         res.json({ success: true, revision: data.revision, updatedAt: data.updatedAt });
     } catch (e) {
         console.error('Ошибка POST /api/data:', e.stack || e.message);
-        const status = e.statusCode || 500;
-        res.status(status).json({ error: e.message });
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -161,7 +127,7 @@ app.get('/api/health', async (req, res) => {
         res.json({
             ok: mongoReady,
             mongo: mongoReady ? 'connected' : 'disconnected',
-            dbUriConfigured: !!(process.env.MONGO_URI || process.env.MONGODB_URL),
+            dbUriConfigured: !!mongoString,
             itcCookieConfigured: !!process.env.ITC_COOKIE,
             zeroCookieConfigured: !!process.env.ZERO_COOKIE,
             now: new Date().toISOString()
@@ -286,5 +252,27 @@ app.get('/api/schedule', async (req, res) => {
     } catch (error) { res.status(500).json({ error: 'Ошибка' }); }
 });
 
+// --- 5. ЗАПУСК СЕРВЕРА С ОЖИДАНИЕМ ПОДКЛЮЧЕНИЯ ---
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+
+async function startServer() {
+    if (!mongoString) {
+        console.warn('⚠️ MONGO_URI / MONGODB_URL не задан в .env. БД недоступна.');
+    } else {
+        try {
+            // Ждем подключения к MongoDB перед тем, как поднимать сервер
+            await mongoose.connect(mongoString, {
+                serverSelectionTimeoutMS: 5000,
+                family: 4
+            });
+            console.log('✅ MongoDB успешно подключена!');
+        } catch (err) {
+            console.error('❌ Ошибка подключения к MongoDB:', err);
+        }
+    }
+
+    // Запускаем Express только после попытки подключения к БД
+    app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));
+}
+
+startServer();
