@@ -259,12 +259,9 @@ async function flushCloudQueue() {
       const queue = getPendingCloudQueue();
 
       if (queue.length === 0) {
-        if (cloudUpdatedAt) {
-          const time = new Date(cloudUpdatedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-          setSyncStatus(`БД: ${time}`, 'ok');
-        } else {
-          setSyncStatus('БД: локально', 'ok');
-        }
+        // Берем текущее время успешного коннекта
+        const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        setSyncStatus(`БД: ОК (${checkTime})`, 'ok');
         break;
       }
 
@@ -1694,16 +1691,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const orig = this.textContent; this.textContent = '📥 Успешно!'; setTimeout(() => { this.textContent = orig; document.getElementById('stats-modal').classList.remove('active'); }, 1500);
     } catch (e) { alert('Ошибка данных!'); }
   });
-  
+
 
   // ==========================================
   // НОВАЯ ИНТЕРАКТИВНАЯ ЗАГРУЗКА ИЗ EXCEL / CSV
   // ==========================================
-  
+
   // Убираем старую динамическую кнопку, так как теперь она встроена в HTML
   const oldDynamicBtn = document.getElementById('btn-import-excel');
   if (oldDynamicBtn) oldDynamicBtn.remove();
-  
+
   const filePicker = document.getElementById('excel-file-picker');
   const btnChooseFile = document.getElementById('btn-choose-file');
 
