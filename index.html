@@ -375,7 +375,9 @@
     </div>
   </div>
 
-  <script src="script.js?v=7.6"></script>
+  <script>
+    document.write('<script src="script.js?v=' + Date.now() + '"><\/script>');
+  </script>
 </body>
 
 </html>
