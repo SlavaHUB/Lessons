@@ -11,7 +11,7 @@ const LESSONS_DATABASE = [
   { code: 'NTk14', name: 'Использование нейросетей в гуманитарных предметах' },
   { code: 'NTk16', name: 'Использование нейросетей в естественно-научных предметах' },
   { code: 'NTk18', name: 'Подготовка к финальному уроку модуля' },
-  
+
   { code: 'NTg02', name: 'Введение в графический дизайн' },
   { code: 'NTg04', name: 'Цветовая теория и композиция' },
   { code: 'NTg06', name: 'Типографика и шрифты' },
@@ -21,7 +21,7 @@ const LESSONS_DATABASE = [
   { code: 'NTg14', name: 'Перенос дизайна из Figma в Tilda' },
   { code: 'NTg16', name: 'Доработка веб-сайта в Tilda' },
   { code: 'NTg18', name: 'Подготовка к финальному уроку модуля' },
-  
+
   { code: 'NTd02', name: 'Что такое видеоигры и кто их придумывает' },
   { code: 'NTd04', name: 'Основы разработки игр' },
   { code: 'NTd06', name: 'Сюжет игры, эффекты, звук и озвучка' },
@@ -30,7 +30,7 @@ const LESSONS_DATABASE = [
   { code: 'NTd12', name: 'Прокачиваем игру — переменные, счёт и волшебный ключ' },
   { code: 'NTd14', name: 'Дорабатываем игру — добавляем секрет, музыку и меню' },
   { code: 'NTd16', name: 'Подготовка к финальному уроку модуля' },
-  
+
   { code: 'NTh02', name: 'Сценарист будущего — креативный штурм с DeepSeek и Perplexity' },
   { code: 'NTh04', name: 'AI-комикс — создание стильного комикса в Leonardo' },
   { code: 'NTh06', name: 'Режиссёр анимации — оживляем миры' },
@@ -483,7 +483,7 @@ async function loadCloudData() {
     notesBook = readStorageJSON('lessonNotes', {});
     overridePriceBook = readStorageJSON('lessonOverrides', {});
     customLessons = readStorageJSON('customLessons', []);
-    
+
     const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
     setSyncStatus(`Offline: ${checkTime}`, 'warn');
     return false;
@@ -649,16 +649,20 @@ function openLessonModal(event, dayName) {
     topicDisplayZone.id = 'lm-topic-display';
     document.getElementById('lm-name').parentNode.after(topicDisplayZone);
   }
-  
+
   if (topicText) {
     topicDisplayZone.innerHTML = `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dotted rgba(255,255,255,0.1); font-size: 0.85rem;"><strong>Тема:</strong> <span style="color: #fbbf24;">${escapeHtml(topicText)}</span></div>`;
   } else {
     topicDisplayZone.innerHTML = '';
   }
 
-  // Ищем код методички в теме или названии
   const codeMatch = (event.topic || '').match(/NT[kgdh]\d{2}/i) || event.title.match(/NT[kgdh]\d{2}/i);
-  const currentCode = codeMatch ? codeMatch[0].toUpperCase() : null;
+  let currentCode = null;
+  if (codeMatch) {
+    const raw = codeMatch[0];
+    // Жестко задаем формат NTk06 (две большие, одна маленькая, цифры)
+    currentCode = raw.substring(0, 2).toUpperCase() + raw.substring(2, 3).toLowerCase() + raw.substring(3);
+  }
 
   let guideZone = document.getElementById('lm-guide-zone');
   if (!guideZone) {
