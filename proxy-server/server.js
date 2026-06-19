@@ -13,7 +13,6 @@ app.use(express.json({ limit: '2mb' }));
 mongoose.set('bufferCommands', false);
 
 // --- 1. ПОДКЛЮЧЕНИЕ К БАЗЕ ---
-// Берем URL из .env (теперь поддерживаются оба варианта названия)
 const mongoString = process.env.MONGO_URI || process.env.MONGODB_URL;
 
 // --- 2. СХЕМЫ ДАННЫХ ---
@@ -214,7 +213,9 @@ app.get('/api/schedule', async (req, res) => {
                             if (ev.title && !ev.title.includes('Занят(а)')) {
                                 events.push({
                                     id: `itc_${ev.id}`, date: ev.start.split('T')[0], startTime: ev.start.split('T')[1].substring(0, 5), endTime: ev.end.split('T')[1].substring(0, 5),
-                                    title: ev.title.split('\r\n')[0].replace(' (Web-программирование (1 ступень frontend))', '').replace(' (Web-программирование (2 ступень backend))', ''), school: 'ITCompot'
+                                    title: ev.title.split('\r\n')[0].replace(' (Web-программирование (1 ступень frontend))', '').replace(' (Web-программирование (2 ступень backend))', ''),
+                                    topic: ev.title, 
+                                    school: 'ITCompot'
                                 });
                             }
                         });
@@ -238,7 +239,8 @@ app.get('/api/schedule', async (req, res) => {
                         if (Array.isArray(dayArray)) {
                             dayArray.forEach(ev => {
                                 if (ev.is_empty_slot) return;
-                                events.push({ id: `zero_${ev.id}`, date: ev.date, startTime: ev.time.substring(0, 5), endTime: addMinutesToTime(ev.time.substring(0, 5), ev.duration), title: buildLessonTitle(ev), school: 'Zerocoder' });
+                                const topicText = ev.description || (ev.subject ? ev.subject.title : '');
+                                events.push({ id: `zero_${ev.id}`, date: ev.date, startTime: ev.time.substring(0, 5), endTime: addMinutesToTime(ev.time.substring(0, 5), ev.duration), title: buildLessonTitle(ev), topic: topicText, school: 'Zerocoder' });
                             });
                         }
                     });
@@ -260,7 +262,6 @@ async function startServer() {
         console.warn('⚠️ MONGO_URI / MONGODB_URL не задан в .env. БД недоступна.');
     } else {
         try {
-            // Ждем подключения к MongoDB перед тем, как поднимать сервер
             await mongoose.connect(mongoString, {
                 serverSelectionTimeoutMS: 5000,
                 family: 4
@@ -270,8 +271,6 @@ async function startServer() {
             console.error('❌ Ошибка подключения к MongoDB:', err);
         }
     }
-
-    // Запускаем Express только после попытки подключения к БД
     app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));
 }
 

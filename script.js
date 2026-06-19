@@ -11,7 +11,7 @@ const LESSONS_DATABASE = [
   { code: 'NTk14', name: 'Использование нейросетей в гуманитарных предметах' },
   { code: 'NTk16', name: 'Использование нейросетей в естественно-научных предметах' },
   { code: 'NTk18', name: 'Подготовка к финальному уроку модуля' },
-
+  
   { code: 'NTg02', name: 'Введение в графический дизайн' },
   { code: 'NTg04', name: 'Цветовая теория и композиция' },
   { code: 'NTg06', name: 'Типографика и шрифты' },
@@ -21,7 +21,7 @@ const LESSONS_DATABASE = [
   { code: 'NTg14', name: 'Перенос дизайна из Figma в Tilda' },
   { code: 'NTg16', name: 'Доработка веб-сайта в Tilda' },
   { code: 'NTg18', name: 'Подготовка к финальному уроку модуля' },
-
+  
   { code: 'NTd02', name: 'Что такое видеоигры и кто их придумывает' },
   { code: 'NTd04', name: 'Основы разработки игр' },
   { code: 'NTd06', name: 'Сюжет игры, эффекты, звук и озвучка' },
@@ -30,7 +30,7 @@ const LESSONS_DATABASE = [
   { code: 'NTd12', name: 'Прокачиваем игру — переменные, счёт и волшебный ключ' },
   { code: 'NTd14', name: 'Дорабатываем игру — добавляем секрет, музыку и меню' },
   { code: 'NTd16', name: 'Подготовка к финальному уроку модуля' },
-
+  
   { code: 'NTh02', name: 'Сценарист будущего — креативный штурм с DeepSeek и Perplexity' },
   { code: 'NTh04', name: 'AI-комикс — создание стильного комикса в Leonardo' },
   { code: 'NTh06', name: 'Режиссёр анимации — оживляем миры' },
@@ -117,13 +117,15 @@ const LINKS = {
 // ==========================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ И ИНДЕКСАЦИЯ
 // ==========================================
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 function cleanTrashCodes(str) {
   if (!str) return str;
   let cleaned = str.replace(/\s*-\s*N[TK][a-zA-Z]\d{2,}\b/ig, '');
   cleaned = cleaned.replace(/\s*-\s*-\s*/g, ' - ');
   return cleaned;
 }
-
 function getMonday(d) {
   const date = new Date(d);
   const day = date.getDay();
@@ -307,7 +309,7 @@ function persistPendingCloudQueue(queue) {
     localStorage.setItem(CLOUD_SYNC_QUEUE_KEY, JSON.stringify(Array.isArray(queue) ? queue : []));
   } catch (e) {
     console.warn('Не удалось сохранить очередь синхронизации.', e);
-    setSyncStatus('БД: очередь не сохраняется', 'error');
+    setSyncStatus('Offline: ошибка сохранения', 'error');
   }
 }
 
@@ -344,19 +346,20 @@ async function flushCloudQueue() {
 
       if (queue.length === 0) {
         const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        setSyncStatus(`БД: ОК (${checkTime})`, 'ok');
+        setSyncStatus(`Online: ${checkTime}`, 'ok');
         break;
       }
 
       if (!navigator.onLine) {
-        setSyncStatus(`БД: офлайн ${queue.length}`, 'warn');
+        const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        setSyncStatus(`Offline: ${checkTime}`, 'warn');
         break;
       }
 
       const [currentOp, ...restQueue] = queue;
 
       try {
-        setSyncStatus('БД: синхронизация...', 'info');
+        setSyncStatus('Синхронизация...', 'info');
 
         const res = await fetchWithClientTimeout(DB_API_URL, {
           method: 'POST',
@@ -384,7 +387,8 @@ async function flushCloudQueue() {
         persistPendingCloudQueue(queue);
 
         if (retryCount <= 0) {
-          setSyncStatus(`БД: ошибка ${queue.length}`, 'error');
+          const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+          setSyncStatus(`Offline: ${checkTime}`, 'error');
           break;
         }
 
@@ -466,7 +470,7 @@ async function loadCloudData() {
         customLessons = readStorageJSON('customLessons', []);
         await saveToCloud();
       } else {
-        setSyncStatus('БД: пусто', 'warn');
+        setSyncStatus('Online: пусто', 'warn');
       }
     }
 
@@ -479,7 +483,9 @@ async function loadCloudData() {
     notesBook = readStorageJSON('lessonNotes', {});
     overridePriceBook = readStorageJSON('lessonOverrides', {});
     customLessons = readStorageJSON('customLessons', []);
-    setSyncStatus('БД: офлайн', 'warn');
+    
+    const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    setSyncStatus(`Offline: ${checkTime}`, 'warn');
     return false;
   }
 }
@@ -494,7 +500,8 @@ async function saveToCloud() {
   });
 
   persistPendingCloudQueue(queue);
-  setSyncStatus(`БД: в очереди ${queue.length}`, 'warn');
+  const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  setSyncStatus(`Offline: ${checkTime}`, 'warn');
 
   await flushCloudQueue();
   return getPendingCloudQueue().length === 0;
@@ -608,7 +615,7 @@ async function fetchLessons(forceSync = false) {
 }
 
 // ==========================================
-// ЛОГИКА МОДАЛКИ ДЕТАЛЕЙ УРОКА (С МЕТОДИЧКАМИ)
+// ЛОГИКА МОДАЛКИ ДЕТАЛЕЙ УРОКА (С ТЕМОЙ И МЕТОДИЧКАМИ)
 // ==========================================
 function openLessonModal(event, dayName) {
   currentEditingLesson = { event, dayName };
@@ -633,8 +640,24 @@ function openLessonModal(event, dayName) {
     };
   }
 
-  // --- ИНТЕГРАЦИЯ УМНЫХ МЕТОДИЧЕК С НАВИГАЦИЕЙ ---
-  const codeMatch = event.title.match(/NT[kgdh]\d{2}/i);
+  // --- ИНТЕГРАЦИЯ ТЕМЫ И УМНЫХ МЕТОДИЧЕК ---
+  // Достаем тему, которую прислал server.js (если она есть)
+  const topicText = event.topic ? event.topic.replace(/\r\n|\n/g, ' - ') : '';
+  let topicDisplayZone = document.getElementById('lm-topic-display');
+  if (!topicDisplayZone) {
+    topicDisplayZone = document.createElement('div');
+    topicDisplayZone.id = 'lm-topic-display';
+    document.getElementById('lm-name').parentNode.after(topicDisplayZone);
+  }
+  
+  if (topicText) {
+    topicDisplayZone.innerHTML = `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dotted rgba(255,255,255,0.1); font-size: 0.85rem;"><strong>Тема:</strong> <span style="color: #fbbf24;">${escapeHtml(topicText)}</span></div>`;
+  } else {
+    topicDisplayZone.innerHTML = '';
+  }
+
+  // Ищем код методички в теме или названии
+  const codeMatch = (event.topic || '').match(/NT[kgdh]\d{2}/i) || event.title.match(/NT[kgdh]\d{2}/i);
   const currentCode = codeMatch ? codeMatch[0].toUpperCase() : null;
 
   let guideZone = document.getElementById('lm-guide-zone');
@@ -645,49 +668,33 @@ function openLessonModal(event, dayName) {
     enterBtn.after(guideZone);
   }
 
-  let currentIdx = LESSONS_DATABASE.findIndex(l => l.code === currentCode);
-  let prevCode = currentIdx > 0 ? LESSONS_DATABASE[currentIdx - 1].code : null;
-  let nextCode = currentIdx !== -1 && currentIdx < LESSONS_DATABASE.length - 1 ? LESSONS_DATABASE[currentIdx + 1].code : null;
-
-  const createGuideBtnHtml = (code, label, isMain = false) => {
-    const link = GUIDEBOOK_LINKS[code] || '#';
-    const disabled = !GUIDEBOOK_LINKS[code] ? 'disabled style="opacity:0.45; cursor:not-allowed;"' : '';
-    const bg = isMain ? 'background: #10b981; color: white;' : 'background: var(--btn-secondary-bg); color: var(--btn-secondary-text);';
-    return `<button onclick="if('${link}'!=='#') window.open('${link}', '_blank')" ${disabled} class="btn-secondary" style="flex: 1; padding: 6px 8px; font-size: 0.8rem; font-weight: bold; ${bg}">${label} (${code})</button>`;
-  };
-
-  let guideHtml = '';
-  if (currentCode) {
-    guideHtml += `<label style="margin-bottom: 2px;">📚 Методические материалы:</label>`;
-    guideHtml += createGuideBtnHtml(currentCode, '📘 Открыть текущую', true);
-
-    if (prevCode || nextCode) {
-      guideHtml += `<div style="display: flex; gap: 6px;">`;
-      if (prevCode) guideHtml += createGuideBtnHtml(prevCode, '◀ Прошлая');
-      if (nextCode) guideHtml += createGuideBtnHtml(nextCode, 'Следующая ▶');
-      guideHtml += `</div>`;
-    }
-  } else {
-    guideHtml += `<label style="margin-bottom: 2px;">📚 Выбрать методичку вручную:</label>`;
-  }
-
-  let optionsHtml = `<option value="">-- Выбрать из полного списка --</option>`;
+  let optionsHtml = `<option value="">-- Выбрать другую методичку --</option>`;
   LESSONS_DATABASE.forEach(l => {
     const star = GUIDEBOOK_LINKS[l.code] ? '⚡ ' : '❌ ';
     optionsHtml += `<option value="${l.code}" ${l.code === currentCode ? 'selected' : ''}>${star}${l.code} - ${l.name}</option>`;
   });
 
-  guideHtml += `<select id="lm-guide-select" style="padding: 6px 10px; font-size: 0.85rem;">${optionsHtml}</select>`;
-  guideZone.innerHTML = guideHtml;
+  const primaryLink = currentCode ? (GUIDEBOOK_LINKS[currentCode] || '#') : '#';
+  const primaryDisabled = primaryLink === '#' ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : '';
+  const btnLabel = currentCode ? `📘 Открыть методичку (${currentCode})` : `📘 Методичка не найдена`;
+
+  guideZone.innerHTML = `
+    <button id="btn-lm-primary-guide" class="btn-primary" style="width: 100%; background: #10b981; font-weight: bold;" ${primaryDisabled}>${btnLabel}</button>
+    <select id="lm-guide-select" style="padding: 8px 10px; font-size: 0.85rem; border-radius: 6px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color);">${optionsHtml}</select>
+  `;
+
+  document.getElementById('btn-lm-primary-guide').onclick = () => {
+    if (primaryLink !== '#') window.open(primaryLink, '_blank');
+  };
 
   document.getElementById('lm-guide-select').onchange = (e) => {
     const selected = e.target.value;
     if (selected && GUIDEBOOK_LINKS[selected]) {
       window.open(GUIDEBOOK_LINKS[selected], '_blank');
-      e.target.value = "";
+      e.target.value = currentCode || "";
     } else if (selected) {
-      alert(`Ссылка для методички ${selected} еще не добавлена!`);
-      e.target.value = "";
+      alert('Ссылка для этой методички еще не добавлена в код!');
+      e.target.value = currentCode || "";
     }
   };
   // ----------------------------------------------
@@ -1313,10 +1320,6 @@ function formatShortDate(dateStr) {
   return `${dd}.${mm}`;
 }
 
-function escapeHtml(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
 function renderReconciliationModal(recon) {
   const { year, monthIndex } = getCurrentMonthBounds();
   const total = recon.ok.length + recon.missing_in_excel.length + recon.missing_in_schedule.length + recon.price_mismatch.length;
@@ -1728,7 +1731,10 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(() => { fetchLessons(true); }, oneHour);
 
   window.addEventListener('online', () => flushCloudQueue());
-  window.addEventListener('offline', () => setSyncStatus(`БД: офлайн ${getPendingCloudQueue().length}`, 'warn'));
+  window.addEventListener('offline', () => {
+    const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    setSyncStatus(`Offline: ${checkTime}`, 'warn');
+  });
 
   document.getElementById('btn-burger').addEventListener('click', () => { document.getElementById('action-controls').classList.toggle('open'); });
   document.getElementById('btn-prev').addEventListener('click', () => { currentWeekMonday = addDays(currentWeekMonday, -7); fetchLessons(); });
