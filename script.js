@@ -1,4 +1,88 @@
 // ==========================================
+// БАЗА МЕТОДИЧЕК КУРСА (СЮДА ВСТАВЛЯЙ ССЫЛКИ С GOOGLE ДИСКА)
+// ==========================================
+const LESSONS_DATABASE = [
+  { code: 'NTk02', name: 'Основы работы с компьютером' },
+  { code: 'NTk04', name: 'Кибербезопасность и нейросети' },
+  { code: 'NTk06', name: 'Информационная грамотность и фейки' },
+  { code: 'NTk08', name: 'Подготовка к финальному уроку модуля' },
+  { code: 'NTk10', name: 'Нейросети в образовании' },
+  { code: 'NTk12', name: 'Использование нейросетей в математических предметах' },
+  { code: 'NTk14', name: 'Использование нейросетей в гуманитарных предметах' },
+  { code: 'NTk16', name: 'Использование нейросетей в естественно-научных предметах' },
+  { code: 'NTk18', name: 'Подготовка к финальному уроку модуля' },
+
+  { code: 'NTg02', name: 'Введение в графический дизайн' },
+  { code: 'NTg04', name: 'Цветовая теория и композиция' },
+  { code: 'NTg06', name: 'Типографика и шрифты' },
+  { code: 'NTg08', name: 'Подготовка к финальному уроку модуля' },
+  { code: 'NTg10', name: 'Введение в веб-разработку на зерокоде' },
+  { code: 'NTg12', name: 'Сборка сайтов в Tilda и создание материалов в Perplexity' },
+  { code: 'NTg14', name: 'Перенос дизайна из Figma в Tilda' },
+  { code: 'NTg16', name: 'Доработка веб-сайта в Tilda' },
+  { code: 'NTg18', name: 'Подготовка к финальному уроку модуля' },
+
+  { code: 'NTd02', name: 'Что такое видеоигры и кто их придумывает' },
+  { code: 'NTd04', name: 'Основы разработки игр' },
+  { code: 'NTd06', name: 'Сюжет игры, эффекты, звук и озвучка' },
+  { code: 'NTd08', name: 'Подготовка к финальному уроку модуля' },
+  { code: 'NTd10', name: 'Первые шаги в Construct — от персонажа до событий' },
+  { code: 'NTd12', name: 'Прокачиваем игру — переменные, счёт и волшебный ключ' },
+  { code: 'NTd14', name: 'Дорабатываем игру — добавляем секрет, музыку и меню' },
+  { code: 'NTd16', name: 'Подготовка к финальному уроку модуля' },
+
+  { code: 'NTh02', name: 'Сценарист будущего — креативный штурм с DeepSeek и Perplexity' },
+  { code: 'NTh04', name: 'AI-комикс — создание стильного комикса в Leonardo' },
+  { code: 'NTh06', name: 'Режиссёр анимации — оживляем миры' },
+  { code: 'NTh08', name: 'Режиссёр анимации — монтаж' },
+  { code: 'NTh10', name: 'Живые открытки и AR — магия подарков' },
+  { code: 'NTh12', name: 'Саунд-дизайнер — генерация хита в Suno и Udio' },
+  { code: 'NTh14', name: 'Junior developer — создаём игру «Змейка» или «Кликер» с Qwen' },
+  { code: 'NTh16', name: 'Кодинг-челлендж — создаём Telegram-бота с помощью Copilot в GitHub Codespaces' },
+  { code: 'NTh18', name: 'Нейросети для ведения блога' },
+  { code: 'NTh20', name: 'Финальный проект — цифровое портфолио' }
+];
+
+const GUIDEBOOK_LINKS = {
+  'NTk02': 'https://docs.google.com/presentation/d/13_hFRtR7-GAu3IkIDeRNOkU3b0DjFn8n/edit?usp=drive_link&ouid=115169301904572984275&rtpof=true&sd=true',
+  'NTk04': 'https://docs.google.com/presentation/d/1LsYVrgxH4JpkiBGoxdFhxh3zAT2VmRsH/edit?usp=drive_link&ouid=115169301904572984275&rtpof=true&sd=true',
+  'NTk06': 'https://docs.google.com/presentation/d/1bIw9yGV8NNDTkj4DeE3Qc_gv8uZ7ksqJ/edit?usp=drive_link&ouid=115169301904572984275&rtpof=true&sd=true',
+  'NTk08': 'https://docs.google.com/presentation/d/1Yg_ShTqtY23U1iH0eqjau4t72XzZdBdI/edit?usp=drive_link&ouid=115169301904572984275&rtpof=true&sd=true',
+  'NTk10': 'https://docs.google.com/presentation/d/1Gj5AyNo9QoRt1ginIDbC-LaV-tnEzo2tq4ACQgSTIFQ/edit?usp=drive_link',
+  'NTk12': 'https://docs.google.com/presentation/d/1eDtPzUM3iPCSUmAzuEivbtXJqb9v7RYhMsfdZio4WaI/edit?usp=drive_link',
+  'NTk14': 'https://docs.google.com/presentation/d/1DX-LwObgN4M6GIZm4HNrOkyIOKfsGbECG1zeIANVZ7o/edit?usp=drive_link',
+  'NTk16': 'https://docs.google.com/presentation/d/1HLKrUZifYhhlAXeUfO7auYu6Pk0fVsWqAobIc8nVxkw/edit?usp=drive_link',
+  'NTk18': 'https://drive.google.com/drive/folders/1nYuRITBslnL5J712_cuC9sJjIBbWaYyX?usp=drive_linkс',
+  'NTg02': 'https://docs.google.com/presentation/d/1fDj-avW-bH359IBqNf0b2St49ORop2O0/edit?usp=drive_link&ouid=115169301904572984275&rtpof=true&sd=true',
+  'NTg04': 'https://docs.google.com/presentation/d/1wCjiJ-0xmAszvqsn_IEYfeEShnlQ6e3H/edit?usp=drive_link&ouid=115169301904572984275&rtpof=true&sd=true',
+  'NTg06': 'https://drive.google.com/drive/folders/1ufwxmNRaFIkz4yqx0ahc-mEpW5pBD6fL?usp=drive_link',
+  'NTg08': 'https://drive.google.com/drive/folders/1hmLPElyK3sEE4fU1wez6TPr4yQphRuPN?usp=drive_link',
+  'NTg10': 'https://drive.google.com/drive/folders/11kJtbKyabip746RMY1ev2vRFrAbLKh8e?usp=drive_link',
+  'NTg12': 'https://drive.google.com/drive/folders/1lgsOBN_IDXLSoLnOxIBQrzUwF-ECJQCA?usp=drive_link',
+  'NTg14': 'https://drive.google.com/drive/folders/1AsmaoTytLQuIFdB7fntHKsGSVgnEPZzv?usp=drive_link',
+  'NTg16': 'https://drive.google.com/drive/folders/1PEpyKuL7uZO9gnRtx9zwcOc9rncd7STG?usp=drive_link',
+  'NTg18': 'https://drive.google.com/drive/folders/1nFVm3QhycLFpErEg3hZpU9alQoNdtrnu?usp=drive_link',
+  'NTd02': 'https://drive.google.com/drive/folders/1OVJk3xZDBogOTQkJOYMIGUJinwXEOBx7?usp=drive_link',
+  'NTd04': 'https://drive.google.com/drive/folders/1nQilIG5LWxGwv7rUMUpWWUzAKfKihus2?usp=drive_link',
+  'NTd06': 'https://drive.google.com/drive/folders/1rfcl6mfhL_uO3Qe783mfZVk3_IMmVxqv?usp=drive_link',
+  'NTd08': 'https://drive.google.com/drive/folders/1a4aDOdjxqGG1WZ3sDybQCRsM2EsUVGdX?usp=drive_link',
+  'NTd10': 'https://drive.google.com/drive/folders/1q3x3nBTHh49TQN8k1tHkEf05USA3_UyY?usp=drive_link',
+  'NTd12': 'https://drive.google.com/drive/folders/1CbuDot92Bo8BBs2v1hBMTFuiF1XPKfe0?usp=drive_link',
+  'NTd14': 'https://drive.google.com/drive/folders/11kde32FYMGn7BSL_ltdmj0pAb2_nZVp6?usp=drive_link',
+  'NTd16': 'https://drive.google.com/drive/folders/15er9z7BFQmYr11yPGNPq3xsYVKw5Ybtf?usp=drive_link',
+  'NTh02': 'https://docs.google.com/presentation/d/1Q2DqDpEBuPg45kPzw1OMiJ4AscBE77Cj/edit?usp=drive_link&ouid=115169301904572984275&rtpof=true&sd=true',
+  'NTh04': 'https://docs.google.com/presentation/d/1IaqguObrarseo1u1w82PLrvfySW8-EYZ/edit?usp=drive_link&ouid=115169301904572984275&rtpof=true&sd=true',
+  'NTh06': 'https://drive.google.com/drive/folders/17a-OgqW7nAbH6wnvHMroy0NeIZXo8FDe?usp=drive_link',
+  'NTh08': 'https://docs.google.com/presentation/d/1J5w4OZjiXMkjp2l_z3XoILWpN9z22e3b/edit?usp=drive_link&ouid=115169301904572984275&rtpof=true&sd=true',
+  'NTh10': 'https://drive.google.com/drive/folders/1EgRxT1EIilzlYv5rg7OCMXnZU1_W1NIU?usp=drive_link',
+  'NTh12': 'https://drive.google.com/drive/folders/1akqAbEhPHs5O78oLeiWDwJU2AAEmpCff?usp=drive_link',
+  'NTh14': 'https://docs.google.com/presentation/d/1TXnB1ceFuVq7VUZlqd6ZB2ofSKrwFp7m-2YE364cN-4/edit?usp=drive_link',
+  'NTh16': 'https://drive.google.com/drive/folders/1C8mdEvGBXFQkyvV9YGmT5tghaj5jfplc?usp=drive_link',
+  'NTh18': 'https://drive.google.com/drive/folders/1dtWAakTyzQu9xVW1vQiUZLS5RhJ-MwZd?usp=drive_link',
+  'NTh20': 'https://drive.google.com/drive/folders/10Yje8wfhHqQ189H8cQV6dj93oI5P6iz9?usp=drive_link',
+};
+
+// ==========================================
 // НАСТРОЙКИ СЕРВЕРА И ТЕМЫ
 // ==========================================
 const API_URL = 'https://lessons-mqy0.onrender.com/api/schedule';
@@ -184,7 +268,7 @@ let priceBook = {};
 let statusBook = {};
 let notesBook = {};
 let overridePriceBook = {};
-let customLessons = []; // Сюда будут сохраняться уроки из Excel
+let customLessons = [];
 
 let scheduleData = readStorageJSON('cachedSchedule', []);
 scheduleData.forEach(e => {
@@ -260,12 +344,12 @@ async function flushCloudQueue() {
 
       if (queue.length === 0) {
         const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        setSyncStatus(`Online: ${checkTime}`, 'ok');
+        setSyncStatus(`БД: ОК (${checkTime})`, 'ok');
         break;
       }
 
       if (!navigator.onLine) {
-        setSyncStatus(`Offline: ${queue.length}`, 'warn');
+        setSyncStatus(`БД: офлайн ${queue.length}`, 'warn');
         break;
       }
 
@@ -313,7 +397,6 @@ async function flushCloudQueue() {
   }
 }
 
-// Загрузка из MongoDB (с авто-миграцией и офлайн-очередью)
 async function loadCloudData() {
   try {
     const res = await fetchWithClientTimeout(DB_API_URL, {}, 8000);
@@ -348,7 +431,6 @@ async function loadCloudData() {
 
     if (hasCloudData) {
       if (pendingQueue.length > 0) {
-        // Если есть несохраненные локальные изменения, локальные данные приоритетнее облака.
         priceBook = { ...(data.priceBook || {}), ...priceBook };
         statusBook = { ...(data.statusBook || {}), ...statusBook };
         notesBook = { ...(data.notesBook || {}), ...notesBook };
@@ -360,8 +442,6 @@ async function loadCloudData() {
         localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
         localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
         localStorage.setItem('customLessons', JSON.stringify(customLessons));
-
-        console.log('☁️ Есть локальная очередь. Сначала применяем ее, потом досылаем в БД.');
       } else {
         priceBook = data.priceBook || {};
         statusBook = data.statusBook || {};
@@ -376,7 +456,6 @@ async function loadCloudData() {
         localStorage.setItem('customLessons', JSON.stringify(customLessons));
       }
     } else {
-      console.log('☁️ Облако пустое. Запускаю авто-миграцию...');
       const localPrices = readStorageJSON('lessonPrices_v2', {});
 
       if (Object.keys(localPrices).length > 0) {
@@ -405,7 +484,6 @@ async function loadCloudData() {
   }
 }
 
-// Отправка данных в MongoDB через надежную очередь
 async function saveToCloud() {
   const queue = getPendingCloudQueue();
 
@@ -511,7 +589,6 @@ async function fetchLessons(forceSync = false) {
         }
       }
 
-      // Уроки из CRM + личные кастомные уроки
       scheduleData = mergeScheduleData(validEvents, startStr, endStr);
       localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       localStorage.setItem('loadedStartStr', startStr);
@@ -531,7 +608,7 @@ async function fetchLessons(forceSync = false) {
 }
 
 // ==========================================
-// ЛОГИКА МОДАЛКИ ДЕТАЛЕЙ УРОКА
+// ЛОГИКА МОДАЛКИ ДЕТАЛЕЙ УРОКА (С МЕТОДИЧКАМИ)
 // ==========================================
 function openLessonModal(event, dayName) {
   currentEditingLesson = { event, dayName };
@@ -555,6 +632,65 @@ function openLessonModal(event, dayName) {
       else window.open('https://matrius.ktalk.ru/hpb5rfegc1tl', '_blank');
     };
   }
+
+  // --- ИНТЕГРАЦИЯ УМНЫХ МЕТОДИЧЕК С НАВИГАЦИЕЙ ---
+  const codeMatch = event.title.match(/NT[kgdh]\d{2}/i);
+  const currentCode = codeMatch ? codeMatch[0].toUpperCase() : null;
+
+  let guideZone = document.getElementById('lm-guide-zone');
+  if (!guideZone) {
+    guideZone = document.createElement('div');
+    guideZone.id = 'lm-guide-zone';
+    guideZone.style = 'margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-color); display: flex; flex-direction: column; gap: 8px;';
+    enterBtn.after(guideZone);
+  }
+
+  let currentIdx = LESSONS_DATABASE.findIndex(l => l.code === currentCode);
+  let prevCode = currentIdx > 0 ? LESSONS_DATABASE[currentIdx - 1].code : null;
+  let nextCode = currentIdx !== -1 && currentIdx < LESSONS_DATABASE.length - 1 ? LESSONS_DATABASE[currentIdx + 1].code : null;
+
+  const createGuideBtnHtml = (code, label, isMain = false) => {
+    const link = GUIDEBOOK_LINKS[code] || '#';
+    const disabled = !GUIDEBOOK_LINKS[code] ? 'disabled style="opacity:0.45; cursor:not-allowed;"' : '';
+    const bg = isMain ? 'background: #10b981; color: white;' : 'background: var(--btn-secondary-bg); color: var(--btn-secondary-text);';
+    return `<button onclick="if('${link}'!=='#') window.open('${link}', '_blank')" ${disabled} class="btn-secondary" style="flex: 1; padding: 6px 8px; font-size: 0.8rem; font-weight: bold; ${bg}">${label} (${code})</button>`;
+  };
+
+  let guideHtml = '';
+  if (currentCode) {
+    guideHtml += `<label style="margin-bottom: 2px;">📚 Методические материалы:</label>`;
+    guideHtml += createGuideBtnHtml(currentCode, '📘 Открыть текущую', true);
+
+    if (prevCode || nextCode) {
+      guideHtml += `<div style="display: flex; gap: 6px;">`;
+      if (prevCode) guideHtml += createGuideBtnHtml(prevCode, '◀ Прошлая');
+      if (nextCode) guideHtml += createGuideBtnHtml(nextCode, 'Следующая ▶');
+      guideHtml += `</div>`;
+    }
+  } else {
+    guideHtml += `<label style="margin-bottom: 2px;">📚 Выбрать методичку вручную:</label>`;
+  }
+
+  let optionsHtml = `<option value="">-- Выбрать из полного списка --</option>`;
+  LESSONS_DATABASE.forEach(l => {
+    const star = GUIDEBOOK_LINKS[l.code] ? '⚡ ' : '❌ ';
+    optionsHtml += `<option value="${l.code}" ${l.code === currentCode ? 'selected' : ''}>${star}${l.code} - ${l.name}</option>`;
+  });
+
+  guideHtml += `<select id="lm-guide-select" style="padding: 6px 10px; font-size: 0.85rem;">${optionsHtml}</select>`;
+  guideZone.innerHTML = guideHtml;
+
+  document.getElementById('lm-guide-select').onchange = (e) => {
+    const selected = e.target.value;
+    if (selected && GUIDEBOOK_LINKS[selected]) {
+      window.open(GUIDEBOOK_LINKS[selected], '_blank');
+      e.target.value = "";
+    } else if (selected) {
+      alert(`Ссылка для методички ${selected} еще не добавлена!`);
+      e.target.value = "";
+    }
+  };
+  // ----------------------------------------------
 
   const dateKey = getDateKey(event);
   const lessonKey = getLessonKey(event, dayName);
@@ -687,7 +823,7 @@ document.getElementById('btn-lm-save').addEventListener('click', async () => {
   localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
   localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
 
-  await saveToCloud(); // Надежное сохранение через очередь
+  await saveToCloud();
 
   calcSalary();
   initCalendar();
@@ -1704,11 +1840,9 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const rawData = JSON.parse(document.getElementById('sync-data-input').value.trim());
 
-      // Обновляем локальные данные
       priceBook = rawData;
       localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
 
-      // Отправляем в облако
       await saveToCloud();
 
       calcSalary(); initCalendar();
@@ -1716,16 +1850,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const orig = this.textContent; this.textContent = '📥 Успешно!'; setTimeout(() => { this.textContent = orig; document.getElementById('stats-modal').classList.remove('active'); }, 1500);
     } catch (e) { alert('Ошибка данных!'); }
   });
-  
 
-  // ==========================================
-  // НОВАЯ ИНТЕРАКТИВНАЯ ЗАГРУЗКА ИЗ EXCEL / CSV
-  // ==========================================
-  
-  // Убираем старую динамическую кнопку, так как теперь она встроена в HTML
   const oldDynamicBtn = document.getElementById('btn-import-excel');
   if (oldDynamicBtn) oldDynamicBtn.remove();
-  
+
   const filePicker = document.getElementById('excel-file-picker');
   const btnChooseFile = document.getElementById('btn-choose-file');
 
@@ -1797,7 +1925,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // === ЛОГИКА ДОБАВЛЕНИЯ ЛИЧНЫХ УРОКОВ ===
   const btnAddLesson = document.getElementById('btn-add-lesson');
   const addLessonModal = document.getElementById('add-lesson-modal');
   const btnSaveNewLesson = document.getElementById('btn-save-new-lesson');
@@ -1860,8 +1987,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-}); // <- ЗАКРЫТИЕ DOMContentLoaded
-
+});
 
 window.addEventListener('click', (e) => {
   if (e.target.classList.contains('modal-overlay')) {
