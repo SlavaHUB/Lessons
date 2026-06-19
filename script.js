@@ -683,7 +683,7 @@ function openLessonModal(event, dayName) {
   const btnLabel = currentCode ? `📘 Открыть методичку (${currentCode})` : `📘 Методичка не найдена`;
 
   guideZone.innerHTML = `
-    <button id="btn-lm-primary-guide" class="btn-primary" style="width: 100%; background: #10b981; font-weight: bold;" ${primaryDisabled}>${btnLabel}</button>
+    <button id="btn-lm-primary-guide" class="btn-primary" style="width: 100%; background: #16a34a; font-weight: bold;" ${primaryDisabled}>${btnLabel}</button>
     <select id="lm-guide-select" style="padding: 8px 10px; font-size: 0.85rem; border-radius: 6px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color);">${optionsHtml}</select>
   `;
 

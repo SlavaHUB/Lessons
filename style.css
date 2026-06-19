@@ -667,9 +667,9 @@ input[type="text"]:focus {
 }
 
 .status-btn.active[data-status="done"] {
-  background: #10b981;
+  background: #16a34a;
   color: white;
-  border-color: #10b981;
+  border-color: #16a34a;
 }
 
 .status-btn.active[data-status="noshow"] {
