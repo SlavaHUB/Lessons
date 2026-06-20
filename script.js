@@ -11,7 +11,7 @@ const LESSONS_DATABASE = [
   { code: 'NTk14', name: 'Использование нейросетей в гуманитарных предметах' },
   { code: 'NTk16', name: 'Использование нейросетей в естественно-научных предметах' },
   { code: 'NTk18', name: 'Подготовка к финальному уроку модуля' },
-
+  
   { code: 'NTg02', name: 'Введение в графический дизайн' },
   { code: 'NTg04', name: 'Цветовая теория и композиция' },
   { code: 'NTg06', name: 'Типографика и шрифты' },
@@ -21,7 +21,7 @@ const LESSONS_DATABASE = [
   { code: 'NTg14', name: 'Перенос дизайна из Figma в Tilda' },
   { code: 'NTg16', name: 'Доработка веб-сайта в Tilda' },
   { code: 'NTg18', name: 'Подготовка к финальному уроку модуля' },
-
+  
   { code: 'NTd02', name: 'Что такое видеоигры и кто их придумывает' },
   { code: 'NTd04', name: 'Основы разработки игр' },
   { code: 'NTd06', name: 'Сюжет игры, эффекты, звук и озвучка' },
@@ -30,7 +30,7 @@ const LESSONS_DATABASE = [
   { code: 'NTd12', name: 'Прокачиваем игру — переменные, счёт и волшебный ключ' },
   { code: 'NTd14', name: 'Дорабатываем игру — добавляем секрет, музыку и меню' },
   { code: 'NTd16', name: 'Подготовка к финальному уроку модуля' },
-
+  
   { code: 'NTh02', name: 'Сценарист будущего — креативный штурм с DeepSeek и Perplexity' },
   { code: 'NTh04', name: 'AI-комикс — создание стильного комикса в Leonardo' },
   { code: 'NTh06', name: 'Режиссёр анимации — оживляем миры' },
@@ -155,7 +155,21 @@ function getTheme(school, dayName) {
     default: return 'theme-blue';
   }
 }
-function getDateKey(event) { return `${event.date}_${event.startTime}_${event.title}`; }
+
+// НОВЫЕ ФУНКЦИИ ДЛЯ НАДЕЖНЫХ КЛЮЧЕЙ СТАТУСОВ
+function getInstanceKey(event) {
+  if (event.id) return `${event.date}_${event.id}`;
+  return `${event.date}_${event.startTime}_${event.title}`; // Запасной для старых ручных
+}
+function getOldDateKey(event) {
+  return `${event.date}_${event.startTime}_${event.title}`;
+}
+function getEventStatus(ev) {
+  const instKey = getInstanceKey(ev);
+  const oldKey = getOldDateKey(ev);
+  return statusBook[instKey] || statusBook[oldKey] || (ev.isExcelCustom ? ev.excelStatus : 'done');
+}
+
 function getLessonKey(event, dayName) { return `${dayName || daysOfWeek[event.customDayIndex]}_${event.startTime}_${event.title}`; }
 function getCurrentWeekDates() {
   const dates = [];
@@ -364,7 +378,8 @@ async function flushCloudQueue() {
         const res = await fetchWithClientTimeout(DB_API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(currentOp.payload || getCloudPayload())
+          // БЕРЕМ СВЕЖИЕ ДАННЫЕ ВМЕСТО СТАРЫХ ИЗ ОЧЕРЕДИ
+          body: JSON.stringify(getCloudPayload())
         }, 12000);
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -483,7 +498,7 @@ async function loadCloudData() {
     notesBook = readStorageJSON('lessonNotes', {});
     overridePriceBook = readStorageJSON('lessonOverrides', {});
     customLessons = readStorageJSON('customLessons', []);
-
+    
     const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
     setSyncStatus(`Offline: ${checkTime}`, 'warn');
     return false;
@@ -495,7 +510,7 @@ async function saveToCloud() {
 
   queue.push({
     id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
-    payload: getCloudPayload(),
+    // Убрали сохранение старого состояния (payload), чтобы в облако всегда летели свежие данные
     createdAt: new Date().toISOString()
   });
 
@@ -509,18 +524,20 @@ async function saveToCloud() {
 
 function getEffectivePrice(event, dayName) {
   if (event.isExcelCustom && event.excelPrice !== undefined) {
-    const dateKey = `${event.date}_${event.startTime}_${event.title}`;
-    const status = statusBook[dateKey] || event.excelStatus;
+    const status = getEventStatus(event);
     if (status === 'canceled') return 0;
     return event.excelPrice;
   }
 
-  const dateKey = `${event.date}_${event.startTime}_${event.title}`;
-  const lessonKey = `${dayName}_${event.startTime}_${event.title}`;
-  const status = statusBook[dateKey] || 'done';
+  const instKey = getInstanceKey(event);
+  const oldKey = getOldDateKey(event);
+  const lessonKey = getLessonKey(event, dayName);
+  const status = getEventStatus(event);
 
   if (status === 'canceled') return 0;
-  if (overridePriceBook[dateKey] !== undefined) return overridePriceBook[dateKey];
+  
+  if (overridePriceBook[instKey] !== undefined) return overridePriceBook[instKey];
+  if (overridePriceBook[oldKey] !== undefined) return overridePriceBook[oldKey];
 
   let basePrice = parseFloat(priceBook[lessonKey]);
   const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
@@ -615,7 +632,7 @@ async function fetchLessons(forceSync = false) {
 }
 
 // ==========================================
-// ЛОГИКА МОДАЛКИ ДЕТАЛЕЙ УРОКА (С ТЕМОЙ И МЕТОДИЧКАМИ)
+// ЛОГИКА МОДАЛКИ ДЕТАЛЕЙ УРОКА
 // ==========================================
 function openLessonModal(event, dayName) {
   currentEditingLesson = { event, dayName };
@@ -640,8 +657,6 @@ function openLessonModal(event, dayName) {
     };
   }
 
-  // --- ИНТЕГРАЦИЯ ТЕМЫ И УМНЫХ МЕТОДИЧЕК ---
-  // Достаем тему, которую прислал server.js (если она есть)
   const topicText = event.topic ? event.topic.replace(/\r\n|\n/g, ' - ') : '';
   let topicDisplayZone = document.getElementById('lm-topic-display');
   if (!topicDisplayZone) {
@@ -649,7 +664,7 @@ function openLessonModal(event, dayName) {
     topicDisplayZone.id = 'lm-topic-display';
     document.getElementById('lm-name').parentNode.after(topicDisplayZone);
   }
-
+  
   if (topicText) {
     topicDisplayZone.innerHTML = `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dotted rgba(255,255,255,0.1); font-size: 0.85rem;"><strong>Тема:</strong> <span style="color: #fbbf24;">${escapeHtml(topicText)}</span></div>`;
   } else {
@@ -660,7 +675,6 @@ function openLessonModal(event, dayName) {
   let currentCode = null;
   if (codeMatch) {
     const raw = codeMatch[0];
-    // Жестко задаем формат NTk06 (две большие, одна маленькая, цифры)
     currentCode = raw.substring(0, 2).toUpperCase() + raw.substring(2, 3).toLowerCase() + raw.substring(3);
   }
 
@@ -701,12 +715,12 @@ function openLessonModal(event, dayName) {
       e.target.value = currentCode || "";
     }
   };
-  // ----------------------------------------------
 
-  const dateKey = getDateKey(event);
+  const instKey = getInstanceKey(event);
+  const oldKey = getOldDateKey(event);
   const lessonKey = getLessonKey(event, dayName);
 
-  let currentStatus = statusBook[dateKey] || (event.isExcelCustom ? event.excelStatus : 'done');
+  let currentStatus = getEventStatus(event);
   let currentNote = notesBook[lessonKey];
   if (!currentNote) {
     currentNote = isManual
@@ -720,7 +734,8 @@ function openLessonModal(event, dayName) {
 
   const computePrice = (status) => {
     if (status === 'canceled') return 0;
-    if (overridePriceBook[dateKey] !== undefined && status === currentStatus) return overridePriceBook[dateKey];
+    if (overridePriceBook[instKey] !== undefined && status === currentStatus) return overridePriceBook[instKey];
+    if (overridePriceBook[oldKey] !== undefined && status === currentStatus) return overridePriceBook[oldKey];
     if (event.isExcelCustom) return event.excelPrice;
     let base = parseFloat(priceBook[lessonKey]);
     if (isNaN(base)) base = getStandardPrice(event.school, duration);
@@ -815,18 +830,24 @@ document.getElementById('btn-lm-save').addEventListener('click', async () => {
   const finalPrice = currentEditingLesson.isPerStudent ? inputVal * ITCOMPOT_RATE : inputVal;
 
   const { event, dayName } = currentEditingLesson;
+  const instKey = getInstanceKey(event);
+  const oldKey = getOldDateKey(event);
   const lessonKey = getLessonKey(event, dayName);
-  const dateKey = getDateKey(event);
   const newStatus = document.querySelector('.status-btn.active').dataset.status;
 
-  statusBook[dateKey] = newStatus;
+  // Жестко перезаписываем статус по уникальному ID
+  statusBook[instKey] = newStatus;
+  delete statusBook[oldKey]; // Вычищаем старый формат
+
   notesBook[lessonKey] = document.getElementById('lm-notes').value;
 
   if (newStatus === 'done' || event.isExcelCustom) {
     priceBook[lessonKey] = finalPrice;
-    delete overridePriceBook[dateKey];
+    delete overridePriceBook[instKey];
+    delete overridePriceBook[oldKey];
   } else {
-    overridePriceBook[dateKey] = finalPrice;
+    overridePriceBook[instKey] = finalPrice;
+    delete overridePriceBook[oldKey];
   }
 
   localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
@@ -886,8 +907,9 @@ function initCalendar() {
 
     const phantomMap = new Map();
     allFutureEvents.forEach(fe => {
-      const dateKey = `${fe.date}_${fe.startTime}_${fe.title}`;
-      if (statusBook[dateKey] === 'canceled') return;
+      const instKey = getInstanceKey(fe);
+      const oldKey = getOldDateKey(fe);
+      if (statusBook[instKey] === 'canceled' || statusBook[oldKey] === 'canceled') return;
       const key = `${fe.startTime}_${fe.title}`;
       if (!realEventKeys.has(key) && !phantomMap.has(key)) {
         phantomMap.set(key, { ...fe, isPhantom: true });
@@ -901,7 +923,6 @@ function initCalendar() {
       const heightPx = Math.max(timeToPixels(event.endTime) - topPx, (45 / 60) * HOUR_HEIGHT);
       const eventDiv = document.createElement('div');
 
-      const dateKey = getDateKey(event);
       const lessonKey = getLessonKey(event, dayName);
       eventDiv.className = `event-card ${getTheme(event.school, dayName)}`;
       if (event.isManual) eventDiv.classList.add('manual-event');
@@ -915,7 +936,7 @@ function initCalendar() {
         titlePrefix = `[${d}.${m}] `;
         eventDiv.addEventListener('click', () => alert(`👻 Это фантомный урок!\n\nШкола: ${event.school}\nУченик: ${event.title}\nОн запланирован на ${d}.${m}`));
       } else {
-        const status = statusBook[dateKey] || (event.isExcelCustom ? event.excelStatus : 'done');
+        const status = getEventStatus(event);
         if (status === 'canceled') eventDiv.classList.add('status-canceled');
         if (status === 'noshow') eventDiv.classList.add('status-noshow');
         if (status === 'late') eventDiv.classList.add('status-late');
@@ -1091,11 +1112,6 @@ function getMonthScheduleEvents() {
     const [y, m] = ev.date.split('-').map(Number);
     return y === year && (m - 1) === monthIndex;
   });
-}
-
-function getEventStatus(ev) {
-  const dateKey = getDateKey(ev);
-  return statusBook[dateKey] || (ev.isExcelCustom ? ev.excelStatus : 'done');
 }
 
 function computeStatsSnapshot(events) {
@@ -1288,16 +1304,21 @@ function reconcileExcelWithSchedule(excelLessons, scheduleEvents) {
 function applyExcelToSchedule(excelLesson, scheduleEvent) {
   const dayName = daysOfWeek[scheduleEvent.customDayIndex];
   const lessonKey = getLessonKey(scheduleEvent, dayName);
-  const dateKey = getDateKey(scheduleEvent);
+  const instKey = getInstanceKey(scheduleEvent);
+  const oldKey = getOldDateKey(scheduleEvent);
 
-  statusBook[dateKey] = excelLesson.status;
+  statusBook[instKey] = excelLesson.status;
+  delete statusBook[oldKey];
+
   if (excelLesson.note) notesBook[lessonKey] = excelLesson.note;
 
   if (excelLesson.status === 'done' || excelLesson.status === 'late') {
     priceBook[lessonKey] = excelLesson.price;
-    delete overridePriceBook[dateKey];
+    delete overridePriceBook[instKey];
+    delete overridePriceBook[oldKey];
   } else {
-    overridePriceBook[dateKey] = excelLesson.price;
+    overridePriceBook[instKey] = excelLesson.price;
+    delete overridePriceBook[oldKey];
   }
 }
 
@@ -1612,8 +1633,11 @@ function findFreeSlots() {
     const phantomEvents = scheduleData.filter(e => {
       if (e.customDayIndex !== index) return false;
       if (e.date < targetDateStr) return false;
-      const exactLessonKey = `${e.date}_${e.startTime}_${e.title}`;
-      if (statusBook[exactLessonKey] === 'canceled') return false;
+      
+      const instKey = getInstanceKey(e);
+      const oldKey = getOldDateKey(e);
+      if (statusBook[instKey] === 'canceled' || statusBook[oldKey] === 'canceled') return false;
+      
       const startM = timeToMins(e.startTime);
       const endM = timeToMins(e.endTime);
       if (isNaN(startM) || isNaN(endM)) return false;
