@@ -530,8 +530,8 @@ function openDetailedExcel() {
   let expectedItc = 0, expectedZero = 0, expectedPrivate = 0;
   let todaySum = 0, weekSum = 0;
 
-  let totalLessonsCount = 0; // Наш новый счетчик уроков
-  let prevDate = null;       // Переменная для отслеживания смены дня
+  let totalLessonsCount = 0;
+  let prevDate = null;
 
   const rowParts = [];
 
@@ -543,8 +543,11 @@ function openDetailedExcel() {
     const isPastOrToday = ev.date <= realTodayStr;
     const isFuture = ev.date > realTodayStr;
 
-    if (status !== 'canceled' && isPastOrToday) {
+    // Считаем порядковый номер только для неотмененных уроков
+    let displayNumber = '';
+    if (status !== 'canceled') {
       totalLessonsCount++;
+      displayNumber = totalLessonsCount;
     }
 
     if (ev.school === 'ITCompot') {
@@ -568,26 +571,26 @@ function openDetailedExcel() {
 
     const [, mm, dd] = ev.date.split('-');
 
-    // ЛОГИКА ОТСТУПОВ МЕЖДУ ДНЯМИ
+    // Логика отступов (теперь colspan="6", так как столбцов стало больше)
     let isFirstOfDay = false;
     if (prevDate !== ev.date) {
       isFirstOfDay = true;
       if (prevDate !== null) {
-        // Добавляем пустую строку-разделитель (отступ) при смене даты
-        rowParts.push(`<tr><td colspan="5" style="height: 16px; padding: 0; border: none; border-top: 1px dashed var(--border-color); background: rgba(0,0,0,0.02);"></td></tr>`);
+        rowParts.push(`<tr><td colspan="6" style="height: 16px; padding: 0; border: none; border-top: 1px dashed var(--border-color); background: rgba(0,0,0,0.02);"></td></tr>`);
       }
     }
     prevDate = ev.date;
 
-    // Если это первый урок за день — дата яркая и жирная. Если нет — полупрозрачная
     const displayDate = isFirstOfDay ? `<strong>${dd}.${mm}</strong>` : `<span style="opacity: 0.3;">${dd}.${mm}</span>`;
 
-    rowParts.push(`<tr class="${trClass}"><td>${displayDate}</td><td>${statusText}</td><td>${escapeHtml(ev.title)}</td><td>${getSchoolLabel(ev.school)}</td><td class="num">${price} ₽</td></tr>`);
+    // Добавляем ячейку с номером в самое начало строки
+    rowParts.push(`<tr class="${trClass}"><td>${displayNumber}</td><td>${displayDate}</td><td>${statusText}</td><td>${escapeHtml(ev.title)}</td><td>${getSchoolLabel(ev.school)}</td><td class="num">${price} ₽</td></tr>`);
   }
 
   document.getElementById('detailed-excel-tbody').innerHTML = rowParts.join('');
 
-  document.getElementById('excel-month-name').textContent = `${monthsNominative[curMonthIndex]} ${curYear} (Проведено уроков: ${totalLessonsCount})`;
+  // Чистый заголовок без текста про количество уроков
+  document.getElementById('excel-month-name').textContent = `${monthsNominative[curMonthIndex]} ${curYear}`;
 
   const earnedItcPrem = Math.round(earnedItc * 0.20);
   const earnedItcTotal = earnedItc + earnedItcPrem;
@@ -607,6 +610,16 @@ function openDetailedExcel() {
   document.getElementById('ex-itc-base').textContent = `${expectedItc} ₽`;
   document.getElementById('ex-itc-prem').textContent = `${expectedItcPrem} ₽`;
   document.getElementById('ex-zero').textContent = `${expectedZero} ₽`;
+
+  // Динамически вставляем th заголовка "№", если его еще нет в верстке
+  const theadTr = document.querySelector('#detailed-excel-modal table thead tr');
+  if (theadTr && !theadTr.querySelector('.col-num-header')) {
+    const th = document.createElement('th');
+    th.className = 'col-num-header';
+    th.style.width = '45px';
+    th.textContent = '№';
+    theadTr.insertBefore(th, theadTr.firstChild);
+  }
 
   document.getElementById('detailed-excel-modal').classList.add('active');
 }
