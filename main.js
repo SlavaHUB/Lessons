@@ -19,7 +19,8 @@ let loadedStartStr = readStorageString('loadedStartStr');
 let loadedEndStr = readStorageString('loadedEndStr');
 let currentEditingLesson = null;
 
-document.addEventListener('DOMContentLoaded', () => {
+// Оборачиваем всю инициализацию в одну функцию
+function initApp() {
   // 1. Загрузка локальных данных
   try {
     priceBook = readStorageJSON('lessonPrices_v2', {});
@@ -321,7 +322,18 @@ document.addEventListener('DOMContentLoaded', () => {
     initCalendar(); calcSalary();
     btnSaveNewLesson.innerHTML = 'Сохранить урок'; btnSaveNewLesson.disabled = false;
   });
-});
+}
+
+// -----------------------------------------------------------------------------
+// КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ЗДЕСЬ:
+// Если браузер уже загрузил страницу - запускаем сразу.
+// Если еще грузит - ждем события DOMContentLoaded.
+// -----------------------------------------------------------------------------
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 
 window.addEventListener('click', (e) => {
   if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('active');
