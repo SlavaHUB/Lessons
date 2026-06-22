@@ -96,10 +96,10 @@ function initApp() {
     });
     csv += `\n; ; ;Ожидаемый Итог:;${document.getElementById('ex-expected').innerText.replace(' ₽', '')}\n`;
     csv += `; ; ;Фактически заработано:;${document.getElementById('ex-earned').innerText.replace(' ₽', '')}\n`;
-    
+
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); 
+    a.href = URL.createObjectURL(blob);
     a.download = `Зарплата_${document.getElementById('excel-month-name').innerText}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   });
@@ -108,8 +108,8 @@ function initApp() {
   // ПОИСК ОКОШЕК (СЛОТОВ)
   // ==========================================
   document.getElementById('btn-find-slots').addEventListener('click', () => {
-    document.getElementById('slots-results').innerHTML = ''; 
-    document.getElementById('slots-modal').classList.add('active'); 
+    document.getElementById('slots-results').innerHTML = '';
+    document.getElementById('slots-modal').classList.add('active');
     document.getElementById('action-controls').classList.remove('open');
   });
   document.getElementById('btn-slots-cancel').addEventListener('click', () => document.getElementById('slots-modal').classList.remove('active'));
@@ -119,6 +119,42 @@ function initApp() {
   // МОДАЛКА УРОКА
   // ==========================================
   document.getElementById('btn-lesson-close').addEventListener('click', () => document.getElementById('lesson-modal').classList.remove('active'));
+  document.getElementById('btn-lm-save').addEventListener('click', async () => {
+    if (!currentEditingLesson) return;
+    const inputVal = parseFloat(document.getElementById('lm-input-price').value) || 0;
+    const finalPrice = currentEditingLesson.isPerStudent ? inputVal * ITCOMPOT_RATE : inputVal;
+
+    const { event, dayName } = currentEditingLesson;
+    const instKey = getInstanceKey(event);
+    const oldKey = getOldDateKey(event);
+    const lessonKey = getLessonKey(event, dayName);
+    const newStatus = document.querySelector('.status-btn.active').dataset.status;
+
+    statusBook[instKey] = newStatus;
+    delete statusBook[oldKey];
+
+    notesBook[lessonKey] = document.getElementById('lm-notes').value;
+
+    if (newStatus === 'done' || event.isExcelCustom) {
+      priceBook[lessonKey] = finalPrice;
+      delete overridePriceBook[instKey];
+      delete overridePriceBook[oldKey];
+    } else {
+      overridePriceBook[instKey] = finalPrice;
+      delete overridePriceBook[oldKey];
+    }
+
+    localStorage.setItem('lessonPrices_v2', JSON.stringify(priceBook));
+    localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
+    localStorage.setItem('lessonNotes', JSON.stringify(notesBook));
+    localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
+
+    await saveToCloud();
+
+    calcSalary();
+    initCalendar();
+    document.getElementById('lesson-modal').classList.remove('active');
+  });
   document.getElementById('btn-lm-crm').addEventListener('click', () => { if (currentEditingLesson?.event?.school) window.open(LINKS[currentEditingLesson.event.school], '_blank'); });
   document.getElementById('btn-lm-delete-manual').addEventListener('click', () => {
     if (currentEditingLesson?.event?.isManual) deleteManualLesson(currentEditingLesson.event);
@@ -133,7 +169,7 @@ function initApp() {
   // ЭКСПОРТ РАСПИСАНИЯ КАК КАРТИНКИ
   // ==========================================
   document.getElementById('btn-export').addEventListener('click', async () => {
-    document.getElementById('action-controls').classList.remove('open'); 
+    document.getElementById('action-controls').classList.remove('open');
     const btnExport = document.getElementById('btn-export');
     const originalText = btnExport.innerHTML; btnExport.innerHTML = '⏳ Создаю...';
     try {
