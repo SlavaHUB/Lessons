@@ -81,13 +81,13 @@ function initApp() {
   });
   document.getElementById('btn-excel-close').addEventListener('click', () => document.getElementById('detailed-excel-modal').classList.remove('active'));
 
-  document.getElementById('btn-export-csv').addEventListener('click', () => {
-    let csv = '\uFEFFДата;Статус;Урок/Группа;Школа;Сумма\n';
+document.getElementById('btn-export-csv').addEventListener('click', () => {
+    let csv = '\uFEFF№;Дата;Статус;Урок/Группа;Школа;Сумма\n';
     document.querySelectorAll('#detailed-excel-tbody tr').forEach(row => {
       csv += Array.from(row.querySelectorAll('td')).map(c => c.innerText.replace(' ₽', '').trim()).join(';') + '\n';
     });
-    csv += `\n; ; ;Ожидаемый Итог:;${document.getElementById('ex-expected').innerText.replace(' ₽', '')}\n`;
-    csv += `; ; ;Фактически заработано:;${document.getElementById('ex-earned').innerText.replace(' ₽', '')}\n`;
+    csv += `\n; ; ; ;Ожидаемый Итог:;${document.getElementById('ex-expected').innerText.replace(' ₽', '')}\n`;
+    csv += `; ; ; ;Фактически заработано:;${document.getElementById('ex-earned').innerText.replace(' ₽', '')}\n`;
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
