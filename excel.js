@@ -122,10 +122,10 @@ function processExcelData(workbook) {
         for (let i = 0; i < cols.length; i++) {
           const val = String(cols[i]).toLowerCase().trim();
           if (val === 'итог:' || val === 'итог') {
-             excelManualStats.itcBase = parseFloat(String(cols[i+1]).replace(/\s/g, '').replace(',', '.')) || 0;
+            excelManualStats.itcBase = parseFloat(String(cols[i + 1]).replace(/\s/g, '').replace(',', '.')) || 0;
           }
           if (val.includes('вторая школа')) {
-             excelManualStats.zeroTotal = parseFloat(String(cols[i+1]).replace(/\s/g, '').replace(',', '.')) || 0;
+            excelManualStats.zeroTotal = parseFloat(String(cols[i + 1]).replace(/\s/g, '').replace(',', '.')) || 0;
           }
         }
       }
@@ -188,7 +188,7 @@ function processExcelData(workbook) {
 // НОВЫЙ АЛГОРИТМ СВЕРКИ (Хронологический)
 function reconcileExcelWithSchedule(excelLessons, scheduleEvents) {
   const result = { ok: [], missing_in_excel: [], missing_in_schedule: [], price_mismatch: [] };
-  
+
   // Группируем расписание по Дате + Школе
   const schedMap = {};
   scheduleEvents.forEach(ev => {
@@ -212,7 +212,7 @@ function reconcileExcelWithSchedule(excelLessons, scheduleEvents) {
 
   // Спариваем их 1 к 1
   const allKeys = new Set([...Object.keys(schedMap), ...Object.keys(excelMap)]);
-  
+
   allKeys.forEach(key => {
     const sList = schedMap[key] || [];
     const eList = excelMap[key] || [];
@@ -227,12 +227,12 @@ function reconcileExcelWithSchedule(excelLessons, scheduleEvents) {
         const sStatus = getEventStatus(sEv);
         const priceDiff = Math.abs(sPrice - eEv.price) > 0.5;
         const statusDiff = sStatus !== eEv.status;
-        
+
         const item = {
           excel: eEv, schedule: sEv,
           schedulePrice: sPrice, excelPrice: eEv.price,
           scheduleStatus: sStatus, excelStatus: eEv.status,
-          match: { label: `Пара по порядку (№${i+1} за день)` },
+          match: { label: `Пара по порядку (№${i + 1} за день)` },
           apply: priceDiff || statusDiff
         };
 
@@ -315,7 +315,7 @@ function renderReconciliationModal(recon) {
   let sysZero = 0;
   getMonthScheduleEvents().forEach(ev => {
     const st = getEventStatus(ev);
-    if(st !== 'canceled') {
+    if (st !== 'canceled') {
       const p = getEffectivePrice(ev, daysOfWeek[ev.customDayIndex]);
       if (ev.school === 'ITCompot') sysItc += p;
       else if (ev.school === 'Zerocoder') sysZero += p;
@@ -529,7 +529,7 @@ function openDetailedExcel() {
   let earnedItc = 0, earnedZero = 0, earnedPrivate = 0;
   let expectedItc = 0, expectedZero = 0, expectedPrivate = 0;
   let todaySum = 0, weekSum = 0;
-  
+
   let totalLessonsCount = 0; // Наш новый счетчик уроков
   let prevDate = null;       // Переменная для отслеживания смены дня
 
@@ -543,8 +543,7 @@ function openDetailedExcel() {
     const isPastOrToday = ev.date <= realTodayStr;
     const isFuture = ev.date > realTodayStr;
 
-    // Считаем общее количество уроков (игнорируем отмененные)
-    if (status !== 'canceled') {
+    if (status !== 'canceled' && isPastOrToday) {
       totalLessonsCount++;
     }
 
@@ -588,8 +587,7 @@ function openDetailedExcel() {
 
   document.getElementById('detailed-excel-tbody').innerHTML = rowParts.join('');
 
-  // Выводим общее количество уроков прямо в заголовок окна
-  document.getElementById('excel-month-name').textContent = `${monthsNominative[curMonthIndex]} ${curYear} (Всего уроков: ${totalLessonsCount})`;
+  document.getElementById('excel-month-name').textContent = `${monthsNominative[curMonthIndex]} ${curYear} (Проведено уроков: ${totalLessonsCount})`;
 
   const earnedItcPrem = Math.round(earnedItc * 0.20);
   const earnedItcTotal = earnedItc + earnedItcPrem;
