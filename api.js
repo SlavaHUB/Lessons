@@ -213,7 +213,7 @@ async function loadCloudData() {
     notesBook = readStorageJSON('lessonNotes', {});
     overridePriceBook = readStorageJSON('lessonOverrides', {});
     customLessons = readStorageJSON('customLessons', []);
-    
+
     const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
     setSyncStatus(`Offline: ${checkTime}`, 'warn');
     return false;
@@ -296,17 +296,23 @@ async function fetchLessons(forceSync = false) {
         }
       }
 
+      // ...
       scheduleData = mergeScheduleData(validEvents, startStr, endStr);
       localStorage.setItem('cachedSchedule', JSON.stringify(scheduleData));
       localStorage.setItem('loadedStartStr', startStr);
       localStorage.setItem('loadedEndStr', endStr);
       localStorage.setItem('lastSyncTime', Date.now().toString());
       loadedStartStr = startStr; loadedEndStr = endStr;
+
       initCalendar();
+      calcSalary(); // <--- ДОБАВИТЬ СЮДА
     }
   } catch (error) {
     if (loadedStartStr && loadedEndStr) applyScheduleMerge(loadedStartStr, loadedEndStr);
-    else if (scheduleData.length > 0) initCalendar();
+    else if (scheduleData.length > 0) {
+      initCalendar();
+      calcSalary(); // <--- И ДОБАВИТЬ СЮДА
+    }
   } finally {
     isFetching = false;
     if (btnRefresh) btnRefresh.innerHTML = '🔄';

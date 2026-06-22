@@ -1,3 +1,12 @@
+let priceBook = {};
+let statusBook = {};
+let notesBook = {};
+let overridePriceBook = {};
+let customLessons = [];
+let scheduleData = [];
+let loadedStartStr = '';
+let loadedEndStr = '';
+let currentEditingLesson = null;
 // ==========================================
 // БАЗА ДАННЫХ, НАСТРОЙКИ И ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ==========================================
