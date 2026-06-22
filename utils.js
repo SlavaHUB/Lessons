@@ -12,7 +12,7 @@ const LESSONS_DATABASE = [
   { code: 'NTk14', name: 'Использование нейросетей в гуманитарных предметах' },
   { code: 'NTk16', name: 'Использование нейросетей в естественно-научных предметах' },
   { code: 'NTk18', name: 'Подготовка к финальному уроку модуля' },
-  
+
   { code: 'NTg02', name: 'Введение в графический дизайн' },
   { code: 'NTg04', name: 'Цветовая теория и композиция' },
   { code: 'NTg06', name: 'Типографика и шрифты' },
@@ -22,7 +22,7 @@ const LESSONS_DATABASE = [
   { code: 'NTg14', name: 'Перенос дизайна из Figma в Tilda' },
   { code: 'NTg16', name: 'Доработка веб-сайта в Tilda' },
   { code: 'NTg18', name: 'Подготовка к финальному уроку модуля' },
-  
+
   { code: 'NTd02', name: 'Что такое видеоигры и кто их придумывает' },
   { code: 'NTd04', name: 'Основы разработки игр' },
   { code: 'NTd06', name: 'Сюжет игры, эффекты, звук и озвучка' },
@@ -31,7 +31,7 @@ const LESSONS_DATABASE = [
   { code: 'NTd12', name: 'Прокачиваем игру — переменные, счёт и волшебный ключ' },
   { code: 'NTd14', name: 'Дорабатываем игру — добавляем секрет, музыку и меню' },
   { code: 'NTd16', name: 'Подготовка к финальному уроку модуля' },
-  
+
   { code: 'NTh02', name: 'Сценарист будущего — креативный штурм с DeepSeek и Perplexity' },
   { code: 'NTh04', name: 'AI-комикс — создание стильного комикса в Leonardo' },
   { code: 'NTh06', name: 'Режиссёр анимации — оживляем миры' },
@@ -264,4 +264,30 @@ function getStandardPrice(school, duration) {
   if (school === 'Zerocoder' && duration === 45) return 450;
   if (school === 'Zerocoder' && duration === 30) return 300;
   return 0;
+}
+
+function cleanOldCacheData() {
+  const cutoffDate = new Date();
+  cutoffDate.setMonth(cutoffDate.getMonth() - 4);
+  const cutoffStr = formatDateToString(cutoffDate);
+
+  let cleaned = false;
+  for (const key in statusBook) {
+    const datePart = key.split('_')[0];
+    if (datePart && datePart < cutoffStr) {
+      delete statusBook[key];
+      delete overridePriceBook[key];
+      cleaned = true;
+    }
+  }
+
+  const initLen = customLessons.length;
+  customLessons = customLessons.filter(c => c.isRecurring || c.date >= cutoffStr);
+
+  if (cleaned || customLessons.length !== initLen) {
+    localStorage.setItem('lessonStatuses', JSON.stringify(statusBook));
+    localStorage.setItem('lessonOverrides', JSON.stringify(overridePriceBook));
+    localStorage.setItem('customLessons', JSON.stringify(customLessons));
+    console.log('🧹 Старый кэш очищен');
+  }
 }
