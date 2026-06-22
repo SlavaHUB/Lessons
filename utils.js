@@ -291,3 +291,31 @@ function cleanOldCacheData() {
     console.log('🧹 Старый кэш очищен');
   }
 }
+
+function getEffectivePrice(event, dayName) {
+  if (event.isExcelCustom && event.excelPrice !== undefined) {
+    const status = getEventStatus(event);
+    if (status === 'canceled') return 0;
+    return event.excelPrice;
+  }
+
+  const instKey = getInstanceKey(event);
+  const oldKey = getOldDateKey(event);
+  const lessonKey = getLessonKey(event, dayName);
+  const status = getEventStatus(event);
+
+  if (status === 'canceled') return 0;
+
+  if (overridePriceBook[instKey] !== undefined) return overridePriceBook[instKey];
+  if (overridePriceBook[oldKey] !== undefined) return overridePriceBook[oldKey];
+
+  let basePrice = parseFloat(priceBook[lessonKey]);
+  const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
+  if (isNaN(basePrice)) basePrice = getStandardPrice(event.school, duration);
+
+  if (status === 'noshow') {
+    if (event.school === 'Zerocoder' && duration === 45) return 135;
+    if (event.school === 'Zerocoder' && duration === 30) return 90;
+  }
+  return basePrice;
+}
