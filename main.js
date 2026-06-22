@@ -1,20 +1,4 @@
 // ==========================================
-// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ИНИЦИАЛИЗАЦИЯ
-// ==========================================
-
-let scheduleData = readStorageJSON('cachedSchedule', []);
-scheduleData.forEach(e => {
-  if (!e || !e.date) return;
-  e.customDayIndex = getCustomDayIndex(e.date);
-  e.title = cleanTrashCodes(e.title);
-});
-
-let loadedStartStr = readStorageString('loadedStartStr');
-let loadedEndStr = readStorageString('loadedEndStr');
-let currentEditingLesson = null;
-
-// Оборачиваем всю инициализацию в одну функцию
-// ==========================================
 // ГЛОБАЛЬНАЯ ИНИЦИАЛИЗАЦИЯ
 // ==========================================
 
@@ -47,8 +31,6 @@ function initApp() {
     initCalendar();
     calcSalary();
   }
-  
-  // ... дальше код идет без изменений (2. Фоновая загрузка облака MongoDB и т.д.)
 
   // 2. Фоновая загрузка облака MongoDB
   loadCloudData().then((loaded) => {
