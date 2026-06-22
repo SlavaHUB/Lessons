@@ -518,13 +518,10 @@ function calcSalary() {
   if (elNoshow) elNoshow.textContent = monthSnap.counts.noshow;
   if (elLate) elLate.textContent = monthSnap.counts.late;
 }
-
 function openDetailedExcel() {
   const realTodayStr = formatDateToString(new Date());
   const { year: curYear, monthIndex: curMonthIndex } = getCurrentMonthBounds();
   const weekSet = new Set(getCurrentWeekDates());
-
-  document.getElementById('excel-month-name').textContent = `${monthsNominative[curMonthIndex]} ${curYear}`;
 
   const monthEvents = getMonthScheduleEvents()
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
@@ -532,6 +529,10 @@ function openDetailedExcel() {
   let earnedItc = 0, earnedZero = 0, earnedPrivate = 0;
   let expectedItc = 0, expectedZero = 0, expectedPrivate = 0;
   let todaySum = 0, weekSum = 0;
+  
+  let totalLessonsCount = 0; // Наш новый счетчик уроков
+  let prevDate = null;       // Переменная для отслеживания смены дня
+
   const rowParts = [];
 
   for (let i = 0; i < monthEvents.length; i++) {
@@ -541,6 +542,11 @@ function openDetailedExcel() {
     const price = getEffectivePrice(ev, dayName);
     const isPastOrToday = ev.date <= realTodayStr;
     const isFuture = ev.date > realTodayStr;
+
+    // Считаем общее количество уроков (игнорируем отмененные)
+    if (status !== 'canceled') {
+      totalLessonsCount++;
+    }
 
     if (ev.school === 'ITCompot') {
       expectedItc += price;
@@ -559,14 +565,31 @@ function openDetailedExcel() {
     let trClass = ''; let statusText = '✅ Проведен';
     if (status === 'canceled') { trClass = 'row-canceled'; statusText = '❌ Отменен'; }
     else if (status === 'noshow') { trClass = 'row-noshow'; statusText = '⚠️ Прогул'; }
-    else if (status === 'late') { trClass = 'row-late'; statusText = '⏰ Опоздал'; }
     else if (isFuture) { trClass = 'row-future'; statusText = '⏳ Ожидается'; }
 
     const [, mm, dd] = ev.date.split('-');
-    rowParts.push(`<tr class="${trClass}"><td>${dd}.${mm}</td><td>${statusText}</td><td>${escapeHtml(ev.title)}</td><td>${getSchoolLabel(ev.school)}</td><td class="num">${price} ₽</td></tr>`);
+
+    // ЛОГИКА ОТСТУПОВ МЕЖДУ ДНЯМИ
+    let isFirstOfDay = false;
+    if (prevDate !== ev.date) {
+      isFirstOfDay = true;
+      if (prevDate !== null) {
+        // Добавляем пустую строку-разделитель (отступ) при смене даты
+        rowParts.push(`<tr><td colspan="5" style="height: 16px; padding: 0; border: none; border-top: 1px dashed var(--border-color); background: rgba(0,0,0,0.02);"></td></tr>`);
+      }
+    }
+    prevDate = ev.date;
+
+    // Если это первый урок за день — дата яркая и жирная. Если нет — полупрозрачная
+    const displayDate = isFirstOfDay ? `<strong>${dd}.${mm}</strong>` : `<span style="opacity: 0.3;">${dd}.${mm}</span>`;
+
+    rowParts.push(`<tr class="${trClass}"><td>${displayDate}</td><td>${statusText}</td><td>${escapeHtml(ev.title)}</td><td>${getSchoolLabel(ev.school)}</td><td class="num">${price} ₽</td></tr>`);
   }
 
   document.getElementById('detailed-excel-tbody').innerHTML = rowParts.join('');
+
+  // Выводим общее количество уроков прямо в заголовок окна
+  document.getElementById('excel-month-name').textContent = `${monthsNominative[curMonthIndex]} ${curYear} (Всего уроков: ${totalLessonsCount})`;
 
   const earnedItcPrem = Math.round(earnedItc * 0.20);
   const earnedItcTotal = earnedItc + earnedItcPrem;
