@@ -367,11 +367,25 @@
     </div>
   </div>
 
-  <script src="utils.js?v=2"></script>
-  <script src="api.js?v=2"></script>
-  <script src="calendar.js?v=2"></script>
-  <script src="excel.js?v=2"></script>
-  <script src="main.js?v=2"></script>
+<script>
+    (function() {
+      const version = Date.now();
+      const scripts = [
+        'utils.js',
+        'api.js',
+        'calendar.js',
+        'excel.js',
+        'main.js'
+      ];
+      
+      scripts.forEach(function(file) {
+        const script = document.createElement('script');
+        script.src = file + '?v=' + version;
+        // КРИТИЧЕСКИ ВАЖНО: false гарантирует, что файлы выполнятся строго в заданном порядке
+        script.async = false; 
+        document.body.appendChild(script);
+      });
+    })();
+  </script>
 </body>
-
 </html>
