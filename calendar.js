@@ -8,12 +8,12 @@ function initCalendar() {
   const daysGrid = document.getElementById('days-grid');
   const rangeDisplay = document.getElementById('week-range-display');
 
-  header.innerHTML = '<div class="time-header-cell"></div>'; 
-  timeLabels.innerHTML = ''; 
+  header.innerHTML = '<div class="time-header-cell"></div>';
+  timeLabels.innerHTML = '';
   daysGrid.innerHTML = '';
 
   const sundayOfCurrentWeek = addDays(currentWeekMonday, 6);
-  const startMonth = monthsRu[currentWeekMonday.getMonth()]; 
+  const startMonth = monthsRu[currentWeekMonday.getMonth()];
   const endMonth = monthsRu[sundayOfCurrentWeek.getMonth()];
   const currentYear = currentWeekMonday.getFullYear();
 
@@ -39,7 +39,7 @@ function initCalendar() {
   }
 
   daysOfWeek.forEach((dayName, index) => {
-    const dayCol = document.createElement('div'); 
+    const dayCol = document.createElement('div');
     dayCol.className = 'day-column';
     if (index === 1 || index === 2) dayCol.classList.add('mobile-hide');
 
@@ -131,7 +131,7 @@ function openLessonModal(event, dayName) {
     topicDisplayZone.id = 'lm-topic-display';
     document.getElementById('lm-name').parentNode.after(topicDisplayZone);
   }
-  
+
   if (topicText) {
     topicDisplayZone.innerHTML = `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px dotted rgba(255,255,255,0.1); font-size: 0.85rem;"><strong>Тема:</strong> <span style="color: #fbbf24;">${escapeHtml(topicText)}</span></div>`;
   } else {
@@ -187,12 +187,51 @@ function openLessonModal(event, dayName) {
   const oldKey = getOldDateKey(event);
   const lessonKey = getLessonKey(event, dayName);
 
+  const studentId = event.title.split(/[\s-]/)[0].trim();
+  const defaultManager = studentManagers[studentId] || "Алсу @Alsushenka1985 - Елена @ElenaLCastellano";
+
+  const managerGroup = document.getElementById('lm-managers-group');
+  const managerSelect = document.getElementById('lm-manager-select');
+
+  if (managerGroup && managerSelect) {
+    if (isManual) {
+      managerGroup.style.display = 'none';
+    } else {
+      managerGroup.style.display = 'block';
+      managerSelect.value = defaultManager;
+
+      // Мгновенно меняем текст в окне, если ты переключаешь куратора
+      managerSelect.onchange = (e) => {
+        const newPair = e.target.value;
+        const textarea = document.getElementById('lm-notes');
+        let text = textarea.value;
+        let replaced = false;
+
+        MANAGER_PAIRS.forEach(pair => {
+          if (text.includes(pair)) {
+            text = text.replace(pair, newPair);
+            replaced = true;
+          }
+        });
+
+        if (!replaced) {
+          const lines = text.split('\n');
+          if (lines.length > 1) {
+            lines[1] = newPair;
+            text = lines.join('\n');
+          }
+        }
+        textarea.value = text;
+      };
+    }
+  }
+
   let currentStatus = getEventStatus(event);
   let currentNote = notesBook[lessonKey];
   if (!currentNote) {
     currentNote = isManual
       ? `${event.title}\nПерсональный урок`
-      : `${event.title}\nАлсу @Alsushenka1985 - Елена @ElenaLCastellano\n\nНе на уроке.`;
+      : `${event.title}\n${defaultManager}\n\nНе на уроке.`;
   }
 
   const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
@@ -317,11 +356,11 @@ function findFreeSlots() {
     const phantomEvents = scheduleData.filter(e => {
       if (e.customDayIndex !== index) return false;
       if (e.date < targetDateStr) return false;
-      
+
       const instKey = getInstanceKey(e);
       const oldKey = getOldDateKey(e);
       if (statusBook[instKey] === 'canceled' || statusBook[oldKey] === 'canceled') return false;
-      
+
       const startM = timeToMins(e.startTime);
       const endM = timeToMins(e.endTime);
       if (isNaN(startM) || isNaN(endM)) return false;

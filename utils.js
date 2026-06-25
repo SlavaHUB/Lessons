@@ -11,6 +11,13 @@ let currentEditingLesson = null;
 // БАЗА ДАННЫХ, НАСТРОЙКИ И ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ==========================================
 
+let studentManagers = {};
+const MANAGER_PAIRS = [
+  "Юлия @julia_ivan - Лиза @lizablakh",
+  "Алсу @Alsushenka1985 - Елена @ElenaLCastellano",
+  "Алина @Alina_Domracheva - Александра @Lexio19"
+];
+
 const LESSONS_DATABASE = [
   { code: 'NTk02', name: 'Основы работы с компьютером' },
   { code: 'NTk04', name: 'Кибербезопасность и нейросети' },

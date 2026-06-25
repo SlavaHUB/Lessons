@@ -10,8 +10,9 @@ function initApp() {
     notesBook = readStorageJSON('lessonNotes', {});
     overridePriceBook = readStorageJSON('lessonOverrides', {});
     customLessons = readStorageJSON('customLessons', []);
+    studentManagers = readStorageJSON('studentManagers', {});
   } catch (e) {
-    priceBook = {}; statusBook = {}; notesBook = {}; overridePriceBook = {}; customLessons = [];
+    priceBook = {}; statusBook = {}; notesBook = {}; overridePriceBook = {}; customLessons = []; studentManagers = {};
   }
 
   scheduleData = readStorageJSON('cachedSchedule', []);
@@ -265,6 +266,12 @@ function initApp() {
     delete statusBook[oldKey];
 
     notesBook[lessonKey] = document.getElementById('lm-notes').value;
+    const studentIdStr = event.title.split(/[\s-]/)[0].trim();
+    const managerSelect = document.getElementById('lm-manager-select');
+    if (managerSelect && !event.isManual) {
+      studentManagers[studentIdStr] = managerSelect.value;
+      localStorage.setItem('studentManagers', JSON.stringify(studentManagers));
+    }
 
     if (newStatus === 'done' || event.isExcelCustom) {
       priceBook[lessonKey] = finalPrice;
