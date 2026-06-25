@@ -291,23 +291,6 @@ function initApp() {
     setTimeout(() => { this.textContent = origText; this.style.background = ''; this.style.color = ''; }, 2000);
   });
 
-  // ==========================================
-  // ЭКСПОРТ РАСПИСАНИЯ КАК КАРТИНКИ
-  // ==========================================
-  document.getElementById('btn-export').addEventListener('click', async () => {
-    document.getElementById('action-controls').classList.remove('open');
-    const btnExport = document.getElementById('btn-export');
-    const originalText = btnExport.innerHTML; btnExport.innerHTML = '⏳ Создаю...';
-    try {
-      const canvas = await html2canvas(document.querySelector('.calendar-wrapper'), { scale: 2 });
-      canvas.toBlob(async (blob) => {
-        const file = new File([blob], `Расписание_${formatDateToString(currentWeekMonday)}.png`, { type: 'image/png' });
-        try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); btnExport.innerHTML = '✅ В буфере!'; }
-        catch (err) { const link = document.createElement('a'); link.download = file.name; link.href = URL.createObjectURL(blob); link.click(); btnExport.innerHTML = '✅ Скачано!'; }
-        setTimeout(() => btnExport.innerHTML = originalText, 2000);
-      }, 'image/png');
-    } catch (e) { btnExport.innerHTML = originalText; }
-  });
 
   // ==========================================
   // АНАЛИЗАТОР СООБЩЕНИЙ МЕНЕДЖЕРА
