@@ -142,8 +142,13 @@ function initApp() {
             school: ev.school,
             isManual: ev.isManual,
             lessons: [],
-            daysInfo: new Set()
+            daysInfo: new Set(),
+            profileId: ev.studentProfileId || null // Сохраняем ID ученика
           };
+        }
+        // Если ID прилетел только в одном из уроков, берем его
+        if (!groupedData[ev.title].profileId && ev.studentProfileId) {
+          groupedData[ev.title].profileId = ev.studentProfileId;
         }
         groupedData[ev.title].lessons.push(ev);
         groupedData[ev.title].daysInfo.add(`${daysOfWeek[ev.customDayIndex]} (${ev.startTime})`);
@@ -180,12 +185,12 @@ function initApp() {
         if (priceBook[lKey]) price = priceBook[lKey];
       }
 
-      // Добавлена кнопка "В CRM" прямо в заголовок карточки
+      // Добавили атрибут data-profile в кнопку
       html += `
         <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; font-size: 0.85rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
             <div style="font-size: 1.05rem; font-weight: bold; color: #3b82f6;">${escapeHtml(title)}</div>
-            <button class="btn-crm-search btn-secondary" data-school="${data.school}" data-title="${escapeHtml(title)}" style="padding: 4px 10px; font-size: 0.75rem; flex-shrink: 0; margin-left: 10px;">🔗 В CRM</button>
+            <button class="btn-crm-search btn-secondary" data-school="${data.school}" data-title="${escapeHtml(title)}" data-profile="${data.profileId || ''}" style="padding: 4px 10px; font-size: 0.75rem; flex-shrink: 0; margin-left: 10px;">🔗 В CRM</button>
           </div>
           
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
@@ -206,38 +211,41 @@ function initApp() {
 
     resultsContainer.innerHTML = html;
 
-    // Вешаем обработчик на новые кнопки
+    // Обновленная логика кнопок
     resultsContainer.querySelectorAll('.btn-crm-search').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const school = e.target.dataset.school;
         const title = e.target.dataset.title;
+        const profileId = e.target.dataset.profile; // Достаем ID абонемента
 
-        // Вырезаем ID ученика (все до первого пробела или тире)
         const studentId = title.split(/[\s-]/)[0].trim();
 
-        // Копируем в буфер и открываем сайт
-        navigator.clipboard.writeText(studentId).then(() => {
-          const originalText = e.target.textContent;
-          e.target.textContent = '✅ ID скопирован!';
-          e.target.style.background = '#10b981';
-          e.target.style.color = '#fff';
-          setTimeout(() => {
-            e.target.textContent = originalText;
-            e.target.style.background = '';
-            e.target.style.color = '';
-          }, 2000);
+        // 1. Всегда копируем ID (шпоргалка на всякий случай)
+        navigator.clipboard.writeText(studentId).catch(() => { });
 
-          if (LINKS[school]) {
-            window.open(LINKS[school], '_blank');
-          }
-        }).catch(err => {
-          console.error('Ошибка копирования:', err);
-          if (LINKS[school]) window.open(LINKS[school], '_blank');
-        });
+        // 2. Открываем нужную ссылку
+        if (school === 'Zerocoder' && profileId) {
+          // Если есть прямой ID — открываем карточку абонемента!
+          window.open(`https://crm.genius-school.online/#/subscribes/${profileId}/info`, '_blank');
+        } else if (LINKS[school]) {
+          // Фолбэк для Компота или если ID по какой-то причине не пришел
+          window.open(LINKS[school], '_blank');
+        }
+
+        // 3. Визуальный фидбек
+        const originalText = e.target.textContent;
+        e.target.textContent = '✅ Открыто!';
+        e.target.style.background = '#10b981';
+        e.target.style.color = '#fff';
+        setTimeout(() => {
+          e.target.textContent = originalText;
+          e.target.style.background = '';
+          e.target.style.color = '';
+        }, 2000);
       });
     });
   });
-  
+
   // ==========================================
   // МОДАЛКА УРОКА
   // ==========================================

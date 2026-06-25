@@ -214,7 +214,7 @@ app.get('/api/schedule', async (req, res) => {
                                 events.push({
                                     id: `itc_${ev.id}`, date: ev.start.split('T')[0], startTime: ev.start.split('T')[1].substring(0, 5), endTime: ev.end.split('T')[1].substring(0, 5),
                                     title: ev.title.split('\r\n')[0].replace(' (Web-программирование (1 ступень frontend))', '').replace(' (Web-программирование (2 ступень backend))', ''),
-                                    topic: ev.title, 
+                                    topic: ev.title,
                                     school: 'ITCompot'
                                 });
                             }
@@ -240,7 +240,20 @@ app.get('/api/schedule', async (req, res) => {
                             dayArray.forEach(ev => {
                                 if (ev.is_empty_slot) return;
                                 const topicText = ev.description || (ev.subject ? ev.subject.title : '');
-                                events.push({ id: `zero_${ev.id}`, date: ev.date, startTime: ev.time.substring(0, 5), endTime: addMinutesToTime(ev.time.substring(0, 5), ev.duration), title: buildLessonTitle(ev), topic: topicText, school: 'Zerocoder' });
+
+                                // ВЫТЯГИВАЕМ ID АБОНЕМЕНТА ДЛЯ ПРЯМОЙ ССЫЛКИ
+                                const profileId = ev.subscribes && ev.subscribes.length > 0 ? ev.subscribes[0].id : null;
+
+                                events.push({
+                                    id: `zero_${ev.id}`,
+                                    date: ev.date,
+                                    startTime: ev.time.substring(0, 5),
+                                    endTime: addMinutesToTime(ev.time.substring(0, 5), ev.duration),
+                                    title: buildLessonTitle(ev),
+                                    topic: topicText,
+                                    school: 'Zerocoder',
+                                    studentProfileId: profileId // <-- Передаем его на фронтенд
+                                });
                             });
                         }
                     });
