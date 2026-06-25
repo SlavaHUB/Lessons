@@ -113,9 +113,41 @@ function openLessonModal(event, dayName) {
   const enterBtn = document.getElementById('btn-lm-enter-class');
   const crmBtn = document.getElementById('btn-lm-crm');
   const manualZone = document.getElementById('lm-manual-zone');
+  
   enterBtn.style.display = isManual ? 'none' : 'block';
   crmBtn.style.display = isManual ? 'none' : 'block';
   manualZone.style.display = isManual ? 'block' : 'none';
+
+  if (isManual && event.packageSize > 0) {
+    const todayStr = formatDateToString(new Date());
+    let consumed = 0;
+    
+    scheduleData.forEach(ev => {
+      if (ev.isManual && ev.title === event.title) {
+        const st = getEventStatus(ev);
+        const isPastOrToday = ev.date <= todayStr;
+        
+        if (st === 'canceled') return; 
+        if (st === 'noshow' || st === 'late' || (st === 'done' && isPastOrToday)) {
+          consumed++;
+        }
+      }
+    });
+
+    const left = event.packageSize - consumed;
+    const packageInfo = document.getElementById('lm-package-info');
+    
+    if (packageInfo) {
+      packageInfo.style.display = 'block';
+      const leftEl = document.getElementById('lm-package-left');
+      leftEl.textContent = left;
+      document.getElementById('lm-package-total').textContent = event.packageSize;
+      leftEl.style.color = left <= 0 ? '#ef4444' : '#10b981';
+    }
+  } else {
+    const packageInfo = document.getElementById('lm-package-info');
+    if (packageInfo) packageInfo.style.display = 'none';
+  }
 
   if (!isManual) {
     enterBtn.onclick = () => {
@@ -188,7 +220,7 @@ function openLessonModal(event, dayName) {
   const lessonKey = getLessonKey(event, dayName);
 
   const studentId = event.title.split(/[\s-]/)[0].trim();
-  let defaultManager = studentManagers[studentId]; // Может быть еще неизвестен
+  let defaultManager = studentManagers[studentId]; 
 
   const managerGroup = document.getElementById('lm-managers-group');
   const managerSelect = document.getElementById('lm-manager-select');
@@ -202,14 +234,12 @@ function openLessonModal(event, dayName) {
     } else {
       managerGroup.style.display = 'block';
 
-      // Функция, которая подставляет куратора в текст, не стирая твои ручные правки
       const updateManagerUI = (pairName) => {
         managerSelect.value = pairName;
         const textarea = document.getElementById('lm-notes');
         let text = textarea.value;
         let replaced = false;
 
-        // Ищем старую пару и меняем на новую
         MANAGER_PAIRS.forEach(pair => {
           if (text.includes(pair)) {
             text = text.replace(pair, pairName);
@@ -217,7 +247,6 @@ function openLessonModal(event, dayName) {
           }
         });
 
-        // Если в тексте вообще нет пар, вставляем аккуратно второй строкой
         if (!replaced) {
           const lines = text.split('\n');
           if (lines.length > 1) {
@@ -229,22 +258,18 @@ function openLessonModal(event, dayName) {
         }
         textarea.value = text;
 
-        // Сохраняем в память навсегда
         studentManagers[studentId] = pairName;
         localStorage.setItem('studentManagers', JSON.stringify(studentManagers));
       };
 
       managerSelect.onchange = (e) => updateManagerUI(e.target.value);
 
-      // САМОЕ ГЛАВНОЕ: Если мы еще не знаем куратора - ТЯНЕМ ЕГО ИЗ CRM!
       if (!defaultManager && event.school === 'Zerocoder' && event.studentProfileId) {
         managerSelect.innerHTML = `<option value="">⏳ Ищу в CRM...</option>` + managerSelect.innerHTML;
         managerSelect.value = "";
 
-        // Если заметки еще нет, ставим временную заглушку
         if (!currentNote) currentNote = `${event.title}\n⏳ Ищу куратора...\n\nНе на уроке.`;
 
-        // Делаем скрытый запрос к твоему новому маршруту на сервере
         fetch('https://lessons-mqy0.onrender.com/api/manager', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -252,12 +277,11 @@ function openLessonModal(event, dayName) {
         })
           .then(res => res.json())
           .then(data => {
-            if (managerSelect.options[0].value === "") managerSelect.remove(0); // убираем "Загрузку"
+            if (managerSelect.options[0].value === "") managerSelect.remove(0); 
 
             const adminName = data.admin_name ? data.admin_name.toLowerCase() : '';
-            let fetchedPair = "Алсу @Alsushenka1985 - Елена @ElenaLCastellano"; // по умолчанию
+            let fetchedPair = "Алсу @Alsushenka1985 - Елена @ElenaLCastellano"; 
 
-            // Умное распределение по именам и фамилиям
             if (adminName.includes('юли') || adminName.includes('лиз') || adminName.includes('иван')) {
               fetchedPair = "Юлия @julia_ivan - Лиза @lizablakh";
             } else if (adminName.includes('алин') || adminName.includes('александр') || adminName.includes('шихал') || adminName.includes('домрач')) {
@@ -266,14 +290,13 @@ function openLessonModal(event, dayName) {
               fetchedPair = "Алсу @Alsushenka1985 - Елена @ElenaLCastellano";
             }
 
-            updateManagerUI(fetchedPair); // Бам! Вставили нужную пару
+            updateManagerUI(fetchedPair);
           })
           .catch(err => {
             if (managerSelect.options[0].value === "") managerSelect.remove(0);
-            updateManagerUI("Алсу @Alsushenka1985 - Елена @ElenaLCastellano"); // Если CRM упала, ставим дефолт
+            updateManagerUI("Алсу @Alsushenka1985 - Елена @ElenaLCastellano"); 
           });
       } else {
-        // Если куратор уже сохранен в кэше — просто подставляем его моментально
         defaultManager = defaultManager || "Алсу @Alsushenka1985 - Елена @ElenaLCastellano";
         managerSelect.value = defaultManager;
         if (!currentNote) currentNote = `${event.title}\n${defaultManager}\n\nНе на уроке.`;
@@ -285,7 +308,6 @@ function openLessonModal(event, dayName) {
 
   document.getElementById('lm-notes').value = currentNote;
 
-  // --- ВОЗВРАЩАЕМ ПОТЕРЯННУЮ ЛОГИКУ ЦЕН ---
   const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
 
   const computePrice = (status) => {

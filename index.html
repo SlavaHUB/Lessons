@@ -69,10 +69,8 @@
 
         <div id="stat-counts-row" class="stat-counts-row">
           <div class="stat-count-chip stat-count-done"><span id="stat-count-done">0</span><small>Проведено</small></div>
-          <div class="stat-count-chip stat-count-cancel"><span id="stat-count-canceled">0</span><small>Отмена</small>
-          </div>
-          <div class="stat-count-chip stat-count-noshow"><span id="stat-count-noshow">0</span><small>Прогул</small>
-          </div>
+          <div class="stat-count-chip stat-count-cancel"><span id="stat-count-canceled">0</span><small>Отмена</small></div>
+          <div class="stat-count-chip stat-count-noshow"><span id="stat-count-noshow">0</span><small>Прогул</small></div>
           <div class="stat-count-chip stat-count-late"><span id="stat-count-late">0</span><small>Опоздал</small></div>
         </div>
 
@@ -93,8 +91,7 @@
             style="width: 100%; height: 50px; font-size: 0.7rem; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); margin-bottom: 10px; resize: none;"></textarea>
           <div style="display: flex; gap: 10px;">
             <button id="btn-export-prices" class="btn-secondary" style="flex: 1;">📋 Копировать</button>
-            <button id="btn-import-prices" class="btn-primary" style="flex: 1; background: #10b981;">📥
-              Загрузить</button>
+            <button id="btn-import-prices" class="btn-primary" style="flex: 1; background: #10b981;">📥 Загрузить</button>
           </div>
         </div>
       </div>
@@ -249,8 +246,10 @@
         <button class="status-btn" data-status="noshow">⚠️ Прогул</button>
       </div>
 
-      <div id="lm-manual-zone"
-        style="display: none; margin-bottom: 15px; padding-top: 12px; border-top: 1px dashed var(--border-color);">
+      <div id="lm-manual-zone" style="display: none; margin-bottom: 15px; padding-top: 12px; border-top: 1px dashed var(--border-color);">
+        <div id="lm-package-info" style="margin-bottom: 12px; font-size: 0.95rem; display: none; background: rgba(16, 185, 129, 0.1); padding: 10px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
+          📦 Остаток уроков: <strong id="lm-package-left" style="font-size: 1.2rem;">0</strong> из <span id="lm-package-total">0</span>
+        </div>
         <button id="btn-lm-delete-manual" type="button" class="btn-secondary"
           style="width: 100%; color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">🗑️ Удалить урок</button>
       </div>
@@ -259,13 +258,10 @@
 
       <div class="form-group" style="margin-bottom: 15px;" id="lm-managers-group">
         <label>Кураторы ученика:</label>
-        <select id="lm-manager-select"
-          style="width: 100%; padding: 8px 12px; border-radius: 6px; background: var(--input-bg); color: var(--input-text); border: 1px solid var(--input-border); margin-bottom: 12px; font-size: 0.85rem; outline: none;">
+        <select id="lm-manager-select" style="width: 100%; padding: 8px 12px; border-radius: 6px; background: var(--input-bg); color: var(--input-text); border: 1px solid var(--input-border); margin-bottom: 12px; font-size: 0.85rem; outline: none;">
           <option value="Юлия @julia_ivan - Лиза @lizablakh">Юлия @julia_ivan - Лиза @lizablakh</option>
-          <option value="Алсу @Alsushenka1985 - Елена @ElenaLCastellano">Алсу @Alsushenka1985 - Елена @ElenaLCastellano
-          </option>
-          <option value="Алина @Alina_Domracheva - Александра @Lexio19">Алина @Alina_Domracheva - Александра @Lexio19
-          </option>
+          <option value="Алсу @Alsushenka1985 - Елена @ElenaLCastellano">Алсу @Alsushenka1985 - Елена @ElenaLCastellano</option>
+          <option value="Алина @Alina_Domracheva - Александра @Lexio19">Алина @Alina_Domracheva - Александра @Lexio19</option>
         </select>
       </div>
 
@@ -279,8 +275,7 @@
       <div
         style="text-align: center; font-size: 1.2rem; font-weight: bold; padding-top: 10px; border-top: 1px dashed var(--border-color);">
         Итого: <span id="lm-total-rub" style="color: #10b981;">0 ₽</span>
-        <span id="lm-total-byn" style="font-size: 0.85rem; color: var(--text-muted); font-weight: normal;">(≈ 0
-          Br)</span>
+        <span id="lm-total-byn" style="font-size: 0.85rem; color: var(--text-muted); font-weight: normal;">(≈ 0 Br)</span>
       </div>
 
       <div class="modal-actions" style="margin-top: 20px; justify-content: space-between;">
@@ -333,7 +328,7 @@
   </div>
 
   <div id="add-lesson-modal" class="modal-overlay">
-    <div class="modal-content" style="max-width: 350px;">
+    <div class="modal-content" style="max-width: 420px;">
       <div class="modal-header">
         <h3>➕ Добавить свой урок</h3>
       </div>
@@ -352,12 +347,13 @@
           <div style="flex: 1;">
             <label style="font-size: 0.85rem; color: var(--text-muted);">Время</label>
             <input type="text" id="add-time" class="stats-date-input" inputmode="numeric" maxlength="5"
-              placeholder="14:30" style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+              placeholder="14:30"
+              style="width: 100%; box-sizing: border-box; margin-top: 4px;">
           </div>
         </div>
         <div style="display: flex; gap: 10px;">
           <div style="flex: 1;">
-            <label style="font-size: 0.85rem; color: var(--text-muted);">Длительность (мин)</label>
+            <label style="font-size: 0.85rem; color: var(--text-muted);">Длительность</label>
             <input type="number" id="add-duration" value="45" class="stats-date-input"
               style="width: 100%; box-sizing: border-box; margin-top: 4px;">
           </div>
@@ -370,9 +366,13 @@
               <option value="Zerocoder">Zerocoder</option>
             </select>
           </div>
+          <div style="flex: 1;">
+            <label style="font-size: 0.85rem; color: var(--text-muted);">Пакет (шт)</label>
+            <input type="number" id="add-package-size" placeholder="∞" class="stats-date-input"
+              style="width: 100%; box-sizing: border-box; margin-top: 4px;">
+          </div>
         </div>
-        <label class="recurring-checkbox"
-          style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: var(--text-main);">
+        <label class="recurring-checkbox" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: var(--text-main);">
           <input type="checkbox" id="add-recurring" style="width: 16px; height: 16px; accent-color: #f97316;">
           <span>Повторять каждую неделю</span>
         </label>
@@ -386,19 +386,15 @@
     <div class="modal-content" style="max-width: 450px;">
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
         <h3 style="margin: 0;">🔍 Поиск ученика</h3>
-        <button id="btn-search-close"
-          style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); padding: 0;">✖</button>
+        <button id="btn-search-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); padding: 0;">✖</button>
       </div>
-      <input type="text" id="search-student-input" placeholder="Имя, код (например: NIN570)..." autocomplete="off"
-        style="width: 100%; margin-bottom: 15px; padding: 12px; font-size: 1rem; border-radius: 8px; border: 2px solid var(--border-color); background: var(--input-bg); color: var(--text-main); outline: none;">
-      <div id="search-student-results"
-        style="max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;">
-      </div>
+      <input type="text" id="search-student-input" placeholder="Имя, код (например: NIN570)..." autocomplete="off" style="width: 100%; margin-bottom: 15px; padding: 12px; font-size: 1rem; border-radius: 8px; border: 2px solid var(--border-color); background: var(--input-bg); color: var(--text-main); outline: none;">
+      <div id="search-student-results" style="max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;"></div>
     </div>
   </div>
 
   <script>
-    (function () {
+    (function() {
       const version = Date.now();
       const scripts = [
         'utils.js',
@@ -407,16 +403,13 @@
         'excel.js',
         'main.js'
       ];
-
-      scripts.forEach(function (file) {
+      scripts.forEach(function(file) {
         const script = document.createElement('script');
         script.src = file + '?v=' + version;
-        // КРИТИЧЕСКИ ВАЖНО: false гарантирует, что файлы выполнятся строго в заданном порядке
-        script.async = false;
+        script.async = false; 
         document.body.appendChild(script);
       });
     })();
   </script>
 </body>
-
 </html>

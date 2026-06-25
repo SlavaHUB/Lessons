@@ -3,7 +3,6 @@
 // ==========================================
 
 function initApp() {
-  // 1. Загрузка локальных данных
   try {
     priceBook = readStorageJSON('lessonPrices_v2', {});
     statusBook = readStorageJSON('lessonStatuses', {});
@@ -33,7 +32,6 @@ function initApp() {
     calcSalary();
   }
 
-  // 2. Фоновая загрузка облака MongoDB
   loadCloudData().then((loaded) => {
     if (loaded) console.log("☁️ Данные из MongoDB успешно загружены в фоне");
     else console.log("☁️ Ошибка MongoDB, используем локальные данные");
@@ -45,7 +43,6 @@ function initApp() {
     calcSalary();
   }).catch(err => console.error("Ошибка фоновой загрузки:", err));
 
-  // 3. Фоновая загрузка из CRM
   const lastSync = readStorageNumber('lastSyncTime', 0);
   const oneHour = 60 * 60 * 1000;
   if (Date.now() - lastSync > oneHour) fetchLessons(true);
@@ -53,7 +50,6 @@ function initApp() {
 
   setInterval(() => { fetchLessons(true); }, oneHour);
 
-  // 4. Слушатели статуса сети
   window.addEventListener('online', () => flushCloudQueue());
   window.addEventListener('offline', () => {
     const checkTime = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -144,10 +140,9 @@ function initApp() {
             isManual: ev.isManual,
             lessons: [],
             daysInfo: new Set(),
-            profileId: ev.studentProfileId || null // Сохраняем ID ученика
+            profileId: ev.studentProfileId || null 
           };
         }
-        // Если ID прилетел только в одном из уроков, берем его
         if (!groupedData[ev.title].profileId && ev.studentProfileId) {
           groupedData[ev.title].profileId = ev.studentProfileId;
         }
@@ -186,7 +181,6 @@ function initApp() {
         if (priceBook[lKey]) price = priceBook[lKey];
       }
 
-      // Добавили атрибут data-profile в кнопку
       html += `
         <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; font-size: 0.85rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
@@ -212,28 +206,22 @@ function initApp() {
 
     resultsContainer.innerHTML = html;
 
-    // Обновленная логика кнопок
     resultsContainer.querySelectorAll('.btn-crm-search').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const school = e.target.dataset.school;
         const title = e.target.dataset.title;
-        const profileId = e.target.dataset.profile; // Достаем ID абонемента
+        const profileId = e.target.dataset.profile;
 
         const studentId = title.split(/[\s-]/)[0].trim();
 
-        // 1. Всегда копируем ID (шпоргалка на всякий случай)
         navigator.clipboard.writeText(studentId).catch(() => { });
 
-        // 2. Открываем нужную ссылку
         if (school === 'Zerocoder' && profileId) {
-          // Если есть прямой ID — открываем карточку абонемента!
           window.open(`https://crm.genius-school.online/#/subscribes/${profileId}/info`, '_blank');
         } else if (LINKS[school]) {
-          // Фолбэк для Компота или если ID по какой-то причине не пришел
           window.open(LINKS[school], '_blank');
         }
 
-        // 3. Визуальный фидбек
         const originalText = e.target.textContent;
         e.target.textContent = '✅ Открыто!';
         e.target.style.background = '#10b981';
@@ -456,6 +444,7 @@ function initApp() {
     document.getElementById('add-date').value = formatDateToString(new Date());
     document.getElementById('add-time').value = '';
     document.getElementById('add-title').value = '';
+    document.getElementById('add-package-size').value = '';
     document.getElementById('add-recurring').checked = false;
     document.getElementById('add-school').value = 'Private';
   });
@@ -468,6 +457,8 @@ function initApp() {
     const time = normalize24HourTime(document.getElementById('add-time').value);
     const duration = document.getElementById('add-duration').value || 45;
     const school = document.getElementById('add-school').value;
+    
+    const packageSize = parseInt(document.getElementById('add-package-size').value) || 0;
 
     if (!title || !date || !time) return alert('Заполните Имя, Дату и Время в формате 24 часа!');
 
@@ -478,7 +469,7 @@ function initApp() {
     const newLesson = {
       id: 'manual_' + Date.now(),
       date, startTime: time, endTime, title, school,
-      isManual: true, isRecurring
+      isManual: true, isRecurring, packageSize
     };
 
     let currentCustom = readStorageJSON('customLessons', []);
@@ -498,11 +489,6 @@ function initApp() {
   });
 }
 
-// -----------------------------------------------------------------------------
-// КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ЗДЕСЬ:
-// Если браузер уже загрузил страницу - запускаем сразу.
-// Если еще грузит - ждем события DOMContentLoaded.
-// -----------------------------------------------------------------------------
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp);
 } else {

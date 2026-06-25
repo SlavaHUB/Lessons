@@ -18,6 +18,8 @@ const MANAGER_PAIRS = [
   "Алина @Alina_Domracheva - Александра @Lexio19"
 ];
 
+
+
 const LESSONS_DATABASE = [
   { code: 'NTk02', name: 'Основы работы с компьютером' },
   { code: 'NTk04', name: 'Кибербезопасность и нейросети' },
