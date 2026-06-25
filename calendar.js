@@ -188,7 +188,6 @@ function openLessonModal(event, dayName) {
   const lessonKey = getLessonKey(event, dayName);
 
   const studentId = event.title.split(/[\s-]/)[0].trim();
-  const studentId = event.title.split(/[\s-]/)[0].trim();
   let defaultManager = studentManagers[studentId]; // Может быть еще неизвестен
 
   const managerGroup = document.getElementById('lm-managers-group');
