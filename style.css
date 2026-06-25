@@ -1166,3 +1166,72 @@ input[type="text"]:focus {
   }
 }
 /* Final update */
+/* ========================================== */
+/* ТЕСТОВАЯ ТЕМА: DEEP SLATE & NEON           */
+/* ========================================== */
+[data-theme="slate"] {
+  --bg-main: #0f172a;       
+  --bg-container: #1e293b;
+  --bg-header: #1e293b;
+  --border-color: #334155;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --bg-modal: #1e293b;
+  --input-bg: #0b1120;
+  --input-border: #475569;
+  --input-text: #f8fafc;
+  --btn-secondary-bg: #334155;
+  --btn-secondary-text: #cbd5e1;
+  --btn-secondary-hover: #475569;
+  --day-off-bg1: rgba(15, 23, 42, 0.6);
+  --day-off-bg2: rgba(30, 41, 59, 0.6);
+
+  /* Неоновые акценты для карточек уроков */
+  --theme-blue-bg: #1e3a8a;
+  --theme-blue-text: #dbeafe;
+  --theme-blue-border: #3b82f6;
+  --theme-blue-stroke: #60a5fa;
+
+  --theme-green-bg: #064e3b;
+  --theme-green-text: #dcfce7;
+  --theme-green-border: #10b981;
+  --theme-green-stroke: #34d399;
+
+  --theme-purple-bg: #4c1d95;
+  --theme-purple-text: #f3e8ff;
+  --theme-purple-border: #8b5cf6;
+  --theme-purple-stroke: #a78bfa;
+
+  --theme-grey-bg: #334155;
+  --theme-grey-text: #f8fafc;
+  --theme-grey-border: #94a3b8;
+  --theme-grey-stroke: #cbd5e1;
+
+  --theme-red-bg: #7f1d1d;
+  --theme-red-text: #fee2e2;
+  --theme-red-border: #ef4444;
+  --theme-red-stroke: #f87171;
+
+  --theme-private-bg: #1e1b4b;
+  --theme-private-text: #e0e7ff;
+  --theme-private-border: #6366f1;
+  --theme-private-stroke: #818cf8;
+}
+
+/* Эффекты свечения только для новой темы */
+[data-theme="slate"] .btn-primary {
+  background: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+}
+[data-theme="slate"] .btn-primary:hover {
+  background: #2563eb;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.45);
+  transform: translateY(-1px);
+}
+[data-theme="slate"] .event-card {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+[data-theme="slate"] .event-card:hover {
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+}
