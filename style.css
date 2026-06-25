@@ -1167,71 +1167,86 @@ input[type="text"]:focus {
 }
 /* Final update */
 /* ========================================== */
-/* ТЕСТОВАЯ ТЕМА: DEEP SLATE & NEON           */
+/* ТЕМА: MODERN GLASS (Эффект стекла и неона) */
 /* ========================================== */
-[data-theme="slate"] {
-  --bg-main: #0f172a;       
-  --bg-container: #1e293b;
-  --bg-header: #1e293b;
-  --border-color: #334155;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --bg-modal: #1e293b;
-  --input-bg: #0b1120;
-  --input-border: #475569;
-  --input-text: #f8fafc;
-  --btn-secondary-bg: #334155;
-  --btn-secondary-text: #cbd5e1;
-  --btn-secondary-hover: #475569;
-  --day-off-bg1: rgba(15, 23, 42, 0.6);
-  --day-off-bg2: rgba(30, 41, 59, 0.6);
+[data-theme="modern"] {
+  /* Базовые цвета в стиле топовых IDE и Tailwind Zinc */
+  --bg-main: #09090b;       /* Глубокий космический черный */
+  --bg-container: #121214;  /* Чуть светлее для самого календаря */
+  --bg-header: #121214;
+  --border-color: rgba(255, 255, 255, 0.05); /* Еле заметные сетки */
+  --text-main: #fafafa;
+  --text-muted: #a1a1aa;
+  --bg-modal: #18181b;
+  --input-bg: #09090b;
+  --input-border: #3f3f46;
+  --input-text: #fafafa;
+  --btn-secondary-bg: #27272a;
+  --btn-secondary-text: #e4e4e7;
+  --btn-secondary-hover: #3f3f46;
+  --day-off-bg1: rgba(39, 39, 42, 0.2);
+  --day-off-bg2: rgba(24, 24, 27, 0.2);
 
-  /* Неоновые акценты для карточек уроков */
-  --theme-blue-bg: #1e3a8a;
-  --theme-blue-text: #dbeafe;
+  /* ZEROCODER (Неоновый фиолетовый) */
+  /* Градиент от 15% прозрачности к 2% + эффект стекла */
+  --theme-purple-bg: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(168, 85, 247, 0.02) 100%);
+  --theme-purple-text: #d8b4fe; 
+  --theme-purple-border: #a855f7; /* Яркий левый маркер */
+  --theme-purple-stroke: rgba(168, 85, 247, 0.25); /* Тонкая рамка вокруг */
+
+  /* IT COMPOT (Неоновый зеленый) */
+  --theme-green-bg: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(34, 197, 94, 0.02) 100%);
+  --theme-green-text: #86efac;
+  --theme-green-border: #22c55e;
+  --theme-green-stroke: rgba(34, 197, 94, 0.25);
+
+  /* ПЕРСОНАЛЬНЫЕ (Неоновый оранжевый) */
+  --theme-private-bg: linear-gradient(135deg, rgba(249, 115, 22, 0.15) 0%, rgba(249, 115, 22, 0.02) 100%);
+  --theme-private-text: #fdba74;
+  --theme-private-border: #f97316;
+  --theme-private-stroke: rgba(249, 115, 22, 0.25);
+  
+  /* РЕЗЕРВНЫЕ (Синие и красные) */
+  --theme-blue-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.02) 100%);
+  --theme-blue-text: #93c5fd;
   --theme-blue-border: #3b82f6;
-  --theme-blue-stroke: #60a5fa;
-
-  --theme-green-bg: #064e3b;
-  --theme-green-text: #dcfce7;
-  --theme-green-border: #10b981;
-  --theme-green-stroke: #34d399;
-
-  --theme-purple-bg: #4c1d95;
-  --theme-purple-text: #f3e8ff;
-  --theme-purple-border: #8b5cf6;
-  --theme-purple-stroke: #a78bfa;
-
-  --theme-grey-bg: #334155;
-  --theme-grey-text: #f8fafc;
-  --theme-grey-border: #94a3b8;
-  --theme-grey-stroke: #cbd5e1;
-
-  --theme-red-bg: #7f1d1d;
-  --theme-red-text: #fee2e2;
+  --theme-blue-stroke: rgba(59, 130, 246, 0.25);
+  
+  --theme-red-bg: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.02) 100%);
+  --theme-red-text: #fca5a5;
   --theme-red-border: #ef4444;
-  --theme-red-stroke: #f87171;
-
-  --theme-private-bg: #1e1b4b;
-  --theme-private-text: #e0e7ff;
-  --theme-private-border: #6366f1;
-  --theme-private-stroke: #818cf8;
+  --theme-red-stroke: rgba(239, 68, 68, 0.25);
 }
 
-/* Эффекты свечения только для новой темы */
-[data-theme="slate"] .btn-primary {
-  background: #3b82f6;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
-  border: 1px solid rgba(59, 130, 246, 0.5);
+/* Применяем фильтры и новые тени для этой темы */
+[data-theme="modern"] .event-card {
+  backdrop-filter: blur(12px); /* Размытие фона под карточкой */
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  border-width: 1px;
+  border-style: solid;
+  border-left-width: 3px; /* Оставляем левую рамку толще для акцента */
 }
-[data-theme="slate"] .btn-primary:hover {
-  background: #2563eb;
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.45);
-  transform: translateY(-1px);
+
+/* Плавный подъем и легкое свечение при наведении */
+[data-theme="modern"] .event-card:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
-[data-theme="slate"] .event-card {
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+
+/* Делаем ценник внутри карточки стильным и темным */
+[data-theme="modern"] .event-price-tag {
+  background: rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
-[data-theme="slate"] .event-card:hover {
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+
+/* Смягчаем линии сетки, чтобы календарь казался парящим */
+[data-theme="modern"] .days-grid {
+  background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+[data-theme="modern"] .day-column {
+  border-right: 1px solid rgba(255, 255, 255, 0.03);
+}
+[data-theme="modern"] .time-labels, [data-theme="modern"] .time-header-cell {
+  border-right: 1px solid rgba(255, 255, 255, 0.03);
 }
