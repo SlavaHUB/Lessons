@@ -81,7 +81,7 @@ function initApp() {
   });
   document.getElementById('btn-excel-close').addEventListener('click', () => document.getElementById('detailed-excel-modal').classList.remove('active'));
 
-document.getElementById('btn-export-csv').addEventListener('click', () => {
+  document.getElementById('btn-export-csv').addEventListener('click', () => {
     let csv = '\uFEFF№;Дата;Статус;Урок/Группа;Школа;Сумма\n';
     document.querySelectorAll('#detailed-excel-tbody tr').forEach(row => {
       csv += Array.from(row.querySelectorAll('td')).map(c => c.innerText.replace(' ₽', '').trim()).join(';') + '\n';
@@ -125,7 +125,7 @@ document.getElementById('btn-export-csv').addEventListener('click', () => {
   document.getElementById('search-student-input').addEventListener('input', (e) => {
     const query = e.target.value.toLowerCase().trim();
     const resultsContainer = document.getElementById('search-student-results');
-    
+
     if (query.length < 2) {
       resultsContainer.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 10px;">Введите хотя бы 2 символа...</div>';
       return;
@@ -134,7 +134,6 @@ document.getElementById('btn-export-csv').addEventListener('click', () => {
     const matchedTitles = new Set();
     const groupedData = {};
 
-    // Ищем все совпадения и группируем их по имени ученика
     scheduleData.forEach(ev => {
       if (ev.title.toLowerCase().includes(query)) {
         matchedTitles.add(ev.title);
@@ -161,32 +160,33 @@ document.getElementById('btn-export-csv').addEventListener('click', () => {
 
     matchedTitles.forEach(title => {
       const data = groupedData[title];
-      
-      // Сортируем уроки по дате
       data.lessons.sort((a, b) => a.date.localeCompare(b.date));
-      
+
       const pastLessons = data.lessons.filter(l => l.date < todayStr && getEventStatus(l) === 'done').length;
       const futureLessons = data.lessons.filter(l => l.date >= todayStr && !l.isPhantom && getEventStatus(l) !== 'canceled');
       const nextLesson = futureLessons.length > 0 ? futureLessons[0] : null;
-      
+
       let nextLessonStr = '<span style="color: var(--text-muted);">Нет в расписании</span>';
       if (nextLesson) {
-         const [, m, d] = nextLesson.date.split('-');
-         nextLessonStr = `<strong style="color: #10b981;">${d}.${m} в ${nextLesson.startTime}</strong>`;
+        const [, m, d] = nextLesson.date.split('-');
+        nextLessonStr = `<strong style="color: #10b981;">${d}.${m} в ${nextLesson.startTime}</strong>`;
       }
 
-      // Вытаскиваем заметку и сохраненную цену
       let note = '';
       let price = 0;
       for (let l of data.lessons) {
-         const lKey = getLessonKey(l, daysOfWeek[l.customDayIndex]);
-         if (notesBook[lKey]) note = notesBook[lKey];
-         if (priceBook[lKey]) price = priceBook[lKey];
+        const lKey = getLessonKey(l, daysOfWeek[l.customDayIndex]);
+        if (notesBook[lKey]) note = notesBook[lKey];
+        if (priceBook[lKey]) price = priceBook[lKey];
       }
 
+      // Добавлена кнопка "В CRM" прямо в заголовок карточки
       html += `
         <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; font-size: 0.85rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-          <div style="font-size: 1.05rem; font-weight: bold; color: #3b82f6; margin-bottom: 12px;">${escapeHtml(title)}</div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+            <div style="font-size: 1.05rem; font-weight: bold; color: #3b82f6;">${escapeHtml(title)}</div>
+            <button class="btn-crm-search btn-secondary" data-school="${data.school}" data-title="${escapeHtml(title)}" style="padding: 4px 10px; font-size: 0.75rem; flex-shrink: 0; margin-left: 10px;">🔗 В CRM</button>
+          </div>
           
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
             <div><span style="color: var(--text-muted); font-size: 0.75rem;">Школа:</span><br><strong style="font-size: 0.9rem;">${getSchoolLabel(data.school)}</strong></div>
@@ -205,7 +205,39 @@ document.getElementById('btn-export-csv').addEventListener('click', () => {
     });
 
     resultsContainer.innerHTML = html;
+
+    // Вешаем обработчик на новые кнопки
+    resultsContainer.querySelectorAll('.btn-crm-search').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const school = e.target.dataset.school;
+        const title = e.target.dataset.title;
+
+        // Вырезаем ID ученика (все до первого пробела или тире)
+        const studentId = title.split(/[\s-]/)[0].trim();
+
+        // Копируем в буфер и открываем сайт
+        navigator.clipboard.writeText(studentId).then(() => {
+          const originalText = e.target.textContent;
+          e.target.textContent = '✅ ID скопирован!';
+          e.target.style.background = '#10b981';
+          e.target.style.color = '#fff';
+          setTimeout(() => {
+            e.target.textContent = originalText;
+            e.target.style.background = '';
+            e.target.style.color = '';
+          }, 2000);
+
+          if (LINKS[school]) {
+            window.open(LINKS[school], '_blank');
+          }
+        }).catch(err => {
+          console.error('Ошибка копирования:', err);
+          if (LINKS[school]) window.open(LINKS[school], '_blank');
+        });
+      });
+    });
   });
+  
   // ==========================================
   // МОДАЛКА УРОКА
   // ==========================================
