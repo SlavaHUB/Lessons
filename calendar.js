@@ -285,6 +285,40 @@ function openLessonModal(event, dayName) {
 
   document.getElementById('lm-notes').value = currentNote;
 
+  // --- ВОЗВРАЩАЕМ ПОТЕРЯННУЮ ЛОГИКУ ЦЕН ---
+  const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
+
+  const computePrice = (status) => {
+    if (status === 'canceled') return 0;
+    if (event.isExcelCustom && event.excelPrice !== undefined) return event.excelPrice;
+    if (overridePriceBook[instKey] !== undefined) return overridePriceBook[instKey];
+    if (overridePriceBook[oldKey] !== undefined) return overridePriceBook[oldKey];
+
+    let basePrice = parseFloat(priceBook[lessonKey]);
+    if (isNaN(basePrice)) basePrice = getStandardPrice(event.school, duration);
+
+    if (status === 'noshow') {
+      if (event.school === 'Zerocoder' && duration === 45) return 135;
+      if (event.school === 'Zerocoder' && duration === 30) return 90;
+    }
+    return basePrice;
+  };
+
+  const renderPriceInput = (price) => {
+    const priceZone = document.getElementById('lm-price-zone');
+    priceZone.innerHTML = `
+      <label>Стоимость урока (₽):</label>
+      <input type="number" id="lm-input-price" value="${price}" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--input-text); outline: none;">
+    `;
+    document.getElementById('lm-input-price').addEventListener('input', (e) => {
+      updateModalTotals(parseFloat(e.target.value) || 0);
+    });
+    updateModalTotals(price);
+  };
+
+  let currentPrice = computePrice(currentStatus);
+  renderPriceInput(currentPrice);
+
   document.querySelectorAll('.status-btn').forEach(btn => {
     if (btn.dataset.status === currentStatus) btn.classList.add('active');
     else btn.classList.remove('active');
