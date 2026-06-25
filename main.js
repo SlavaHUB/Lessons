@@ -108,6 +108,105 @@ document.getElementById('btn-export-csv').addEventListener('click', () => {
   document.getElementById('btn-slots-search').addEventListener('click', findFreeSlots);
 
   // ==========================================
+  // ПОИСК УЧЕНИКА
+  // ==========================================
+  document.getElementById('btn-search-student').addEventListener('click', () => {
+    document.getElementById('search-modal').classList.add('active');
+    document.getElementById('search-student-input').value = '';
+    document.getElementById('search-student-results').innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 10px;">Начните вводить данные...</div>';
+    document.getElementById('action-controls').classList.remove('open');
+    setTimeout(() => document.getElementById('search-student-input').focus(), 100);
+  });
+
+  document.getElementById('btn-search-close').addEventListener('click', () => {
+    document.getElementById('search-modal').classList.remove('active');
+  });
+
+  document.getElementById('search-student-input').addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    const resultsContainer = document.getElementById('search-student-results');
+    
+    if (query.length < 2) {
+      resultsContainer.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 10px;">Введите хотя бы 2 символа...</div>';
+      return;
+    }
+
+    const matchedTitles = new Set();
+    const groupedData = {};
+
+    // Ищем все совпадения и группируем их по имени ученика
+    scheduleData.forEach(ev => {
+      if (ev.title.toLowerCase().includes(query)) {
+        matchedTitles.add(ev.title);
+        if (!groupedData[ev.title]) {
+          groupedData[ev.title] = {
+            school: ev.school,
+            isManual: ev.isManual,
+            lessons: [],
+            daysInfo: new Set()
+          };
+        }
+        groupedData[ev.title].lessons.push(ev);
+        groupedData[ev.title].daysInfo.add(`${daysOfWeek[ev.customDayIndex]} (${ev.startTime})`);
+      }
+    });
+
+    if (matchedTitles.size === 0) {
+      resultsContainer.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 10px;">Ученик не найден 🤷‍♂️</div>';
+      return;
+    }
+
+    let html = '';
+    const todayStr = formatDateToString(new Date());
+
+    matchedTitles.forEach(title => {
+      const data = groupedData[title];
+      
+      // Сортируем уроки по дате
+      data.lessons.sort((a, b) => a.date.localeCompare(b.date));
+      
+      const pastLessons = data.lessons.filter(l => l.date < todayStr && getEventStatus(l) === 'done').length;
+      const futureLessons = data.lessons.filter(l => l.date >= todayStr && !l.isPhantom && getEventStatus(l) !== 'canceled');
+      const nextLesson = futureLessons.length > 0 ? futureLessons[0] : null;
+      
+      let nextLessonStr = '<span style="color: var(--text-muted);">Нет в расписании</span>';
+      if (nextLesson) {
+         const [, m, d] = nextLesson.date.split('-');
+         nextLessonStr = `<strong style="color: #10b981;">${d}.${m} в ${nextLesson.startTime}</strong>`;
+      }
+
+      // Вытаскиваем заметку и сохраненную цену
+      let note = '';
+      let price = 0;
+      for (let l of data.lessons) {
+         const lKey = getLessonKey(l, daysOfWeek[l.customDayIndex]);
+         if (notesBook[lKey]) note = notesBook[lKey];
+         if (priceBook[lKey]) price = priceBook[lKey];
+      }
+
+      html += `
+        <div style="background: var(--bg-main); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; font-size: 0.85rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+          <div style="font-size: 1.05rem; font-weight: bold; color: #3b82f6; margin-bottom: 12px;">${escapeHtml(title)}</div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+            <div><span style="color: var(--text-muted); font-size: 0.75rem;">Школа:</span><br><strong style="font-size: 0.9rem;">${getSchoolLabel(data.school)}</strong></div>
+            <div><span style="color: var(--text-muted); font-size: 0.75rem;">Цена за урок:</span><br><strong style="font-size: 0.9rem;">${price ? price + ' ₽' : 'По умолчанию'}</strong></div>
+            <div><span style="color: var(--text-muted); font-size: 0.75rem;">Обычно занимается:</span><br><strong style="font-size: 0.9rem;">${Array.from(data.daysInfo).join(', ')}</strong></div>
+            <div><span style="color: var(--text-muted); font-size: 0.75rem;">Уже проведено:</span><br><strong style="font-size: 0.9rem;">${pastLessons} шт.</strong></div>
+          </div>
+          
+          <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed var(--border-color);">
+            <span style="color: var(--text-muted);">Ближайший урок:</span> ${nextLessonStr}
+          </div>
+          
+          ${note ? `<div style="background: var(--btn-secondary-bg); padding: 10px; border-radius: 6px; border-left: 3px solid #f59e0b; white-space: pre-wrap; font-size: 0.8rem; line-height: 1.4;"><strong style="color: #f59e0b;">Заметка:</strong>\n${escapeHtml(note)}</div>` : ''}
+        </div>
+      `;
+    });
+
+    resultsContainer.innerHTML = html;
+  });
+  // ==========================================
   // МОДАЛКА УРОКА
   // ==========================================
   document.getElementById('btn-lesson-close').addEventListener('click', () => document.getElementById('lesson-modal').classList.remove('active'));

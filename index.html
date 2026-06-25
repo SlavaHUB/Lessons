@@ -27,6 +27,7 @@
     <button id="btn-burger" class="btn-secondary btn-burger">☰ Меню</button>
     <div class="action-controls" id="action-controls">
       <button id="btn-add-lesson" class="btn-secondary" title="Добавить свой урок">➕ Урок</button>
+      <button id="btn-search-student" class="btn-secondary">🔍 Поиск</button>
       <button id="btn-export" class="btn-secondary">📸 Скриншот</button>
       <button id="btn-find-slots" class="btn-secondary">🔍 Окошки</button>
       <button id="btn-stats" class="btn-secondary">📊 Статистика</button>
@@ -363,6 +364,17 @@
         <button id="btn-save-new-lesson" class="btn-primary" style="margin-top: 10px; width: 100%;">Сохранить
           урок</button>
       </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="search-modal">
+    <div class="modal-content" style="max-width: 450px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+        <h3 style="margin: 0;">🔍 Поиск ученика</h3>
+        <button id="btn-search-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted); padding: 0;">✖</button>
+      </div>
+      <input type="text" id="search-student-input" placeholder="Имя, код (например: NIN570)..." autocomplete="off" style="width: 100%; margin-bottom: 15px; padding: 12px; font-size: 1rem; border-radius: 8px; border: 2px solid var(--border-color); background: var(--input-bg); color: var(--text-main); outline: none;">
+      <div id="search-student-results" style="max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;"></div>
     </div>
   </div>
 
