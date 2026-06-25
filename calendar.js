@@ -193,10 +193,6 @@ function openLessonModal(event, dayName) {
   const managerGroup = document.getElementById('lm-managers-group');
   const managerSelect = document.getElementById('lm-manager-select');
 
-  // Узнаем, есть ли уже сохраненная заметка для этого конкретного урока
-  const instKey = getInstanceKey(event);
-  const oldKey = getOldDateKey(event);
-  const lessonKey = getLessonKey(event, dayName);
   let currentStatus = getEventStatus(event);
   let currentNote = notesBook[lessonKey];
 
