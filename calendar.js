@@ -118,6 +118,7 @@ function openLessonModal(event, dayName) {
   crmBtn.style.display = isManual ? 'none' : 'block';
   manualZone.style.display = isManual ? 'block' : 'none';
 
+  // ОСТАТОК УРОКОВ
   if (isManual && event.packageSize > 0) {
     const todayStr = formatDateToString(new Date());
     let consumed = 0;
@@ -156,6 +157,7 @@ function openLessonModal(event, dayName) {
     };
   }
 
+  // ТЕМА УРОКА
   const topicText = event.topic ? event.topic.replace(/\r\n|\n/g, ' - ') : '';
   let topicDisplayZone = document.getElementById('lm-topic-display');
   if (!topicDisplayZone) {
@@ -170,70 +172,78 @@ function openLessonModal(event, dayName) {
     topicDisplayZone.innerHTML = '';
   }
 
-  const codeMatch = (event.topic || '').match(/NT[kgdh]\d{2}/i) || event.title.match(/NT[kgdh]\d{2}/i);
-  let currentCode = null;
-  if (codeMatch) {
-    const raw = codeMatch[0];
-    currentCode = raw.substring(0, 2).toUpperCase() + raw.substring(2, 3).toLowerCase() + raw.substring(3);
-  }
-
+  // МЕТОДИЧКИ (ТОЛЬКО ДЛЯ ZEROCODER)
   let guideZone = document.getElementById('lm-guide-zone');
   if (!guideZone) {
     guideZone = document.createElement('div');
     guideZone.id = 'lm-guide-zone';
-    guideZone.style = 'margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-color); display: flex; flex-direction: column; gap: 8px;';
     enterBtn.after(guideZone);
   }
 
-  let optionsHtml = `<option value="">-- Выбрать другую методичку --</option>`;
-  LESSONS_DATABASE.forEach(l => {
-    const star = GUIDEBOOK_LINKS[l.code] ? '⚡ ' : '❌ ';
-    optionsHtml += `<option value="${l.code}" ${l.code === currentCode ? 'selected' : ''}>${star}${l.code} - ${l.name}</option>`;
-  });
-
-  const primaryLink = currentCode ? (GUIDEBOOK_LINKS[currentCode] || '#') : '#';
-  const primaryDisabled = primaryLink === '#' ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : '';
-  const btnLabel = currentCode ? `📘 Открыть методичку (${currentCode})` : `📘 Методичка не найдена`;
-
-  guideZone.innerHTML = `
-    <button id="btn-lm-primary-guide" class="btn-primary" style="width: 100%; background: var(--theme-green-bg); color: var(--text-main); border: 1px solid var(--theme-green-border); font-weight: bold;" ${primaryDisabled}>${btnLabel}</button>
-    <select id="lm-guide-select" style="padding: 8px 10px; font-size: 0.85rem; border-radius: 6px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color);">${optionsHtml}</select>
-  `;
-
-  document.getElementById('btn-lm-primary-guide').onclick = () => {
-    if (primaryLink !== '#') window.open(primaryLink, '_blank');
-  };
-
-  document.getElementById('lm-guide-select').onchange = (e) => {
-    const selected = e.target.value;
-    if (selected && GUIDEBOOK_LINKS[selected]) {
-      window.open(GUIDEBOOK_LINKS[selected], '_blank');
-      e.target.value = currentCode || "";
-    } else if (selected) {
-      alert('Ссылка для этой методички еще не добавлена в код!');
-      e.target.value = currentCode || "";
+  if (event.school === 'Zerocoder') {
+    guideZone.style.cssText = 'margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-color); display: flex; flex-direction: column; gap: 8px;';
+    
+    const codeMatch = (event.topic || '').match(/NT[kgdh]\d{2}/i) || event.title.match(/NT[kgdh]\d{2}/i);
+    let currentCode = null;
+    if (codeMatch) {
+      const raw = codeMatch[0];
+      currentCode = raw.substring(0, 2).toUpperCase() + raw.substring(2, 3).toLowerCase() + raw.substring(3);
     }
-  };
 
+    let optionsHtml = `<option value="">-- Выбрать другую методичку --</option>`;
+    LESSONS_DATABASE.forEach(l => {
+      const star = GUIDEBOOK_LINKS[l.code] ? '⚡ ' : '❌ ';
+      optionsHtml += `<option value="${l.code}" ${l.code === currentCode ? 'selected' : ''}>${star}${l.code} - ${l.name}</option>`;
+    });
+
+    const primaryLink = currentCode ? (GUIDEBOOK_LINKS[currentCode] || '#') : '#';
+    const primaryDisabled = primaryLink === '#' ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : '';
+    const btnLabel = currentCode ? `📘 Открыть методичку (${currentCode})` : `📘 Методичка не найдена`;
+
+    guideZone.innerHTML = `
+      <button id="btn-lm-primary-guide" class="btn-primary" style="width: 100%; background: var(--theme-green-bg); color: var(--text-main); border: 1px solid var(--theme-green-border); font-weight: bold;" ${primaryDisabled}>${btnLabel}</button>
+      <select id="lm-guide-select" style="padding: 8px 10px; font-size: 0.85rem; border-radius: 6px; background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border-color);">${optionsHtml}</select>
+    `;
+
+    document.getElementById('btn-lm-primary-guide').onclick = () => {
+      if (primaryLink !== '#') window.open(primaryLink, '_blank');
+    };
+
+    document.getElementById('lm-guide-select').onchange = (e) => {
+      const selected = e.target.value;
+      if (selected && GUIDEBOOK_LINKS[selected]) {
+        window.open(GUIDEBOOK_LINKS[selected], '_blank');
+        e.target.value = currentCode || "";
+      } else if (selected) {
+        alert('Ссылка для этой методички еще не добавлена в код!');
+        e.target.value = currentCode || "";
+      }
+    };
+  } else {
+    guideZone.style.display = 'none';
+    guideZone.innerHTML = '';
+  }
+
+  // МЕНЕДЖЕРЫ И СООБЩЕНИЯ (ТОЛЬКО ДЛЯ ZEROCODER)
   const instKey = getInstanceKey(event);
   const oldKey = getOldDateKey(event);
   const lessonKey = getLessonKey(event, dayName);
 
-  const studentId = event.title.split(/[\s-]/)[0].trim();
-  let defaultManager = studentManagers[studentId]; 
-
   const managerGroup = document.getElementById('lm-managers-group');
   const managerSelect = document.getElementById('lm-manager-select');
+  const notesGroup = document.getElementById('lm-notes').parentElement;
 
   let currentStatus = getEventStatus(event);
   let currentNote = notesBook[lessonKey];
 
-  if (managerGroup && managerSelect) {
-    if (isManual) {
-      managerGroup.style.display = 'none';
-    } else {
-      managerGroup.style.display = 'block';
+  if (event.school === 'Zerocoder') {
+    if (managerGroup) managerGroup.style.display = 'block';
+    if (notesGroup) notesGroup.style.display = 'block';
 
+    const studentId = event.title.split(/[\s-]/)[0].trim();
+    let defaultManager = studentManagers[studentId]; 
+    
+    if (managerGroup && managerSelect) {
       const updateManagerUI = (pairName) => {
         managerSelect.value = pairName;
         const textarea = document.getElementById('lm-notes');
@@ -264,7 +274,7 @@ function openLessonModal(event, dayName) {
 
       managerSelect.onchange = (e) => updateManagerUI(e.target.value);
 
-      if (!defaultManager && event.school === 'Zerocoder' && event.studentProfileId) {
+      if (!defaultManager && event.studentProfileId) {
         managerSelect.innerHTML = `<option value="">⏳ Ищу в CRM...</option>` + managerSelect.innerHTML;
         managerSelect.value = "";
 
@@ -302,12 +312,16 @@ function openLessonModal(event, dayName) {
         if (!currentNote) currentNote = `${event.title}\n${defaultManager}\n\nНе на уроке.`;
       }
     }
-  } else if (!currentNote) {
-    currentNote = `${event.title}\nПерсональный урок`;
+  } else {
+    // Скрываем блоки для Персональных и ITCompot
+    if (managerGroup) managerGroup.style.display = 'none';
+    if (notesGroup) notesGroup.style.display = 'none';
+    if (!currentNote) currentNote = '';
   }
 
-  document.getElementById('lm-notes').value = currentNote;
+  document.getElementById('lm-notes').value = currentNote || '';
 
+  // РАСЧЕТ ЦЕНЫ
   const duration = timeToMins(event.endTime) - timeToMins(event.startTime);
 
   const computePrice = (status) => {
