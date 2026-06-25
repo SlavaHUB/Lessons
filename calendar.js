@@ -257,157 +257,243 @@ function openLessonModal(event, dayName) {
 
   function renderPriceInput(price) {
     if (isPerStudent) {
-      const students = price > 0 ? Math.round(price / ITCOMPOT_RATE) : 0;
-      priceZone.innerHTML = `<label>Количество учеников (по ${ITCOMPOT_RATE} ₽):</label><input type="number" id="lm-input-price" value="${students}" min="0" step="1">`;
-      updateModalTotals(students * ITCOMPOT_RATE);
-    } else {
-      priceZone.innerHTML = `<label>Стоимость урока (₽):</label><input type="number" id="lm-input-price" value="${price}" min="0" step="10">`;
-      updateModalTotals(price);
-    }
-    document.getElementById('lm-input-price').addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value) || 0;
-      updateModalTotals(isPerStudent ? val * ITCOMPOT_RATE : val);
-    });
-  }
+      const studentId = event.title.split(/[\s-]/)[0].trim();
+      let defaultManager = studentManagers[studentId]; // Может быть еще неизвестен
 
-  renderPriceInput(currentPrice);
-  document.getElementById('lm-notes').value = currentNote;
+      const managerGroup = document.getElementById('lm-managers-group');
+      const managerSelect = document.getElementById('lm-manager-select');
 
-  document.querySelectorAll('.status-btn').forEach(btn => {
-    if (btn.dataset.status === currentStatus) btn.classList.add('active');
-    else btn.classList.remove('active');
+      // Узнаем, есть ли уже сохраненная заметка для этого конкретного урока
+      const instKey = getInstanceKey(event);
+      const oldKey = getOldDateKey(event);
+      const lessonKey = getLessonKey(event, dayName);
+      let currentStatus = getEventStatus(event);
+      let currentNote = notesBook[lessonKey];
 
-    btn.onclick = (e) => {
-      document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
-      e.currentTarget.classList.add('active');
-      currentStatus = e.currentTarget.dataset.status;
-      currentPrice = computePrice(currentStatus);
-      renderPriceInput(currentPrice);
-    };
-  });
+      if (managerGroup && managerSelect) {
+        if (isManual) {
+          managerGroup.style.display = 'none';
+        } else {
+          managerGroup.style.display = 'block';
 
-  document.getElementById('lesson-modal').classList.add('active');
-}
+          // Функция, которая подставляет куратора в текст, не стирая твои ручные правки
+          const updateManagerUI = (pairName) => {
+            managerSelect.value = pairName;
+            const textarea = document.getElementById('lm-notes');
+            let text = textarea.value;
+            let replaced = false;
 
-async function deleteManualLesson(event) {
-  const baseId = getManualBaseId(event.id);
-  const customList = readStorageJSON('customLessons', []);
-  const template = customList.find(c => c.id === baseId);
-  const isRecurringSeries = template?.isRecurring;
+            // Ищем старую пару и меняем на новую
+            MANAGER_PAIRS.forEach(pair => {
+              if (text.includes(pair)) {
+                text = text.replace(pair, pairName);
+                replaced = true;
+              }
+            });
 
-  if (isRecurringSeries) {
-    const deleteAll = confirm(
-      'Этот урок входит в серию повторений.\n\n' +
-      'OK — удалить ВСЮ серию повторений.\n' +
-      'Отмена — удалить только этот урок.'
-    );
-    if (deleteAll) {
-      const updated = customList.filter(c => c.id !== baseId);
-      localStorage.setItem('customLessons', JSON.stringify(updated));
-      customLessons = updated;
-      const deletedSingles = (readStorageJSON('deletedManualSingles', [])).filter(id => !id.startsWith(baseId + '_'));
-      localStorage.setItem('deletedManualSingles', JSON.stringify(deletedSingles));
-    } else {
-      const deletedSingles = readStorageJSON('deletedManualSingles', []);
-      if (!deletedSingles.includes(event.id)) deletedSingles.push(event.id);
-      localStorage.setItem('deletedManualSingles', JSON.stringify(deletedSingles));
-    }
-  } else {
-    if (!confirm('Удалить этот урок полностью?')) return;
-    const updated = customList.filter(c => c.id !== baseId);
-    localStorage.setItem('customLessons', JSON.stringify(updated));
-    customLessons = updated;
-  }
+            // Если в тексте вообще нет пар, вставляем аккуратно второй строкой
+            if (!replaced) {
+              const lines = text.split('\n');
+              if (lines.length > 1) {
+                lines[1] = pairName;
+                text = lines.join('\n');
+              } else {
+                text = `${event.title}\n${pairName}\n\nНе на уроке.`;
+              }
+            }
+            textarea.value = text;
 
-  await saveToCloud();
-  document.getElementById('lesson-modal').classList.remove('active');
-  currentEditingLesson = null;
+            // Сохраняем в память навсегда
+            studentManagers[studentId] = pairName;
+            localStorage.setItem('studentManagers', JSON.stringify(studentManagers));
+          };
 
-  if (loadedStartStr && loadedEndStr) applyScheduleMerge(loadedStartStr, loadedEndStr);
-  else scheduleData = scheduleData.filter(e => e.id !== event.id && !e.id.startsWith(baseId + '_'));
+          managerSelect.onchange = (e) => updateManagerUI(e.target.value);
 
-  initCalendar();
-  calcSalary();
-}
+          // САМОЕ ГЛАВНОЕ: Если мы еще не знаем куратора - ТЯНЕМ ЕГО ИЗ CRM!
+          if (!defaultManager && event.school === 'Zerocoder' && event.studentProfileId) {
+            managerSelect.innerHTML = `<option value="">⏳ Ищу в CRM...</option>` + managerSelect.innerHTML;
+            managerSelect.value = "";
 
-function findFreeSlots() {
-  const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
-  const selectedIndexes = Array.from(document.querySelectorAll('#slot-days-container input:checked')).map(cb => parseInt(cb.value));
-  const resultsContainer = document.getElementById('slots-results');
+            // Если заметки еще нет, ставим временную заглушку
+            if (!currentNote) currentNote = `${event.title}\n⏳ Ищу куратора...\n\nНе на уроке.`;
 
-  let baseSearchStartMins = timeToMins(document.getElementById('search-time-start').value);
-  if (isNaN(baseSearchStartMins)) baseSearchStartMins = 480;
-  let baseSearchEndMins = timeToMins(document.getElementById('search-time-end').value);
-  if (isNaN(baseSearchEndMins)) baseSearchEndMins = 1320;
+            // Делаем скрытый запрос к твоему новому маршруту на сервере
+            fetch('https://lessons-mqy0.onrender.com/api/manager', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ subscribe_id: event.studentProfileId })
+            })
+              .then(res => res.json())
+              .then(data => {
+                if (managerSelect.options[0].value === "") managerSelect.remove(0); // убираем "Загрузку"
 
-  const globalSearchStartMins = Math.max(START_HOUR * 60, baseSearchStartMins - 30);
-  const globalSearchEndMins = Math.min(END_HOUR * 60, baseSearchEndMins + 30);
+                const adminName = data.admin_name ? data.admin_name.toLowerCase() : '';
+                let fetchedPair = "Алсу @Alsushenka1985 - Елена @ElenaLCastellano"; // по умолчанию
 
-  if (selectedIndexes.length === 0) { resultsContainer.innerHTML = '<div style="color: #ef4444;">Выберите хотя бы один день!</div>'; return; }
+                // Умное распределение по именам и фамилиям
+                if (adminName.includes('юли') || adminName.includes('лиз') || adminName.includes('иван')) {
+                  fetchedPair = "Юлия @julia_ivan - Лиза @lizablakh";
+                } else if (adminName.includes('алин') || adminName.includes('александр') || adminName.includes('шихал') || adminName.includes('домрач')) {
+                  fetchedPair = "Алина @Alina_Domracheva - Александра @Lexio19";
+                } else if (adminName.includes('алсу') || adminName.includes('елен') || adminName.includes('кастел')) {
+                  fetchedPair = "Алсу @Alsushenka1985 - Елена @ElenaLCastellano";
+                }
 
-  resultsContainer.innerHTML = '';
-  const GAP = 10; let smsLines = []; let allDaysFull = true;
-
-  selectedIndexes.forEach(index => {
-    const dayName = daysOfWeek[index];
-    if (index === 1 || index === 2) { smsLines.push(`▪️ ${dayName}: выходной`); return; }
-
-    const targetDateStr = formatDateToString(addDays(currentWeekMonday, index));
-    const phantomEvents = scheduleData.filter(e => {
-      if (e.customDayIndex !== index) return false;
-      if (e.date < targetDateStr) return false;
-
-      const instKey = getInstanceKey(e);
-      const oldKey = getOldDateKey(e);
-      if (statusBook[instKey] === 'canceled' || statusBook[oldKey] === 'canceled') return false;
-
-      const startM = timeToMins(e.startTime);
-      const endM = timeToMins(e.endTime);
-      if (isNaN(startM) || isNaN(endM)) return false;
-      if (endM - startM > 300 || endM - startM <= 0) return false;
-      return true;
-    });
-
-    let merged = phantomEvents.map(ev => ({ start: timeToMins(ev.startTime), end: timeToMins(ev.endTime) })).sort((a, b) => a.start - b.start);
-    let consolidated = [];
-    if (merged.length > 0) {
-      let curr = merged[0];
-      for (let i = 1; i < merged.length; i++) {
-        if (merged[i].start <= curr.end) curr.end = Math.max(curr.end, merged[i].end);
-        else { consolidated.push(curr); curr = merged[i]; }
+                updateManagerUI(fetchedPair); // Бам! Вставили нужную пару
+              })
+              .catch(err => {
+                if (managerSelect.options[0].value === "") managerSelect.remove(0);
+                updateManagerUI("Алсу @Alsushenka1985 - Елена @ElenaLCastellano"); // Если CRM упала, ставим дефолт
+              });
+          } else {
+            // Если куратор уже сохранен в кэше — просто подставляем его моментально
+            defaultManager = defaultManager || "Алсу @Alsushenka1985 - Елена @ElenaLCastellano";
+            managerSelect.value = defaultManager;
+            if (!currentNote) currentNote = `${event.title}\n${defaultManager}\n\nНе на уроке.`;
+          }
+        }
+      } else if (!currentNote) {
+        currentNote = `${event.title}\nПерсональный урок`;
       }
-      consolidated.push(curr);
+
+      document.getElementById('lm-notes').value = currentNote;
+
+      document.querySelectorAll('.status-btn').forEach(btn => {
+        if (btn.dataset.status === currentStatus) btn.classList.add('active');
+        else btn.classList.remove('active');
+
+        btn.onclick = (e) => {
+          document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+          e.currentTarget.classList.add('active');
+          currentStatus = e.currentTarget.dataset.status;
+          currentPrice = computePrice(currentStatus);
+          renderPriceInput(currentPrice);
+        };
+      });
+
+      document.getElementById('lesson-modal').classList.add('active');
     }
 
-    let currentMins = START_HOUR * 60;
-    const recommendations = [];
+    async function deleteManualLesson(event) {
+      const baseId = getManualBaseId(event.id);
+      const customList = readStorageJSON('customLessons', []);
+      const template = customList.find(c => c.id === baseId);
+      const isRecurringSeries = template?.isRecurring;
 
-    consolidated.forEach((interval, i) => {
-      const freeStart = currentMins; const freeEnd = interval.start - GAP;
-      const effStart = Math.max(freeStart, globalSearchStartMins); const effEnd = Math.min(freeEnd, globalSearchEndMins);
-      if (effEnd - effStart >= duration) {
-        let ideal1 = freeStart; let ideal2 = freeEnd - duration; let recs = new Set();
-        if (i > 0 || (ideal1 >= baseSearchStartMins - 30)) { if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1); }
-        if (ideal2 >= globalSearchStartMins && (ideal2 + duration) <= globalSearchEndMins) recs.add(ideal2);
-        if (recs.size === 0) { recs.add(effStart); if (effEnd - duration !== effStart) recs.add(effEnd - duration); }
-        recs.forEach(start => recommendations.push(start));
+      if (isRecurringSeries) {
+        const deleteAll = confirm(
+          'Этот урок входит в серию повторений.\n\n' +
+          'OK — удалить ВСЮ серию повторений.\n' +
+          'Отмена — удалить только этот урок.'
+        );
+        if (deleteAll) {
+          const updated = customList.filter(c => c.id !== baseId);
+          localStorage.setItem('customLessons', JSON.stringify(updated));
+          customLessons = updated;
+          const deletedSingles = (readStorageJSON('deletedManualSingles', [])).filter(id => !id.startsWith(baseId + '_'));
+          localStorage.setItem('deletedManualSingles', JSON.stringify(deletedSingles));
+        } else {
+          const deletedSingles = readStorageJSON('deletedManualSingles', []);
+          if (!deletedSingles.includes(event.id)) deletedSingles.push(event.id);
+          localStorage.setItem('deletedManualSingles', JSON.stringify(deletedSingles));
+        }
+      } else {
+        if (!confirm('Удалить этот урок полностью?')) return;
+        const updated = customList.filter(c => c.id !== baseId);
+        localStorage.setItem('customLessons', JSON.stringify(updated));
+        customLessons = updated;
       }
-      currentMins = interval.end + GAP;
-    });
 
-    const effStart = Math.max(currentMins, globalSearchStartMins); const effEnd = Math.min(END_HOUR * 60, globalSearchEndMins);
-    if (effEnd - effStart >= duration) {
-      if (currentMins >= globalSearchStartMins && (currentMins + duration) <= globalSearchEndMins) recommendations.push(currentMins);
-      else recommendations.push(effStart);
+      await saveToCloud();
+      document.getElementById('lesson-modal').classList.remove('active');
+      currentEditingLesson = null;
+
+      if (loadedStartStr && loadedEndStr) applyScheduleMerge(loadedStartStr, loadedEndStr);
+      else scheduleData = scheduleData.filter(e => e.id !== event.id && !e.id.startsWith(baseId + '_'));
+
+      initCalendar();
+      calcSalary();
     }
 
-    if (recommendations.length > 0) {
-      let timeStrings = [...new Set(recommendations)].sort((a, b) => a - b).map(mins => `в ${minsToTime(mins)}`);
-      smsLines.push(`▪️ ${dayName}: ${timeStrings.join(' или ')}`); allDaysFull = false;
-    } else smsLines.push(`▪️ ${dayName}: нет окошек`);
-  });
+    function findFreeSlots() {
+      const duration = parseInt(document.getElementById('input-slot-duration').value) || 45;
+      const selectedIndexes = Array.from(document.querySelectorAll('#slot-days-container input:checked')).map(cb => parseInt(cb.value));
+      const resultsContainer = document.getElementById('slots-results');
 
-  let smsText = allDaysFull ? `К сожалению, в предложенное время ничего не могу предложить.` : smsLines.join('\n');
-  resultsContainer.innerHTML = `<textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-modal); color: var(--text-main); font-family: inherit; font-size: 0.85rem; resize: none; outline: none; line-height: 1.5;">${smsText}</textarea><button id="btn-copy-sms" class="btn-primary" style="width: 100%; margin-top: 10px; background: #10b981;">📋 Скопировать</button>`;
-  document.getElementById('btn-copy-sms').addEventListener('click', function () { document.getElementById('sms-output').select(); document.execCommand('copy'); this.textContent = '✅ Скопировано!'; setTimeout(() => this.textContent = '📋 Скопировать', 2000); });
-}
+      let baseSearchStartMins = timeToMins(document.getElementById('search-time-start').value);
+      if (isNaN(baseSearchStartMins)) baseSearchStartMins = 480;
+      let baseSearchEndMins = timeToMins(document.getElementById('search-time-end').value);
+      if (isNaN(baseSearchEndMins)) baseSearchEndMins = 1320;
+
+      const globalSearchStartMins = Math.max(START_HOUR * 60, baseSearchStartMins - 30);
+      const globalSearchEndMins = Math.min(END_HOUR * 60, baseSearchEndMins + 30);
+
+      if (selectedIndexes.length === 0) { resultsContainer.innerHTML = '<div style="color: #ef4444;">Выберите хотя бы один день!</div>'; return; }
+
+      resultsContainer.innerHTML = '';
+      const GAP = 10; let smsLines = []; let allDaysFull = true;
+
+      selectedIndexes.forEach(index => {
+        const dayName = daysOfWeek[index];
+        if (index === 1 || index === 2) { smsLines.push(`▪️ ${dayName}: выходной`); return; }
+
+        const targetDateStr = formatDateToString(addDays(currentWeekMonday, index));
+        const phantomEvents = scheduleData.filter(e => {
+          if (e.customDayIndex !== index) return false;
+          if (e.date < targetDateStr) return false;
+
+          const instKey = getInstanceKey(e);
+          const oldKey = getOldDateKey(e);
+          if (statusBook[instKey] === 'canceled' || statusBook[oldKey] === 'canceled') return false;
+
+          const startM = timeToMins(e.startTime);
+          const endM = timeToMins(e.endTime);
+          if (isNaN(startM) || isNaN(endM)) return false;
+          if (endM - startM > 300 || endM - startM <= 0) return false;
+          return true;
+        });
+
+        let merged = phantomEvents.map(ev => ({ start: timeToMins(ev.startTime), end: timeToMins(ev.endTime) })).sort((a, b) => a.start - b.start);
+        let consolidated = [];
+        if (merged.length > 0) {
+          let curr = merged[0];
+          for (let i = 1; i < merged.length; i++) {
+            if (merged[i].start <= curr.end) curr.end = Math.max(curr.end, merged[i].end);
+            else { consolidated.push(curr); curr = merged[i]; }
+          }
+          consolidated.push(curr);
+        }
+
+        let currentMins = START_HOUR * 60;
+        const recommendations = [];
+
+        consolidated.forEach((interval, i) => {
+          const freeStart = currentMins; const freeEnd = interval.start - GAP;
+          const effStart = Math.max(freeStart, globalSearchStartMins); const effEnd = Math.min(freeEnd, globalSearchEndMins);
+          if (effEnd - effStart >= duration) {
+            let ideal1 = freeStart; let ideal2 = freeEnd - duration; let recs = new Set();
+            if (i > 0 || (ideal1 >= baseSearchStartMins - 30)) { if (ideal1 >= globalSearchStartMins && (ideal1 + duration) <= globalSearchEndMins) recs.add(ideal1); }
+            if (ideal2 >= globalSearchStartMins && (ideal2 + duration) <= globalSearchEndMins) recs.add(ideal2);
+            if (recs.size === 0) { recs.add(effStart); if (effEnd - duration !== effStart) recs.add(effEnd - duration); }
+            recs.forEach(start => recommendations.push(start));
+          }
+          currentMins = interval.end + GAP;
+        });
+
+        const effStart = Math.max(currentMins, globalSearchStartMins); const effEnd = Math.min(END_HOUR * 60, globalSearchEndMins);
+        if (effEnd - effStart >= duration) {
+          if (currentMins >= globalSearchStartMins && (currentMins + duration) <= globalSearchEndMins) recommendations.push(currentMins);
+          else recommendations.push(effStart);
+        }
+
+        if (recommendations.length > 0) {
+          let timeStrings = [...new Set(recommendations)].sort((a, b) => a - b).map(mins => `в ${minsToTime(mins)}`);
+          smsLines.push(`▪️ ${dayName}: ${timeStrings.join(' или ')}`); allDaysFull = false;
+        } else smsLines.push(`▪️ ${dayName}: нет окошек`);
+      });
+
+      let smsText = allDaysFull ? `К сожалению, в предложенное время ничего не могу предложить.` : smsLines.join('\n');
+      resultsContainer.innerHTML = `<textarea id="sms-output" readonly style="width: 100%; height: 160px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-modal); color: var(--text-main); font-family: inherit; font-size: 0.85rem; resize: none; outline: none; line-height: 1.5;">${smsText}</textarea><button id="btn-copy-sms" class="btn-primary" style="width: 100%; margin-top: 10px; background: #10b981;">📋 Скопировать</button>`;
+      document.getElementById('btn-copy-sms').addEventListener('click', function () { document.getElementById('sms-output').select(); document.execCommand('copy'); this.textContent = '✅ Скопировано!'; setTimeout(() => this.textContent = '📋 Скопировать', 2000); });
+    }

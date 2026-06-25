@@ -266,7 +266,29 @@ app.get('/api/schedule', async (req, res) => {
         res.json([...itcEvents, ...zeroEvents]);
     } catch (error) { res.status(500).json({ error: 'Ошибка' }); }
 });
+app.post('/api/manager', async (req, res) => {
+    try {
+        const { subscribe_id } = req.body;
+        if (!subscribe_id) return res.status(400).json({ error: 'Нужен subscribe_id' });
 
+        const response = await fetchWithTimeout('https://crm.genius-school.online/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-OCTOBER-REQUEST-HANDLER': 'onGetSubscribe',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cookie': process.env.ZERO_COOKIE
+            },
+            body: JSON.stringify({ id: subscribe_id })
+        });
+
+        if (!response.ok) throw new Error('Ошибка связи с CRM');
+        const data = await response.json();
+        res.json({ admin_name: data.admin_name || null });
+    } catch (error) {
+        res.status(500).json({ error: 'Не удалось получить куратора' });
+    }
+});
 // --- 5. ЗАПУСК СЕРВЕРА С ОЖИДАНИЕМ ПОДКЛЮЧЕНИЯ ---
 const PORT = process.env.PORT || 3000;
 
