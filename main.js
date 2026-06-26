@@ -291,12 +291,13 @@ function initApp() {
     setTimeout(() => { this.textContent = origText; this.style.background = ''; this.style.color = ''; }, 2000);
   });
 
-
   // ==========================================
   // АНАЛИЗАТОР СООБЩЕНИЙ МЕНЕДЖЕРА
   // ==========================================
   document.getElementById('manager-text-input').addEventListener('input', function (e) {
     const text = e.target.value.toLowerCase(); if (!text.trim()) return;
+    
+    // 1. Ищем дни недели по исходному тексту
     const dayChecks = document.querySelectorAll('#slot-days-container input'); dayChecks.forEach(cb => cb.checked = false); let foundDays = false;
     const patterns = [{ id: 0, r: /пн|понедельник/ }, { id: 1, r: /вт|вторник/ }, { id: 2, r: /ср|сред[ау]/ }, { id: 3, r: /чт|четверг/ }, { id: 4, r: /пт|пятниц[ау]/ }, { id: 5, r: /сб|суббот[ау]/ }, { id: 6, r: /вс|воскресень[ея]|вскр/ }];
     if (text.includes('все дни') || text.includes('любой день')) { dayChecks.forEach(cb => cb.checked = true); foundDays = true; }
@@ -304,11 +305,19 @@ function initApp() {
     if (text.includes('кроме')) { const parts = text.split('кроме'); if (parts.length > 1) { patterns.forEach(p => { if (p.r.test(parts[1])) document.querySelector(`#slot-days-container input[value="${p.id}"]`).checked = false; }); } }
     if (!foundDays) dayChecks.forEach(cb => cb.checked = true);
 
+    // 2. ФИЛЬТР ДАТ: вырезаем месяцы и форматы 24.07, чтобы не путать со временем
+    const months = 'января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря|янв|фев|мар|апр|июн|июл|авг|сен|окт|ноя|дек';
+    // Заменили \b в конце на негативное забегание вперед, чтобы JS понимал кириллицу
+    let timeText = text.replace(new RegExp(`\\b\\d{1,2}\\s+(?:${months})(?![а-яёa-z])`, 'gi'), '');
+    timeText = timeText.replace(/\b\d{1,2}\\.\\d{2}(\\.\\d{2,4})?\\b/g, '');
+
+    // 3. Ищем время только в очищенном тексте
     let stMins = 8 * 60; let etMins = 22 * 60;
-    const times = [...text.matchAll(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/g)].map(m => parseInt(m[1]) * 60 + parseInt(m[2]));
-    const matchRange = text.match(/(\d{1,2})(?:[:.](\d{2}))?\s*(?:-|–|—)\s*(\d{1,2})(?:[:.](\d{2}))?/);
-    const matchFrom = text.match(/(?:^|[^а-яёa-z])(=?с|от|начиная с|после|не раньше)\s*(\d{1,2})(?:[:.](\d{2}))?/i);
-    const matchTo = text.match(/(?:^|[^а-яёa-z])(=?до|по|не позже|раньше)\s*(\d{1,2})(?:[:.](\d{2}))?/i);
+    const times = [...timeText.matchAll(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/g)].map(m => parseInt(m[1]) * 60 + parseInt(m[2]));
+    const matchRange = timeText.match(/(\d{1,2})(?:[:.](\d{2}))?\s*(?:-|–|—)\s*(\d{1,2})(?:[:.](\d{2}))?/);
+    const matchFrom = timeText.match(/(?:^|[^а-яёa-z])(=?с|от|начиная с|после|не раньше)\s*(\d{1,2})(?:[:.](\d{2}))?/i);
+    const matchTo = timeText.match(/(?:^|[^а-яёa-z])(=?до|по|не позже|раньше)\s*(\d{1,2})(?:[:.](\d{2}))?/i);
+    
     if (matchRange) {
       let h1 = parseInt(matchRange[1]); let h2 = parseInt(matchRange[3]);
       if (h1 < 8 && h1 > 0) h1 += 12; if (h2 <= 8 && h2 > 0) h2 += 12;
@@ -319,13 +328,9 @@ function initApp() {
       if (matchTo) { let h = parseInt(matchTo[2]); if (h <= 8 && h > 0) h += 12; etMins = h * 60 + parseInt(matchTo[3] || 0); }
       else if (matchFrom) { etMins = 22 * 60; } else if (times.length > 0) { etMins = Math.max(...times) + 120; }
     }
+    
     stMins = Math.max(8 * 60, Math.min(22 * 60, stMins)); etMins = Math.max(8 * 60, Math.min(22 * 60, etMins));
     document.getElementById('search-time-start').value = minsToTime(stMins); document.getElementById('search-time-end').value = minsToTime(etMins);
-  });
-
-  document.getElementById('btn-clear-sms').addEventListener('click', () => {
-    document.getElementById('manager-text-input').value = ''; document.getElementById('search-time-start').value = '08:00'; document.getElementById('search-time-end').value = '22:00';
-    document.querySelectorAll('#slot-days-container input').forEach(cb => cb.checked = false); document.getElementById('slots-results').innerHTML = '';
   });
 
   // ==========================================
