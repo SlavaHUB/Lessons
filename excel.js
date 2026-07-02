@@ -57,8 +57,11 @@ function getMonthScheduleEvents() {
   });
 }
 
+// НОВЫЙ ИСПРАВЛЕННЫЙ АЛГОРИТМ ПОДСЧЕТА (с учетом времени)
 function computeStatsSnapshot(events) {
-  const realTodayStr = formatDateToString(new Date());
+  const now = new Date();
+  const realTodayStr = formatDateToString(now);
+  const currentMins = now.getHours() * 60 + now.getMinutes();
   const { year, monthIndex } = getCurrentMonthBounds();
   const weekSet = new Set(getCurrentWeekDates());
 
@@ -76,19 +79,26 @@ function computeStatsSnapshot(events) {
     const [y, m] = ev.date.split('-').map(Number);
     const inMonth = y === year && (m - 1) === monthIndex;
 
+    // Умная проверка: если урок сегодня, но время еще не прошло - он "в будущем"
+    let isFuture = ev.date > realTodayStr;
+    if (ev.date === realTodayStr) {
+       const endMins = timeToMins(ev.endTime);
+       if (currentMins < endMins) isFuture = true;
+    }
+
     snap.counts.total++;
-    if (ev.date > realTodayStr) snap.counts.future++;
-    else if (status === 'canceled') snap.counts.canceled++;
+    // Приоритет статусов над датой
+    if (status === 'canceled') snap.counts.canceled++;
     else if (status === 'noshow') snap.counts.noshow++;
     else if (status === 'late') snap.counts.late++;
+    else if (isFuture) snap.counts.future++;
     else snap.counts.done++;
 
     if (status === 'canceled') continue;
 
-    if (weekSet.has(ev.date)) {
-      snap.weekSum += price;
-      if (ev.date === realTodayStr) snap.todaySum += price;
-    }
+    // Считаем суммы
+    if (ev.date === realTodayStr) snap.todaySum += price;
+    if (weekSet.has(ev.date)) snap.weekSum += price;
 
     if (!inMonth) continue;
     if (ev.school === 'ITCompot') snap.monthItc += price;
@@ -117,7 +127,6 @@ function processExcelData(workbook) {
     rows.forEach((cols, index) => {
       if (!cols || cols.length === 0) return;
 
-      // Читаем твои ручные итоги из шапки (до 15 строки)
       if (index < 15) {
         for (let i = 0; i < cols.length; i++) {
           const val = String(cols[i]).toLowerCase().trim();
@@ -179,7 +188,6 @@ function processExcelData(workbook) {
     return;
   }
 
-  // Сортировка по дате и индексу (хронология)
   parsedExcelLessons.sort((a, b) => a.date.localeCompare(b.date) || a.rowIndex - b.rowIndex);
   reconciliationResult = reconcileExcelWithSchedule(parsedExcelLessons, getMonthScheduleEvents());
   renderReconciliationModal(reconciliationResult);
@@ -189,10 +197,9 @@ function processExcelData(workbook) {
 function reconcileExcelWithSchedule(excelLessons, scheduleEvents) {
   const result = { ok: [], missing_in_excel: [], missing_in_schedule: [], price_mismatch: [] };
 
-  // Группируем расписание по Дате + Школе
   const schedMap = {};
   scheduleEvents.forEach(ev => {
-    if (ev.isPhantom || getEventStatus(ev) === 'canceled') return; // Отмененные уроки не участвуют в сверке
+    if (ev.isPhantom || getEventStatus(ev) === 'canceled') return; 
     const key = `${ev.date}_${ev.school}`;
     if (!schedMap[key]) schedMap[key] = [];
     schedMap[key].push(ev);
@@ -202,7 +209,6 @@ function reconcileExcelWithSchedule(excelLessons, scheduleEvents) {
     schedMap[key].sort((a, b) => a.startTime.localeCompare(b.startTime));
   }
 
-  // Группируем Excel по Дате + Школе
   const excelMap = {};
   excelLessons.forEach(xl => {
     const key = `${xl.date}_${xl.school}`;
@@ -210,7 +216,6 @@ function reconcileExcelWithSchedule(excelLessons, scheduleEvents) {
     excelMap[key].push(xl);
   });
 
-  // Спариваем их 1 к 1
   const allKeys = new Set([...Object.keys(schedMap), ...Object.keys(excelMap)]);
 
   allKeys.forEach(key => {
@@ -310,7 +315,6 @@ function renderReconciliationModal(recon) {
   document.getElementById('recon-stat-mismatch').textContent = recon.price_mismatch.length;
   document.getElementById('recon-stat-total').textContent = total;
 
-  // Расчет итогов системы для нового блока сравнения
   let sysItc = 0;
   let sysZero = 0;
   getMonthScheduleEvents().forEach(ev => {
@@ -325,7 +329,6 @@ function renderReconciliationModal(recon) {
   const sectionsEl = document.getElementById('recon-sections');
   sectionsEl.innerHTML = '';
 
-  // Вставляем блок анализа итогов
   const analysisHtml = `
     <div style="background: var(--bg-main); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 20px;">
       <h4 style="margin: 0 0 10px 0; color: #f59e0b; font-size: 1.1rem;">📊 Анализ ЗП (Excel vs Система)</h4>
@@ -518,8 +521,11 @@ function calcSalary() {
   if (elNoshow) elNoshow.textContent = monthSnap.counts.noshow;
   if (elLate) elLate.textContent = monthSnap.counts.late;
 }
+
 function openDetailedExcel() {
-  const realTodayStr = formatDateToString(new Date());
+  const now = new Date();
+  const realTodayStr = formatDateToString(now);
+  const currentMins = now.getHours() * 60 + now.getMinutes();
   const { year: curYear, monthIndex: curMonthIndex } = getCurrentMonthBounds();
   const weekSet = new Set(getCurrentWeekDates());
 
@@ -540,38 +546,43 @@ function openDetailedExcel() {
     const dayName = daysOfWeek[ev.customDayIndex];
     const status = getEventStatus(ev);
     const price = getEffectivePrice(ev, dayName);
-    const isPastOrToday = ev.date <= realTodayStr;
-    const isFuture = ev.date > realTodayStr;
+    
+    let isFuture = ev.date > realTodayStr;
+    if (ev.date === realTodayStr) {
+       if (currentMins < timeToMins(ev.endTime)) isFuture = true;
+    }
+    const isPast = !isFuture;
 
-    // Считаем порядковый номер только для неотмененных уроков
     let displayNumber = '';
     if (status !== 'canceled') {
       totalLessonsCount++;
       displayNumber = totalLessonsCount;
     }
 
-    if (ev.school === 'ITCompot') {
-      expectedItc += price;
-      if (isPastOrToday) earnedItc += price;
-    } else if (ev.school === 'Zerocoder') {
-      expectedZero += price;
-      if (isPastOrToday) earnedZero += price;
-    } else {
-      expectedPrivate += price;
-      if (isPastOrToday) earnedPrivate += price;
+    if (status !== 'canceled') {
+       if (ev.school === 'ITCompot') {
+         expectedItc += price;
+         if (isPast) earnedItc += price;
+       } else if (ev.school === 'Zerocoder') {
+         expectedZero += price;
+         if (isPast) earnedZero += price;
+       } else {
+         expectedPrivate += price;
+         if (isPast) earnedPrivate += price;
+       }
+       
+       if (ev.date === realTodayStr) todaySum += price;
+       if (weekSet.has(ev.date)) weekSum += price;
     }
-
-    if (ev.date === realTodayStr) todaySum += price;
-    if (weekSet.has(ev.date)) weekSum += price;
 
     let trClass = ''; let statusText = '✅ Проведен';
     if (status === 'canceled') { trClass = 'row-canceled'; statusText = '❌ Отменен'; }
     else if (status === 'noshow') { trClass = 'row-noshow'; statusText = '⚠️ Прогул'; }
+    else if (status === 'late') { trClass = 'row-late'; statusText = '⏰ Опоздал'; }
     else if (isFuture) { trClass = 'row-future'; statusText = '⏳ Ожидается'; }
 
     const [, mm, dd] = ev.date.split('-');
 
-    // Логика отступов (теперь colspan="6", так как столбцов стало больше)
     let isFirstOfDay = false;
     if (prevDate !== ev.date) {
       isFirstOfDay = true;
@@ -583,13 +594,10 @@ function openDetailedExcel() {
 
     const displayDate = isFirstOfDay ? `<strong>${dd}.${mm}</strong>` : `<span style="opacity: 0.3;">${dd}.${mm}</span>`;
 
-    // Добавляем ячейку с номером в самое начало строки
     rowParts.push(`<tr class="${trClass}"><td>${displayNumber}</td><td>${displayDate}</td><td>${statusText}</td><td>${escapeHtml(ev.title)}</td><td>${getSchoolLabel(ev.school)}</td><td class="num">${price} ₽</td></tr>`);
   }
 
   document.getElementById('detailed-excel-tbody').innerHTML = rowParts.join('');
-
-  // Чистый заголовок без текста про количество уроков
   document.getElementById('excel-month-name').textContent = `${monthsNominative[curMonthIndex]} ${curYear}`;
 
   const earnedItcPrem = Math.round(earnedItc * 0.20);
@@ -611,7 +619,6 @@ function openDetailedExcel() {
   document.getElementById('ex-itc-prem').textContent = `${expectedItcPrem} ₽`;
   document.getElementById('ex-zero').textContent = `${expectedZero} ₽`;
 
-  // Динамически вставляем th заголовка "№", если его еще нет в верстке
   const theadTr = document.querySelector('#detailed-excel-modal table thead tr');
   if (theadTr && !theadTr.querySelector('.col-num-header')) {
     const th = document.createElement('th');
